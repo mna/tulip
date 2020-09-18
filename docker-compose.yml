@@ -1,0 +1,18 @@
+version: '3.6'
+services:
+  moongres:
+    build: ./db/postgres/image
+    command: -c 'config_file=/etc/postgresql/postgresql.conf'
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/root_pwd
+    volumes:
+      - ./db/postgres/config/postgres.conf:/etc/postgresql/postgresql.conf:ro
+      - ./db/postgres/data:/var/lib/postgresql/data
+    secrets:
+      - root_pwd
+
+secrets:
+  root_pwd:
+    file: ./run/secrets/pgroot_pwd
