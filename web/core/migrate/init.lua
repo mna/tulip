@@ -37,6 +37,20 @@ local function get_version(conn, module)
   return nil, err
 end
 
+local function set_version(conn, module, version)
+  assert(conn:exec([[
+    INSERT INTO "web_migrate_migrations"
+      ("module", "version")
+    VALUES
+      ($1, $2)
+    ON CONFLICT
+      ("module")
+    DO UPDATE SET
+      "version" = $2
+  ]], module, version))
+  return true
+end
+
 -- Registers the migrations for a module. The t table is an array
 -- corresponding to the version of the migration, and only the
 -- unapplied versions will be run. The values may be a single
@@ -83,6 +97,7 @@ function Migrator:run()
       if module == MODULE then
         latest = 0
       else
+        conn:close()
         return nil, err
       end
     end
@@ -98,9 +113,11 @@ function Migrator:run()
             mig(conn, i)
           end
         end
-        -- TODO: insert the latest version in the migrations table
+        set_version(conn, module, #migrations)
+        return true
       end)
       if not ok then
+        conn:close()
         return nil, errtx
       end
     end
