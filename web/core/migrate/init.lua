@@ -2,6 +2,17 @@ local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 
 local MODULE = 'web.migrate'
+local MIGRATIONS = {
+  [[
+    CREATE TABLE "web_migrate_migrations" (
+      "module"  VARCHAR(100) NOT NULL,
+      "version" INTEGER NOT NULL CHECK ("version" > 0),
+      "created" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY ("module")
+    )
+  ]],
+}
 
 local Migrator = {__name = MODULE .. '.Migrator'}
 Migrator.__index = Migrator
@@ -9,11 +20,11 @@ Migrator.__index = Migrator
 local function get_version(conn, module)
   local res, err = conn:query([[
     SELECT
-      version
+      "version"
     FROM
-      web_migrate_migrations
+      "web_migrate_migrations"
     WHERE
-      module = $1
+      "module" = $1
   ]], module)
 
   if res then
@@ -87,6 +98,7 @@ function Migrator:run()
             mig(conn, i)
           end
         end
+        -- TODO: insert the latest version in the migrations table
       end)
       if not ok then
         return nil, errtx
@@ -109,7 +121,8 @@ function M.new(connstr)
   local o = {connection_string = connstr}
   setmetatable(o, Migrator)
 
-  -- TODO: auto-register the migrator's own migrations as first
+  -- auto-register the migrator's own migrations as first
+  o:register(MODULE, MIGRATIONS)
   return o
 end
 
