@@ -1,7 +1,7 @@
 local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 
-local PACKAGE = 'web.migrate'
+local PACKAGE = 'web.core.migrate'
 local MIGRATIONS = {
   [[
     CREATE TABLE "web_migrate_migrations" (
