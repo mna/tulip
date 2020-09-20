@@ -7,6 +7,17 @@ function M.write(t)
   end
 end
 
+local EXT_TO_MIME = {
+  js = 'application/javascript',
+  css = 'text/css',
+  html = 'text/html',
+  gif = 'image/gif',
+  jpg = 'image/jpeg',
+  jpeg = 'image/jpeg',
+  png = 'image/png',
+  svg = 'image/svg+xml',
+}
+
 -- Serves a directory based on the first request.pathargs argument.
 -- Sets the content-type based on some well-known file extensions.
 function M.dir(path)
@@ -17,23 +28,7 @@ function M.dir(path)
   return function(_, stm)
     local subpath = stm.request.pathargs[1]
     local ext = string.match(subpath, '%.([^%.]+)$')
-    local ct
-
-    if ext == 'js' then
-      ct = 'application/javascript'
-    elseif ext == 'css' then
-      ct = 'text/css'
-    elseif ext == 'html' then
-      ct = 'text/html'
-    elseif ext == 'gif' then
-      ct = 'image/gif'
-    elseif ext == 'jpg' then
-      ct = 'image/jpeg'
-    elseif ext == 'png' then
-      ct = 'image/png'
-    elseif ext == 'svg' then
-      ct = 'image/svg+xml'
-    end
+    local ct = EXT_TO_MIME[ext]
 
     if #subpath > 0 and subpath[1] == '/' then
       subpath = string.sub(subpath, 2)
