@@ -29,7 +29,7 @@ function M:afterAll()
 end
 
 function M:test_migrate()
-  -- migrate without any extra module
+  -- migrate without any extra package
   local mig = migrate.new()
   local ok, err = mig:run()
   lu.assertNil(err)
@@ -38,7 +38,7 @@ function M:test_migrate()
   local listMigrations = [[
     SELECT
       "version",
-      "module"
+      "package"
     FROM
       "web_migrate_migrations"
     ORDER BY
@@ -53,7 +53,7 @@ function M:test_migrate()
   lu.assertEquals(#rows, 1)
   lu.assertEquals(rows[1].version, 1)
 
-  -- add a module migration
+  -- add a package migration
   local myMigs = {
     'CREATE TABLE my_nums (num INTEGER NOT NULL)',
     'INSERT INTO my_nums (num) VALUES (1)',

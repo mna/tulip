@@ -1,31 +1,31 @@
 local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 
-local MODULE = 'web.migrate'
+local PACKAGE = 'web.migrate'
 local MIGRATIONS = {
   [[
     CREATE TABLE "web_migrate_migrations" (
-      "module"  VARCHAR(100) NOT NULL,
+      "package" VARCHAR(100) NOT NULL,
       "version" INTEGER NOT NULL CHECK ("version" > 0),
       "created" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-      PRIMARY KEY ("module")
+      PRIMARY KEY ("package")
     )
   ]],
 }
 
-local Migrator = {__name = MODULE .. '.Migrator'}
+local Migrator = {__name = PACKAGE .. '.Migrator'}
 Migrator.__index = Migrator
 
-local function get_version(conn, module)
+local function get_version(conn, pkg)
   local res, err = conn:query([[
     SELECT
       "version"
     FROM
       "web_migrate_migrations"
     WHERE
-      "module" = $1
-  ]], module)
+      "package" = $1
+  ]], pkg)
 
   if res then
     if res:ntuples() > 0 then
@@ -37,21 +37,21 @@ local function get_version(conn, module)
   return nil, err
 end
 
-local function set_version(conn, module, version)
+local function set_version(conn, pkg, version)
   assert(conn:exec([[
     INSERT INTO "web_migrate_migrations"
-      ("module", "version")
+      ("package", "version")
     VALUES
       ($1, $2)
     ON CONFLICT
-      ("module")
+      ("package")
     DO UPDATE SET
       "version" = $2
-  ]], module, version))
+  ]], pkg, version))
   return true
 end
 
--- Registers the migrations for a module. The t table is an array
+-- Registers the migrations for a package. The t table is an array
 -- corresponding to the version of the migration, and only the
 -- unapplied versions will be run. The values may be a single
 -- string statement, in which case it gets executed as-is, or it
@@ -59,42 +59,42 @@ end
 -- instance and the array index as arguments. It should raise an
 -- error to indicate failure.
 --
--- It raises an error if the module is already registered. Returns
+-- It raises an error if the package is already registered. Returns
 -- true on success.
-function Migrator:register(module, t)
-  tcheck({'*', 'string', 'table'}, self, module, t)
+function Migrator:register(pkg, t)
+  tcheck({'*', 'string', 'table'}, self, pkg, t)
 
-  local mods = self.modules or {}
+  local pkgs = self.packages or {}
   local order = self.order or {}
 
-  if mods[module] then
+  if pkgs[pkg] then
     error(string.format(
-      'module %q is already registered', module))
+      'package %q is already registered', pkg))
   end
-  mods[module] = t
-  table.insert(order, module)
+  pkgs[pkg] = t
+  table.insert(order, pkg)
 
-  self.modules = mods
+  self.packages = pkgs
   self.order = order
 
   return true
 end
 
--- Run executes the registered migrations in the order the modules
--- were registered. Each module's migrations are run in distinct
+-- Run executes the registered migrations in the order the packages
+-- were registered. Each package's migrations are run in distinct
 -- transactions, and it stops and returns at the first error.
 -- On success, returns true, otherwise returns nil and an error
 -- message.
 function Migrator:run()
   local conn = xpgsql.connect(self.connection_string)
 
-  for _, module in ipairs(self.order) do
-    -- get the current version of this module
-    local latest, err = get_version(conn, module)
+  for _, pkg in ipairs(self.order) do
+    -- get the current version of this package
+    local latest, err = get_version(conn, pkg)
     if not latest then
       -- it is ok for get_version to fail if this migration is for the
-      -- migration module itself (version table does not exist yet).
-      if module == MODULE then
+      -- migration package itself (version table does not exist yet).
+      if pkg == PACKAGE then
         latest = 0
       else
         conn:close()
@@ -102,7 +102,7 @@ function Migrator:run()
       end
     end
 
-    local migrations = self.modules[module]
+    local migrations = self.packages[pkg]
     if #migrations > latest then
       local ok, errtx = conn:tx(function()
         for i = latest + 1, #migrations do
@@ -113,7 +113,7 @@ function Migrator:run()
             mig(conn, i)
           end
         end
-        set_version(conn, module, #migrations)
+        set_version(conn, pkg, #migrations)
         return true
       end)
       if not ok then
@@ -139,7 +139,7 @@ function M.new(connstr)
   setmetatable(o, Migrator)
 
   -- auto-register the migrator's own migrations as first
-  o:register(MODULE, MIGRATIONS)
+  o:register(PACKAGE, MIGRATIONS)
   return o
 end
 
