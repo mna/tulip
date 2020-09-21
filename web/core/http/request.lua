@@ -15,6 +15,7 @@ function M.new(stm, read_timeout)
     method = hdrs:get(':method'),
     rawurl = path,
     url = neturl.parse(path),
+    read_timeout = read_timeout,
   }
 
   setmetatable(o, Request)

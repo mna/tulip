@@ -2,8 +2,8 @@ local M = {}
 
 -- Returns a handler that just calls Response:write with t.
 function M.write(t)
-  return function(_, stm)
-    stm.response:write(t)
+  return function(_, res)
+    res:write(t)
   end
 end
 
@@ -25,15 +25,15 @@ function M.dir(path)
     path = path .. '/'
   end
 
-  return function(_, stm)
-    local subpath = stm.request.pathargs[1]
+  return function(req, res)
+    local subpath = req.pathargs[1]
     local ext = string.match(subpath, '%.([^%.]+)$')
     local ct = EXT_TO_MIME[ext]
 
     if #subpath > 0 and subpath[1] == '/' then
       subpath = string.sub(subpath, 2)
     end
-    stm.response:write{
+    res:write{
       content_type = ct,
       path = path .. subpath,
     }

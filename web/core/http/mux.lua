@@ -14,17 +14,17 @@ local function match(routes, path)
   return nil
 end
 
-local function notfound(_, stm)
-  stm.response:write{
+local function notfound(_, res, _)
+  res:write{
     status = 404,
     body = 'not found',
     content_type = 'text/plain',
   }
 end
 
-function Mux:handle(srv, stm)
-  local method = stm.request.method
-  local path = stm.request.url.path
+function Mux:handle(req, res, srv)
+  local method = req.method
+  local path = req.url.path
 
   local route, pathargs
   local routes = self.bymethod[method]
@@ -41,8 +41,8 @@ function Mux:handle(srv, stm)
     end
   end
   if route then
-    stm.request.pathargs = pathargs
-    return route.handler(srv, stm)
+    req.pathargs = pathargs
+    return route.handler(req, res, srv)
   end
 
   -- trigger either the no_such_method or the not_found
@@ -58,11 +58,11 @@ function Mux:handle(srv, stm)
       ::continue::
     end
     if #methods > 0 then
-      return self.routes.no_such_method(srv, stm, methods)
+      return self.routes.no_such_method(req, res, srv, methods)
     end
   end
   local nf = self.routes.not_found or notfound
-  return nf(srv, stm)
+  return nf(req, res, srv)
 end
 
 local M = {}
@@ -75,17 +75,19 @@ local M = {}
 --   must match.
 -- * handler (function): the handler to call in case of match.
 --
--- The handler has the usual lua-http signature - it receives the server
--- and the stream. The pattern does not have to be anchored, and if it
+-- The table should not be modified after the call.
+--
+-- The handler receives the request, response and server instances as
+-- arguments. The pattern does not have to be anchored, and if it
 -- contains any captures, those are provided on the request object in the
 -- pathargs field, as an array of values.
 --
 -- The routes table can also have the following non-array fields:
 -- * no_such_method (function): handler to call if no route matches the
 --   request, but only due to the http method. The not_found handler is
---   called if this field is not set. In addition to the usual server and
---   stream arguments, a 3rd table argument is passed, which is the array
---   of http methods supported for this path.
+--   called if this field is not set. In addition to the usual arguments,
+--   a 4th table argument is passed, which is the array of http methods
+--   supported for this path.
 -- * not_found (function): handler to call if no route matches the request.
 --   The default not found handler is called if this field is not set, which
 --   returns 404 with a plain text body.
