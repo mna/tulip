@@ -2,7 +2,7 @@ local lu = require 'luaunit'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
 
-local migrate = require 'web.core.migrate'
+local migrator = require 'web.core.migrate.migrator'
 
 local M = {}
 
@@ -30,7 +30,7 @@ end
 
 function M:test_migrate()
   -- migrate without any extra package
-  local mig = migrate.new()
+  local mig = migrator.new()
   local ok, err = mig:run()
   lu.assertNil(err)
   lu.assertTrue(ok)
