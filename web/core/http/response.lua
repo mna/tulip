@@ -33,12 +33,11 @@ end
 --   behaves as path but does not close it when done sending.
 -- * context (table): the context for the template specified in path.
 -- * path (string): a path to a file to write in chunks. If a
---   context field is also present, path is rendered as a
+--   context field is also present (even if empty), path is rendered as a
 --   template with context passed to it.
 --
 -- If the request method was HEAD, no body gets written, but
--- it does get processed to compute the content-length (unless
--- explicitly provided).
+-- it does get processed to compute the content-length.
 function Response:write(opts)
   local stm = self.stream
   local hdrs = self.headers
