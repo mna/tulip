@@ -15,6 +15,13 @@
 -- 'web.pkg.' prefix is automatically added to find a package.
 -- Third-party packages need to be fully named.
 
+local App = require 'web.App'
+local app = App{
+  -- ... the config
+}
+assert(app:run())
+
+-- example config:
 return {
   locals = {
     -- dictionary of key-values local to this application, e.g.
