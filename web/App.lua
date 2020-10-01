@@ -53,13 +53,23 @@ function App:log(lvl, t)
   if types[1] == 'string' then
     lvl = LOGLEVELS[lvl] or 0
   end
-  if lvl < self.log_level then return end
+  -- ignore if requested log level is higher
+  if not self.log_level or lvl < self.log_level then return end
 
-  -- TODO: log to all registered backends, depending on the defined
-  -- log level.
+  -- log to all registered backends
+  if self.loggers then
+    t.level = lvl
+    for _, l in ipairs(self.loggers) do
+      l(t)
+    end
+  end
 end
 
 function App:run()
+  if type(self.log_level) == 'string' then
+    self.log_level = LOGLEVELS[self.log_level]
+  end
+
   for _, pkg in ipairs(self.packages) do
     if pkg.onrun then
       pkg.onrun(self)

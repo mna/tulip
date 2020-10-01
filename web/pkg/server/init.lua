@@ -14,6 +14,7 @@ end
 
 local function main(app)
   local cfg = app.config.server
+  cfg.limits = cfg.limits or {}
 
   -- TODO: tls, error handler
   -- TODO: should it assert or not?

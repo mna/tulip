@@ -78,6 +78,10 @@ return {
     root_path = '/tpl',
   },
 
+  log = {
+    level = 'i',
+  },
+
   ['third.party.pkg'] = {
     -- config for that package
   },
