@@ -1,6 +1,6 @@
 local neturl = require 'net.url'
 
-local Request = {__name = 'web.core.http.Request'}
+local Request = {__name = 'web.pkg.server.Request'}
 Request.__index = Request
 
 function Request:body()
@@ -24,9 +24,7 @@ function Request:decode_body(force_ct)
   -- Supports form-encoding, json, maybe xml, maybe pluggable.
 end
 
-local M = {}
-
-function M.new(stm, read_timeout)
+function Request.new(stm, read_timeout)
   local hdrs = stm:get_headers(read_timeout)
   local path = hdrs:get(':path')
   -- TODO: add content_type field?
@@ -44,4 +42,4 @@ function M.new(stm, read_timeout)
   return o
 end
 
-return M
+return Request

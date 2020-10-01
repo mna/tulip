@@ -2,14 +2,10 @@ local cjson = require 'cjson'
 local headers = require 'http.headers'
 local neturl = require 'net.url'
 
--- TODO: allow user to register/configure this
-local template = require 'resty.template'.new{
-  root = 'web/tpl'
-}
-
-local Response = {__name = 'web.core.http.Response'}
+local Response = {__name = 'web.pkg.server.Response'}
 Response.__index = Response
 
+-- TODO: call app.encode or something like that (pluggable)
 local function encode_body(ct, body)
   if ct == 'application/json' then
     return cjson.encode(body)
@@ -78,6 +74,7 @@ function Response:write(opts)
       -- the path indicates a template to execute, which returns
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
+      -- TODO: call app.render or something like that
       bodystr = template.process_file(opts.path, opts.context)
       len = #bodystr
     else
@@ -119,9 +116,7 @@ function Response:write(opts)
   end
 end
 
-local M = {}
-
-function M.new(stm, write_timeout)
+function Response.new(stm, write_timeout)
   local o = {
     headers = headers.new(),
     stream = stm,
@@ -131,4 +126,4 @@ function M.new(stm, write_timeout)
   return o
 end
 
-return M
+return Response
