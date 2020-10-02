@@ -1,28 +1,6 @@
--- Some packages may register middleware functions to their name,
--- and if so the middleware can be referred to in routes' handlers
--- with a string value of the full package name (e.g. 'web.pkg.static').
---
--- Some packages may register App-level middleware functions, meaning
--- that it will be called for each request handled by the App prior
--- to going through the Mux. The Mux supports per-route middleware
--- that may wrap specific routes' handlers.
---
--- Running an App basically means starting an http(s) server with the
--- App instance as its entry-point middleware, after the translation
--- of lua-http server/stream arguments to request/response/next triplet.
---
--- Built-in packages can have a short name in the App's config, the
--- 'web.pkg.' prefix is automatically added to find a package.
--- Third-party packages need to be fully named.
-
 local App = require 'web.App'
-local app = App{
-  -- ... the config
-}
-assert(app:run())
 
--- example config:
-return {
+local app = App{
   locals = {
     -- dictionary of key-values local to this application, e.g.
     -- the app name, a user-visible title, description, contact
@@ -49,6 +27,12 @@ return {
       certificate_path = '/path/to/cert',
       private_key_path = '/path/to/key',
     },
+  },
+
+  -- automatically uses the middleware package, that registers app-wide
+  -- middleware.
+  middleware = {
+    'routes',
   },
 
   -- automatically uses the mux package
@@ -90,3 +74,5 @@ return {
     -- config for that package
   },
 }
+
+assert(app:run())

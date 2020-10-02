@@ -42,6 +42,7 @@ function Mux:handle(req, res)
   end
   if route then
     req.pathargs = pathargs
+    -- TODO: actually call the middleware array
     return route.handler(req, res)
   end
 
@@ -71,14 +72,13 @@ end
 -- * method (string): the http method to match against
 -- * pattern (string): the Lua pattern that the path part of the request
 --   must match.
--- * handler (function): the handler to call in case of match.
--- * middleware (array): list of middleware functions to call before the
---   handler.
+-- * middleware (array): list of middleware functions to call.
 --
 -- The table should not be modified after the call.
 --
--- The handler receives the request and response instances as
--- arguments. The pattern does not have to be anchored, and if it
+-- The middleware handlers receive the request and response instances as
+-- arguments as well as a next function to call the next middleware.
+-- The pattern does not have to be anchored, and if it
 -- contains any captures, those are provided on the request object in the
 -- pathargs field, as an array of values.
 --
@@ -104,7 +104,7 @@ function Mux.new(routes)
       error(string.format('method missing at routes[%d]', i))
     elseif c.pattern or '' == '' then
       error(string.format('pattern missing at routes[%d]', i))
-    elseif not c.handler and (not c.middleware or #c.middleware == 0) then
+    elseif not c.middleware or #c.middleware == 0 then
       error(string.format('handler missing at routes[%d]', i))
     end
 

@@ -1,3 +1,4 @@
+local handler = require 'web.handler'
 local tcheck = require 'tcheck'
 
 local function register_packages(app, cfg)
@@ -23,17 +24,6 @@ local function register_packages(app, cfg)
   return pkgs
 end
 
-local function call_middleware(mws, i, req, res, last)
-  if i > #mws then
-    if last then last() end
-    return
-  end
-  local mw = mws[i]
-  mw(req, res, function(newreq, newres)
-    call_middleware(mws, i+1, newreq or req, newres or res, last)
-  end)
-end
-
 local App = {__name = 'web.App'}
 App.__index = App
 
@@ -42,8 +32,7 @@ function App:__call(req, res, nxt)
     if nxt then nxt() end
     return
   end
-
-  call_middleware(self.middleware, 1, req, res, nxt)
+  handler.chain_middleware(self.middleware, req, res, nxt)
 end
 
 -- levels:
@@ -76,6 +65,40 @@ function App:log(lvl, t)
     t.level = lvl
     for _, l in ipairs(self.loggers) do
       l(t)
+    end
+  end
+end
+
+-- Register a middleware in the list of available middleware.
+function App:register_middleware(name, mw)
+  local mws = self._middleware or {}
+  if mws[name] then
+    error(string.format(
+      'middleware %q is already registered', name))
+  end
+  mws[name] = mw
+  self._middleware = mws
+end
+
+-- Get the registered middleware instance for that name, or nil if none.
+function App:lookup_middleware(name)
+  local mws = self._middleware
+  if mws then return mws[name] end
+end
+
+-- Resolve any middleware referenced by name with the actual instance registered
+-- for that name. Raises an error if a middleware name is unknown.
+function App:resolve_middleware(mws)
+  for i, mw in ipairs(mws) do
+    local typ = type(mw)
+    if typ == 'string' then
+      local mwi = self:lookup_middleware(mw)
+      if not mwi then
+        error(string.format('no middleware registered for %q', mw))
+      end
+      mws[i] = mwi
+    elseif typ == 'table' and mw.__name == 'web.App' then
+      -- TODO: if mw is an App, activate it
     end
   end
 end
