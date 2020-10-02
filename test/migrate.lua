@@ -2,7 +2,7 @@ local lu = require 'luaunit'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
 
-local migrator = require 'web.core.migrate.migrator'
+local Migrator = require 'web.pkg.database.Migrator'
 
 local M = {}
 
@@ -30,7 +30,7 @@ end
 
 function M:test_migrate()
   -- migrate without any extra package
-  local mig = migrator.new()
+  local mig = Migrator.new()
   local ok, err = mig:run()
   lu.assertNil(err)
   lu.assertTrue(ok)
@@ -40,7 +40,7 @@ function M:test_migrate()
       "version",
       "package"
     FROM
-      "web_migrate_migrations"
+      "web_pkg_database_migrations"
     ORDER BY
       "created"
   ]]

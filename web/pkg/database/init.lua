@@ -30,8 +30,20 @@ end
 
 function M.onrun(app)
   local cfg = app.config.database
-  -- TODO: group migrations of same packages together
+
+  local migrations = {}
+  for _, v in ipairs(cfg.migrations) do
+    local ms = migrations[v.package] or {}
+    for _, m in ipairs(v) do
+      table.insert(ms, m)
+    end
+    migrations[v.package] = ms
+  end
+
   local mig = Migrator.new(cfg.connection_string)
+  for pkg, ms in pairs(migrations) do
+    mig:register(pkg, ms)
+  end
   assert(mig:run())
 end
 
