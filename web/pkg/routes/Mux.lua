@@ -1,7 +1,5 @@
 local fn = require 'fn'
-
-local Mux = {__name = 'web.pkg.routes.Mux'}
-Mux.__index = Mux
+local handler = require 'web.handler'
 
 local function match(routes, path)
   local _, _, _, route = fn.any(function(_, route)
@@ -21,6 +19,9 @@ local function notfound(_, res)
     content_type = 'text/plain',
   }
 end
+
+local Mux = {__name = 'web.pkg.routes.Mux'}
+Mux.__index = Mux
 
 function Mux:handle(req, res)
   local method = req.method
@@ -42,8 +43,8 @@ function Mux:handle(req, res)
   end
   if route then
     req.pathargs = pathargs
-    -- TODO: actually call the middleware array
-    return route.handler(req, res)
+    handler.chain_middleware(route.middleware, req, res)
+    return
   end
 
   -- trigger either the no_such_method or the not_found
