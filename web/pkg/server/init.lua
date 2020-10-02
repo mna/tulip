@@ -1,3 +1,4 @@
+local context = require 'openssl.ssl.context'
 local server = require 'http.server'
 local tcheck = require 'tcheck'
 local Request = require 'web.pkg.server.Request'
@@ -14,24 +15,31 @@ end
 
 local function main(app)
   local cfg = app.config.server
-  cfg.limits = cfg.limits or {}
-
-  -- TODO: tls, error handler
-  -- TODO: should it assert or not?
-  local srv = assert(server.listen{
+  local limits = cfg.limits or {}
+  local opts = {
     host = cfg.host,
     port = cfg.port,
     path = cfg.path,
     reuseaddr = cfg.reuseaddr,
     reuseport = cfg.reuseport,
-    connection_setup_timeout = cfg.limits.connection_timeout,
-    intra_stream_timeout = cfg.limits.idle_timeout,
-    max_concurrent = cfg.limits.max_active_connections,
-    onstream = bootstrap_handler(app, cfg.limits.read_timeout, cfg.limits.write_timeout),
-  })
+    connection_setup_timeout = limits.connection_timeout,
+    intra_stream_timeout = limits.idle_timeout,
+    max_concurrent = limits.max_active_connections,
+    onstream = bootstrap_handler(app, limits.read_timeout, limits.write_timeout),
+  }
 
+  if cfg.tls then
+    if cfg.tls.required then
+      opts.tls = true
+    end
+    local ctx = context.new(cfg.tls.protocol, true)
+    assert(ctx:setPrivateKey())
+    assert(ctx:setCertificate())
+    opts.ctx = ctx
+  end
 
-  assert(srv:listen(cfg.limits.connection_timeout))
+  local srv = assert(server.listen(opts))
+  assert(srv:listen(limits.connection_timeout))
   local _, ip, port = assert(srv:localname())
   app:log('i', {ip = ip, port = port, msg = 'listening'})
 

@@ -97,7 +97,7 @@ function Response:write(opts)
     local bodyfile = opts.body
     local closefile = false
     if opts.path then
-      -- TODO: 404 if file not found
+      -- TODO: 404 if file not found, must be done before write_headers
       bodyfile = assert(io.open(opts.path))
       closefile = true
     end
