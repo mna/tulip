@@ -82,6 +82,10 @@ return {
     level = 'i',
   },
 
+  static = {
+    root_path = '/path/to/static',
+  },
+
   ['third.party.pkg'] = {
     -- config for that package
   },

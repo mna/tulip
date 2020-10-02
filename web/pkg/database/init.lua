@@ -32,6 +32,7 @@ function M.onrun(app)
   local cfg = app.config.database
   -- TODO: group migrations of same packages together
   local mig = Migrator.new(cfg.connection_string)
+  assert(mig:run())
 end
 
 return M
