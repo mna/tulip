@@ -1,10 +1,10 @@
 local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 
-local PACKAGE = 'web.core.migrate'
+local PACKAGE = 'web.pkg.database'
 local MIGRATIONS = {
   [[
-    CREATE TABLE "web_migrate_migrations" (
+    CREATE TABLE "web_pkg_database_migrations" (
       "package" VARCHAR(100) NOT NULL,
       "version" INTEGER NOT NULL CHECK ("version" > 0),
       "created" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -22,7 +22,7 @@ local function get_version(conn, pkg)
     SELECT
       "version"
     FROM
-      "web_migrate_migrations"
+      "web_pkg_database_migrations"
     WHERE
       "package" = $1
   ]], pkg)
@@ -39,7 +39,7 @@ end
 
 local function set_version(conn, pkg, version)
   assert(conn:exec([[
-    INSERT INTO "web_migrate_migrations"
+    INSERT INTO "web_pkg_database_migrations"
       ("package", "version")
     VALUES
       ($1, $2)
@@ -85,8 +85,8 @@ end
 -- transactions, and it stops and returns at the first error.
 -- On success, returns true, otherwise returns nil and an error
 -- message.
-function Migrator:run()
-  local conn = xpgsql.connect(self.connection_string)
+function Migrator:run(conn)
+  conn = conn or xpgsql.connect(self.connection_string)
 
   for _, pkg in ipairs(self.order) do
     -- get the current version of this package
@@ -127,12 +127,10 @@ function Migrator:run()
   return true
 end
 
-local M = {}
-
 -- Creates a Migrator instance that will run against the database
 -- to connect to with the provided connstr (or environment variables
 -- if no connstr is provided).
-function M.new(connstr)
+function Migrator.new(connstr)
   tcheck('string|nil', connstr)
 
   local o = {connection_string = connstr}
@@ -143,4 +141,4 @@ function M.new(connstr)
   return o
 end
 
-return M
+return Migrator
