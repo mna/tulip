@@ -1,4 +1,5 @@
 local cjson = require 'cjson'
+local tcheck = require 'tcheck'
 
 local M = {}
 
@@ -11,6 +12,8 @@ end
 -- that file). It also configures the log levels to consider for
 -- all logging backends.
 function M.register(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
+
   app.log_level = cfg.level
   app.loggers = app.loggers or {}
   table.insert(app.loggers, stdout_logger)

@@ -23,12 +23,27 @@ local function register_packages(app, cfg)
   return pkgs
 end
 
+local function call_middleware(mws, i, req, res, last)
+  if i > #mws then
+    if last then last() end
+    return
+  end
+  local mw = mws[i]
+  mw(req, res, function(newreq, newres)
+    call_middleware(mws, i+1, newreq or req, newres or res, last)
+  end)
+end
+
 local App = {__name = 'web.App'}
 App.__index = App
 
 function App:__call(req, res, nxt)
-  -- TODO: first go through app-level middlewares, then mux, which
-  -- should just be another app-level middleware (the last?).
+  if not self.middleware then
+    if nxt then nxt() end
+    return
+  end
+
+  call_middleware(self.middleware, 1, req, res, nxt)
 end
 
 -- levels:
@@ -65,6 +80,9 @@ function App:log(lvl, t)
   end
 end
 
+-- TODO: must support "running" or initializing an App that is not
+-- used as entrypoint (e.g. a sub-system handler). This needs to
+-- happen either if used in the routes or in the top-level middleware.
 function App:run()
   if type(self.log_level) == 'string' then
     self.log_level = LOGLEVELS[self.log_level]

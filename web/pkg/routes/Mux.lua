@@ -1,6 +1,6 @@
 local fn = require 'fn'
 
-local Mux = {__name = 'web.core.http.Mux'}
+local Mux = {__name = 'web.pkg.routes.Mux'}
 Mux.__index = Mux
 
 local function match(routes, path)
@@ -14,7 +14,7 @@ local function match(routes, path)
   return nil
 end
 
-local function notfound(_, res, _)
+local function notfound(_, res)
   res:write{
     status = 404,
     body = 'not found',
@@ -22,7 +22,7 @@ local function notfound(_, res, _)
   }
 end
 
-function Mux:handle(req, res, srv)
+function Mux:handle(req, res)
   local method = req.method
   local path = req.url.path
 
@@ -42,7 +42,7 @@ function Mux:handle(req, res, srv)
   end
   if route then
     req.pathargs = pathargs
-    return route.handler(req, res, srv)
+    return route.handler(req, res)
   end
 
   -- trigger either the no_such_method or the not_found
@@ -58,14 +58,12 @@ function Mux:handle(req, res, srv)
       ::continue::
     end
     if #methods > 0 then
-      return self.routes.no_such_method(req, res, srv, methods)
+      return self.routes.no_such_method(req, res, methods)
     end
   end
   local nf = self.routes.not_found or notfound
-  return nf(req, res, srv)
+  return nf(req, res)
 end
-
-local M = {}
 
 -- Creates a new request multiplexer that dispatches using the provided
 -- routes table. That table holds the route patterns in the array part,
@@ -74,10 +72,12 @@ local M = {}
 -- * pattern (string): the Lua pattern that the path part of the request
 --   must match.
 -- * handler (function): the handler to call in case of match.
+-- * middleware (array): list of middleware functions to call before the
+--   handler.
 --
 -- The table should not be modified after the call.
 --
--- The handler receives the request, response and server instances as
+-- The handler receives the request and response instances as
 -- arguments. The pattern does not have to be anchored, and if it
 -- contains any captures, those are provided on the request object in the
 -- pathargs field, as an array of values.
@@ -86,7 +86,7 @@ local M = {}
 -- * no_such_method (function): handler to call if no route matches the
 --   request, but only due to the http method. The not_found handler is
 --   called if this field is not set. In addition to the usual arguments,
---   a 4th table argument is passed, which is the array of http methods
+--   a 3rd table argument is passed, which is the array of http methods
 --   supported for this path.
 -- * not_found (function): handler to call if no route matches the request.
 --   The default not found handler is called if this field is not set, which
@@ -94,18 +94,27 @@ local M = {}
 --
 -- If the request is a HEAD and there is no route found, the Mux tries to
 -- find and call a match for a GET and the same path before giving up.
-function M.new(routes)
+function Mux.new(routes)
   local o = {routes = routes}
   setmetatable(o, Mux)
 
   -- index by method
-  o.bymethod = fn.reduce(function(c, _, route)
+  o.bymethod = fn.reduce(function(c, i, route)
+    if c.method or '' == '' then
+      error(string.format('method missing at routes[%d]', i))
+    elseif c.pattern or '' == '' then
+      error(string.format('pattern missing at routes[%d]', i))
+    elseif not c.handler and (not c.middleware or #c.middleware == 0) then
+      error(string.format('handler missing at routes[%d]', i))
+    end
+
     local t = c[route.method] or {}
     table.insert(t, route)
     c[route.method] = t
     return c
   end, {}, ipairs(routes))
+
   return o
 end
 
-return M
+return Mux

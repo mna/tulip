@@ -1,3 +1,4 @@
+local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
@@ -25,10 +26,13 @@ local M = {}
 -- It also registers the migrator, which runs when the app is
 -- started, executing all registered migrations from the config.
 function M.register(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
   app.db = make_db(cfg.connection_string)
 end
 
 function M.onrun(app)
+  tcheck('web.App', app)
+
   local cfg = app.config.database
 
   local migrations = {}
