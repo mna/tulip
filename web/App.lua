@@ -35,20 +35,11 @@ function App:__call(req, res, nxt)
   handler.chain_middleware(self.middleware, req, res, nxt)
 end
 
--- levels:
---   d: debug = 1
---   e: error = 1000
---   i: info = 10
---   w: warning = 100
 local LOGLEVELS = {
-  d = 1,
-  debug = 1,
-  e = 1000,
-  error = 1000,
-  i = 10,
-  info = 10,
-  w = 100,
-  warning = 100,
+  d = 1,    debug = 1,
+  e = 1000, error = 1000,
+  i = 10,   info = 10,
+  w = 100,  warning = 100,
 }
 
 function App:log(lvl, t)

@@ -1,20 +1,7 @@
-local cjson = require 'cjson'
 local headers = require 'http.headers'
-local neturl = require 'net.url'
 
 local Response = {__name = 'web.pkg.server.Response'}
 Response.__index = Response
-
--- TODO: call app.encode or something like that (pluggable)
-local function encode_body(ct, body)
-  if ct == 'application/json' then
-    return cjson.encode(body)
-  elseif ct == 'application/x-www-form-urlencoded' then
-    return neturl.buildQuery(body)
-  else
-    error(string.format('unsupported content-type to encode body: %s', ct))
-  end
-end
 
 -- high-level API to write a response, should not be mixed
 -- with calls to the low-level stream object.
@@ -51,20 +38,20 @@ function Response:write(opts)
     hdrs:append('content-type', 'text/plain')
   end
 
-  local len
-  local bodystr
-  local hasbody = false
+  local len, bodystr, bodyfile
+  local hasbody, closefile = false, false
   if opts.body then
     local typ = type(opts.body)
     if typ == 'string' then
       bodystr = opts.body
       len = #bodystr
     elseif typ == 'table' then
-      bodystr = encode_body(hdrs:get('content-type'), opts.body)
+      bodystr = self.app:encode(opts.body, hdrs:get('content-type'))
       len = #bodystr
     elseif typ == 'function' or io.type(opts.body) == 'file' then
       hdrs:upsert('transfer-encoding', 'chunked')
       hdrs:delete('content-length')
+      bodyfile = opts.body
     else
       error(string.format('invalid type for body: %s', typ))
     end
@@ -74,12 +61,20 @@ function Response:write(opts)
       -- the path indicates a template to execute, which returns
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
-      -- TODO: call app.render or something like that
-      bodystr = template.process_file(opts.path, opts.context)
+      bodystr = self.app:render(opts.path, opts.context)
       len = #bodystr
     else
-      hdrs:upsert('transfer-encoding', 'chunked')
-      hdrs:delete('content-length')
+      bodyfile = io.open(opts.path)
+      if not bodyfile then
+        -- render a 404, file does not exist
+        hdrs:upsert(':status', '404')
+        bodystr = 'not found'
+        len = #bodystr
+      else
+        hdrs:upsert('transfer-encoding', 'chunked')
+        hdrs:delete('content-length')
+        closefile = true
+      end
     end
     hasbody = true
   else
@@ -89,19 +84,14 @@ function Response:write(opts)
   if len then hdrs:upsert('content-length', tostring(len)) end
 
   assert(stm:write_headers(hdrs, ishead or not hasbody, timeout))
-  if ishead or not hasbody then return end
+  if ishead or not hasbody then
+    if closefile then bodyfile:close() end
+    return
+  end
 
   if bodystr then
     assert(stm:write_body_from_string(bodystr, timeout))
   else
-    local bodyfile = opts.body
-    local closefile = false
-    if opts.path then
-      -- TODO: 404 if file not found, must be done before write_headers
-      bodyfile = assert(io.open(opts.path))
-      closefile = true
-    end
-
     if io.type(bodyfile) == 'file' then
       -- write from the file handle
       local ok, err = stm:write_body_from_file(bodyfile, timeout)

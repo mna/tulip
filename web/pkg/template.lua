@@ -5,6 +5,7 @@ local M = {}
 
 local function make_render(tpl)
   return function(app, path, ctx)
+    ctx = ctx or {}
     if ctx.locals == nil then
       ctx.locals = app.locals
     end
