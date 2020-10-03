@@ -35,6 +35,30 @@ function App:__call(req, res, nxt)
   handler.chain_middleware(self.middleware, req, res, nxt)
 end
 
+-- Encodes the table t to the specified mime type, using the
+-- registered encoders. If no encoder supports this mime type,
+-- returns nil, otherwise returns the encoded string.
+function App:encode(t, mime)
+  if not self.encoders then return end
+  for _, enc in ipairs(self.encoders) do
+    local s = enc(t, mime)
+    if s then return s end
+  end
+  error(string.format('no encoder registered for MIME type %q', mime))
+end
+
+-- Decodes the string s encoded as the specified mime type, using
+-- the registered decoders. If no decoder supports this mime type,
+-- returns nil, otherwise returns the decoded value.
+function App:decode(s, mime)
+  if not self.decoders then return end
+  for _, dec in ipairs(self.decoders) do
+    local t = dec(s, mime)
+    if t ~= nil then return t end
+  end
+  error(string.format('no decoder registered for MIME type %q', mime))
+end
+
 local LOGLEVELS = {
   d = 1,    debug = 1,
   e = 1000, error = 1000,
@@ -42,6 +66,7 @@ local LOGLEVELS = {
   w = 100,  warning = 100,
 }
 
+-- Logs the t table at level lvl to all registered loggers.
 function App:log(lvl, t)
   local types = tcheck({'string|number', 'table'}, lvl, t)
 
