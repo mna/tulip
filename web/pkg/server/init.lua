@@ -1,6 +1,8 @@
 local context = require 'openssl.ssl.context'
+local pkey = require 'openssl.pkey'
 local server = require 'http.server'
 local tcheck = require 'tcheck'
+local x509 = require 'openssl.x509'
 local Request = require 'web.pkg.server.Request'
 local Response = require 'web.pkg.server.Response'
 
@@ -11,6 +13,14 @@ local function bootstrap_handler(app, readto, writeto)
     req.app, res.app = app, app
     app(req, res)
   end
+end
+
+local function read_file(f)
+  local fd = assert(io.open(f))
+  local s, err = fd:read('a')
+  fd:close()
+  assert(s, err)
+  return s
 end
 
 local function main(app)
@@ -33,8 +43,10 @@ local function main(app)
       opts.tls = true
     end
     local ctx = context.new(cfg.tls.protocol, true)
-    assert(ctx:setPrivateKey())
-    assert(ctx:setCertificate())
+    local pk = pkey.new(read_file(cfg.tls.private_key_path))
+    assert(ctx:setPrivateKey(pk))
+    local cert = x509.new(read_file(cfg.tls.certificate_path))
+    assert(ctx:setCertificate(cert))
     opts.ctx = ctx
   end
 
