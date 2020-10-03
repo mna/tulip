@@ -8,8 +8,12 @@ local Response = require 'web.pkg.server.Response'
 
 local function bootstrap_handler(app, readto, writeto)
   return function(_, stm)
+    app:log('d', {msg = 'request received'})
+
     local req = Request.new(stm, readto)
     local res = Response.new(stm, writeto)
+    stm.request = req
+    stm.response = res
     req.app, res.app = app, app
     app(req, res)
   end

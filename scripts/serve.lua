@@ -1,5 +1,6 @@
 #!/usr/bin/env -S llrocks run
 
+local handler = require 'web.handler'
 local App = require 'web.App'
 
 local app = App{
@@ -20,10 +21,13 @@ local app = App{
     },
     tls = {
       required = true,
-      protocol = 'TLSv1_2',
+      protocol = 'TLS',
       certificate_path = 'run/certs/fullchain.pem',
       private_key_path = 'run/certs/privkey.pem',
     },
+  },
+  routes = {
+    {method = 'GET', pattern = '/', handler = handler.write{status = 200, body = 'hello, Martin!'}},
   },
 }
 assert(app:run())

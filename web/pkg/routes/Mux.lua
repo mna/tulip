@@ -1,5 +1,6 @@
 local fn = require 'fn'
 local handler = require 'web.handler'
+local tcheck = require 'tcheck'
 
 local function match(routes, path)
   local _, _, _, route = fn.any(function(_, route)
@@ -96,16 +97,18 @@ end
 -- If the request is a HEAD and there is no route found, the Mux tries to
 -- find and call a match for a GET and the same path before giving up.
 function Mux.new(routes)
+  tcheck('table', routes)
+
   local o = {routes = routes}
   setmetatable(o, Mux)
 
   -- index by method
   o.bymethod = fn.reduce(function(c, i, route)
-    if c.method or '' == '' then
+    if (route.method or '') == '' then
       error(string.format('method missing at routes[%d]', i))
-    elseif c.pattern or '' == '' then
+    elseif (route.pattern or '') == '' then
       error(string.format('pattern missing at routes[%d]', i))
-    elseif not c.middleware or #c.middleware == 0 then
+    elseif (not route.middleware) or (#route.middleware == 0) then
       error(string.format('handler missing at routes[%d]', i))
     end
 

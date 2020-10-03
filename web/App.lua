@@ -28,6 +28,7 @@ local App = {__name = 'web.App'}
 App.__index = App
 
 function App:__call(req, res, nxt)
+  self:log('d', {msg = 'App handler called'})
   if not self.middleware then
     if nxt then nxt() end
     return
@@ -130,6 +131,16 @@ function App:run()
   for _, pkg in ipairs(self.packages) do
     if pkg.onrun then
       pkg.onrun(self)
+    end
+  end
+
+  -- special-case: if there is no middleware installed for the App,
+  -- but there is a web.pkg.routes middleware registered, install
+  -- it automatically.
+  if not self.middleware then
+    local mux = self:lookup_middleware('web.pkg.routes')
+    if mux then
+      self.middleware = {mux}
     end
   end
 
