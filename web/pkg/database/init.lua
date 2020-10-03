@@ -30,7 +30,7 @@ function M.register(cfg, app)
   app.db = make_db(cfg.connection_string)
 end
 
-function M.onrun(app)
+function M.activate(app)
   tcheck('web.App', app)
 
   local cfg = app.config.database

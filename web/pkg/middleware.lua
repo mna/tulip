@@ -10,7 +10,7 @@ function M.register(cfg, app)
   app.middleware = cfg
 end
 
-function M.onrun(app)
+function M.activate(app)
   tcheck('web.App', app)
   app:resolve_middleware(app.middleware)
 end

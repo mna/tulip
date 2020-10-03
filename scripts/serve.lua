@@ -29,5 +29,6 @@ local app = App{
   routes = {
     {method = 'GET', pattern = '/', handler = handler.write{status = 200, body = 'hello, Martin!'}},
   },
+  middleware = {'routes'},
 }
 assert(app:run())

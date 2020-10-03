@@ -23,12 +23,12 @@ local M = {}
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   -- at this stage, only register an empty middleware - the mux
-  -- instance it will delegate to will only be added in onrun,
+  -- instance it will delegate to will only be added in activate,
   -- when routes have been fully resolved.
   app:register_middleware('web.pkg.routes', Mw.new())
 end
 
-function M.onrun(app)
+function M.activate(app)
   tcheck('web.App', app)
 
   local cfg = app.config.routes

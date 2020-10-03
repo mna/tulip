@@ -24,6 +24,14 @@ local function register_packages(app, cfg)
   return pkgs
 end
 
+-- Returns the __name of the metatable of o, or nil if none.
+local function metatable_name(o)
+  if type(o) == 'table' then
+    local mt = getmetatable(o)
+    return mt and mt.__name
+  end
+end
+
 local App = {__name = 'web.App'}
 App.__index = App
 
@@ -100,7 +108,13 @@ end
 -- Get the registered middleware instance for that name, or nil if none.
 function App:lookup_middleware(name)
   local mws = self._middleware
-  if mws then return mws[name] end
+  if not mws then return end
+
+  if not string.find(name, '.', 1, true) then
+    local mw = mws['web.pkg.' .. name]
+    if mw then return mw end
+  end
+  return mws[name]
 end
 
 -- Resolve any middleware referenced by name with the actual instance registered
@@ -114,23 +128,21 @@ function App:resolve_middleware(mws)
         error(string.format('no middleware registered for %q', mw))
       end
       mws[i] = mwi
-    elseif typ == 'table' and mw.__name == 'web.App' then
-      -- TODO: if mw is an App, activate it
+    elseif metatable_name(mw) == 'web.App' then
+      -- if mw is an App, activate it
+      mw:activate()
     end
   end
 end
 
--- TODO: must support "running" or initializing an App that is not
--- used as entrypoint (e.g. a sub-system handler). This needs to
--- happen either if used in the routes or in the top-level middleware.
-function App:run()
+function App:activate()
   if type(self.log_level) == 'string' then
     self.log_level = LOGLEVELS[self.log_level]
   end
 
   for _, pkg in ipairs(self.packages) do
-    if pkg.onrun then
-      pkg.onrun(self)
+    if pkg.activate then
+      pkg.activate(self)
     end
   end
 
@@ -143,6 +155,10 @@ function App:run()
       self.middleware = {mux}
     end
   end
+end
+
+function App:run()
+  self:activate()
 
   if not self.main then
     error('no main field registered by app')
