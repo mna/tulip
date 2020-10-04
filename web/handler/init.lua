@@ -36,6 +36,18 @@ function M.dir(path)
   end
 end
 
+-- Recovers from an error raised in subsequent middleware, and calls f
+-- with req, res and the error. Note that there is no next function argument
+-- in the arguments to f.
+function M.recover(f)
+  return function(req, res, nxt)
+    local ok, err = pcall(nxt)
+    if not ok then
+      f(req, res, err)
+    end
+  end
+end
+
 -- Starts a call to a chain of middleware, where mws is an array
 -- of middleware functions. This calls the middleware at index i
 -- with a next() function generated to call the following middleware,

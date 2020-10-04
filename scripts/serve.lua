@@ -27,8 +27,13 @@ local app = App{
     },
   },
   routes = {
-    {method = 'GET', pattern = '/', handler = handler.write{status = 200, body = 'hello, Martin!'}},
+    {method = 'GET', pattern = '^/hello', handler = handler.write{status = 200, body = 'hello, Martin!'}},
+    {method = 'GET', pattern = '^/fail', handler = function() error('this totally fails') end},
   },
-  middleware = {'routes'},
+  middleware = {
+    'log',
+    handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
+    'routes',
+  },
 }
 assert(app:run())

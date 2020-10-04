@@ -94,6 +94,10 @@ function App:log(lvl, t)
   end
 end
 
+-- TODO: should have a register/lookup/resolve for middleware,
+-- loggers, encoders and decoders, instead of packages playing with
+-- App fields directly. Same implementation, only field name changes.
+
 -- Register a middleware in the list of available middleware.
 function App:register_middleware(name, mw)
   local mws = self._middleware or {}
