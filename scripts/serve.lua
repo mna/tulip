@@ -33,7 +33,12 @@ local app = App{
   middleware = {
     'log',
     handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
+    'reqid',
     'routes',
+  },
+  reqid = {
+    size = 12,
+    header = 'x-request-id',
   },
 }
 assert(app:run())

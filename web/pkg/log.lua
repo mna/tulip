@@ -14,9 +14,10 @@ local function log_middleware(req, res, nxt)
 
   local status = tonumber(res.headers:get(':status'))
   local path = req.url.path
+  local rid = req.request_id
 
   -- TODO: more fields, duration
-  req.app:log('i', {date = date, path = path, status = status})
+  req.app:log('i', {date = date, path = path, status = status, request_id = rid})
 end
 
 -- The log package register a logging backend to stdout (in fact,
