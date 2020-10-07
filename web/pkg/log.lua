@@ -1,10 +1,9 @@
-local cjson = require 'cjson'
+local cjson = require('cjson').new()
 local tcheck = require 'tcheck'
 
 local M = {}
 
 local function stdout_logger(t)
-  -- TODO: use cjson.new
   io.write(cjson.encode(t) .. '\n')
 end
 

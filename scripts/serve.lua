@@ -4,9 +4,7 @@ local handler = require 'web.handler'
 local App = require 'web.App'
 
 local app = App{
-  log = {
-    level = 'd',
-  },
+  log = {level = 'debug'},
   server = {
     host = '127.0.0.1',
     port = 8080,
@@ -29,6 +27,14 @@ local app = App{
   routes = {
     {method = 'GET', pattern = '^/hello', handler = handler.write{status = 200, body = 'hello, Martin!'}},
     {method = 'GET', pattern = '^/fail', handler = function() error('this totally fails') end},
+    {method = 'GET', pattern = '^/json', handler = handler.write{
+      status = 200,
+      content_type = 'application/json',
+      body = {
+        name = 'Martin',
+        msg = 'Hi!',
+      },
+    }},
   },
   middleware = {
     'log',
@@ -36,9 +42,22 @@ local app = App{
     'reqid',
     'routes',
   },
-  reqid = {
-    size = 12,
-    header = 'x-request-id',
+  reqid = {size = 12, header = 'x-request-id'},
+  json = {
+    encoder = {
+      allow_invalid_numbers = false,
+      number_precision = 4,
+      max_depth = 100,
+      sparse_array = {
+        convert_excessive = true, -- convert excessively sparse arrays to dict instead of failing
+        ratio = 2,
+        safe = 10,
+      },
+    },
+    decoder = {
+      allow_invalid_numbers = false,
+      max_depth = 100,
+    },
   },
 }
 assert(app:run())
