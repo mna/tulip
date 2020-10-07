@@ -1,6 +1,5 @@
 # list of todos
 
-* JSON, url-encoded, XML? encoders/decoders
 * CSRF package
 * User account/auth package (register, validate email, reset password, TOTP?)
 * Message queue

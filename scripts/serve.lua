@@ -35,6 +35,15 @@ local app = App{
         msg = 'Hi!',
       },
     }},
+    {method = 'GET', pattern = '^/url', handler = handler.write{
+      status = 200,
+      content_type = 'application/x-www-form-urlencoded',
+      body = {
+        name = 'Martin',
+        msg = 'Hi!',
+        teeth = 12,
+      },
+    }},
   },
   middleware = {
     'log',
@@ -59,5 +68,6 @@ local app = App{
       max_depth = 100,
     },
   },
+  urlenc = {},
 }
 assert(app:run())
