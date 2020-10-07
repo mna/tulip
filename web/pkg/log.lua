@@ -4,6 +4,7 @@ local tcheck = require 'tcheck'
 local M = {}
 
 local function stdout_logger(t)
+  -- TODO: use cjson.new
   io.write(cjson.encode(t) .. '\n')
 end
 
@@ -17,7 +18,7 @@ local function log_middleware(req, res, nxt)
   local rid = req.request_id
 
   -- TODO: more fields, duration
-  req.app:log('i', {date = date, path = path, status = status, request_id = rid})
+  req.app:log('i', {pkg = 'log', date = date, path = path, status = status, request_id = rid})
 end
 
 -- The log package register a logging backend to stdout (in fact,
@@ -29,9 +30,7 @@ function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
   app.log_level = cfg.level
-  app.loggers = app.loggers or {}
-  table.insert(app.loggers, stdout_logger)
-
+  app:register_logger('web.pkg.log', stdout_logger)
   app:register_middleware('web.pkg.log', log_middleware)
 end
 

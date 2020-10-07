@@ -24,6 +24,30 @@ local function register_packages(app, cfg)
   return pkgs
 end
 
+local function register_common(app, field, name, v)
+  local coll = app[field] or {}
+  if coll[name] then
+    if string.match(field, '^_') then
+      field = string.sub(field, 2)
+    end
+    error(string.format(
+      '%s: %q is already registered', field, name))
+  end
+  coll[name] = v
+  app[field] = coll
+end
+
+local function lookup_common(app, field, name)
+  local coll = app[field]
+  if not coll then return end
+
+  if not string.find(name, '.', 1, true) then
+    local v = coll['web.pkg.' .. name]
+    if v then return v end
+  end
+  return coll[name]
+end
+
 -- Returns the __name of the metatable of o, or nil if none.
 local function metatable_name(o)
   if type(o) == 'table' then
@@ -35,8 +59,10 @@ end
 local App = {__name = 'web.App'}
 App.__index = App
 
+-- The App itself can be used as a middleware function. This is the
+-- initial handler called from the server package, and it calls the
+-- chain of middleware enabled for the application.
 function App:__call(req, res, nxt)
-  self:log('d', {msg = 'App handler called'})
   if not self.middleware then
     if nxt then nxt() end
     return
@@ -49,7 +75,7 @@ end
 -- returns nil, otherwise returns the encoded string.
 function App:encode(t, mime)
   if not self.encoders then return end
-  for _, enc in ipairs(self.encoders) do
+  for _, enc in pairs(self.encoders) do
     local s = enc(t, mime)
     if s then return s end
   end
@@ -61,7 +87,7 @@ end
 -- returns nil, otherwise returns the decoded value.
 function App:decode(s, mime)
   if not self.decoders then return end
-  for _, dec in ipairs(self.decoders) do
+  for _, dec in pairs(self.decoders) do
     local t = dec(s, mime)
     if t ~= nil then return t end
   end
@@ -88,37 +114,22 @@ function App:log(lvl, t)
   -- log to all registered backends
   if self.loggers then
     t.level = lvl
-    for _, l in ipairs(self.loggers) do
+    for _, l in pairs(self.loggers) do
       l(t)
     end
   end
 end
 
--- TODO: should have a register/lookup/resolve for middleware,
--- loggers, encoders and decoders, instead of packages playing with
--- App fields directly. Same implementation, only field name changes.
-
 -- Register a middleware in the list of available middleware.
 function App:register_middleware(name, mw)
-  local mws = self._middleware or {}
-  if mws[name] then
-    error(string.format(
-      'middleware %q is already registered', name))
-  end
-  mws[name] = mw
-  self._middleware = mws
+  tcheck({'*', 'string', 'table|function'}, self, name, mw)
+  register_common(self, '_middleware', name, mw)
 end
 
 -- Get the registered middleware instance for that name, or nil if none.
 function App:lookup_middleware(name)
-  local mws = self._middleware
-  if not mws then return end
-
-  if not string.find(name, '.', 1, true) then
-    local mw = mws['web.pkg.' .. name]
-    if mw then return mw end
-  end
-  return mws[name]
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, '_middleware', name)
 end
 
 -- Resolve any middleware referenced by name with the actual instance registered
@@ -137,6 +148,42 @@ function App:resolve_middleware(mws)
       mw:activate()
     end
   end
+end
+
+-- Register an encoder in the list of encoders.
+function App:register_encoder(name, mw)
+  tcheck({'*', 'string', 'table|function'}, self, name, mw)
+  register_common(self, 'encoders', name, mw)
+end
+
+-- Get the registered encoder instance for that name, or nil if none.
+function App:lookup_encoder(name)
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, 'encoders', name)
+end
+
+-- Register a decoder in the list of decoders.
+function App:register_decoder(name, mw)
+  tcheck({'*', 'string', 'table|function'}, self, name, mw)
+  register_common(self, 'decoders', name, mw)
+end
+
+-- Get the registered decoder instance for that name, or nil if none.
+function App:lookup_decoder(name)
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, 'decoders', name)
+end
+
+-- Register a logger in the list of loggers.
+function App:register_logger(name, mw)
+  tcheck({'*', 'string', 'table|function'}, self, name, mw)
+  register_common(self, 'loggers', name, mw)
+end
+
+-- Get the registered logger instance for that name, or nil if none.
+function App:lookup_logger(name)
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, 'loggers', name)
 end
 
 function App:activate()

@@ -3,6 +3,7 @@ local M = {}
 -- Reads the full content of path and returns the string. On error,
 -- returns nil and the error message.
 function M.read_file(path)
+  -- TODO: open once, keep open
   local fd, err = assert(io.open(path))
   if not fd then return nil, err end
 

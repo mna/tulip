@@ -9,8 +9,6 @@ local Response = require 'web.pkg.server.Response'
 
 local function bootstrap_handler(app, readto, writeto)
   return function(_, stm)
-    app:log('d', {msg = 'request received'})
-
     local req = Request.new(stm, readto)
     local res = Response.new(stm, writeto)
     stm.request = req
@@ -50,7 +48,7 @@ local function main(app)
   local srv = assert(server.listen(opts))
   assert(srv:listen(limits.connection_timeout))
   local _, ip, port = assert(srv:localname())
-  app:log('i', {ip = ip, port = port, msg = 'listening'})
+  app:log('i', {pkg = 'server', ip = ip, port = port, msg = 'listening'})
 
   app.server = srv
   return srv:loop()
