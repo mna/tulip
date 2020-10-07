@@ -51,8 +51,9 @@ function M.activate(app)
   end
 
   app:log('i', {pkg = 'database', msg = 'migrations started'})
-  -- TODO: detailed migrations logs
-  assert(mig:run())
+  assert(mig:run(function(pkg, i)
+    app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
+  end))
   app:log('i', {pkg = 'database', msg = 'migrations done'})
 end
 

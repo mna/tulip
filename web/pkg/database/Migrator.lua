@@ -84,9 +84,10 @@ end
 -- were registered. Each package's migrations are run in distinct
 -- transactions, and it stops and returns at the first error.
 -- On success, returns true, otherwise returns nil and an error
--- message.
-function Migrator:run(conn)
-  conn = conn or xpgsql.connect(self.connection_string)
+-- message. If cb is provided, it is called with two arguments for
+-- each applied migration - the package name and the migration index.
+function Migrator:run(cb)
+  local conn = xpgsql.connect(self.connection_string)
 
   for _, pkg in ipairs(self.order) do
     -- get the current version of this package
@@ -106,6 +107,8 @@ function Migrator:run(conn)
     if #migrations > latest then
       local ok, errtx = conn:tx(function()
         for i = latest + 1, #migrations do
+          if cb then cb(pkg, i) end
+
           local mig = migrations[i]
           if type(mig) == 'string' then
             assert(conn:exec(mig))
