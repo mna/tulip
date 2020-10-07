@@ -34,6 +34,7 @@ function M.activate(app)
   tcheck('web.App', app)
 
   local cfg = app.config.database
+  cfg.migrations = cfg.migrations or {}
 
   local migrations = {}
   for _, v in ipairs(cfg.migrations) do
@@ -48,7 +49,11 @@ function M.activate(app)
   for pkg, ms in pairs(migrations) do
     mig:register(pkg, ms)
   end
+
+  app:log('i', {pkg = 'database', msg = 'migrations started'})
+  -- TODO: detailed migrations logs
   assert(mig:run())
+  app:log('i', {pkg = 'database', msg = 'migrations done'})
 end
 
 return M

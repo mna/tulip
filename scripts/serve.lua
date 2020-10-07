@@ -5,6 +5,7 @@ local App = require 'web.App'
 
 local app = App{
   log = {level = 'debug'},
+
   server = {
     host = '127.0.0.1',
     port = 8080,
@@ -24,6 +25,11 @@ local app = App{
       private_key_path = 'run/certs/privkey.pem',
     },
   },
+
+  database = {
+    connection_string = '',
+  },
+
   routes = {
     {method = 'GET', pattern = '^/hello', handler = handler.write{status = 200, body = 'hello, Martin!'}},
     {method = 'GET', pattern = '^/fail', handler = function() error('this totally fails') end},
@@ -45,13 +51,16 @@ local app = App{
       },
     }},
   },
+
   middleware = {
     'log',
     handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
     'reqid',
     'routes',
   },
+
   reqid = {size = 12, header = 'x-request-id'},
+
   json = {
     encoder = {
       allow_invalid_numbers = false,
@@ -68,6 +77,7 @@ local app = App{
       max_depth = 100,
     },
   },
+
   urlenc = {},
 }
 assert(app:run())
