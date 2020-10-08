@@ -3,6 +3,7 @@ build = {
   type = 'builtin'
 }
 dependencies = {
+  -- TODO: double-check that list
   "lua ~> 5.3",
   "basexx	0.4.1-1",
   "binaryheap	0.4-1",
@@ -10,7 +11,6 @@ dependencies = {
   "cqueues	20200726.53-0",
   "cqueues-pgsql	0.1-0",
   "fifo	0.2-0",
-  "htmlparser	0.3.6-1",
   "http	0.3-0",
   "inspect	3.1.1-0",
   "lpeg	1.0.2-1",

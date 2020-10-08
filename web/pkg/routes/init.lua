@@ -19,7 +19,7 @@ local M = {}
 
 -- The routes package registers a route multiplexer where each
 -- request is routed to a specific handler based on the method
--- and path, with optional middleware applied.
+-- and path, with optional route-specific middleware applied.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   -- at this stage, only register an empty middleware - the mux

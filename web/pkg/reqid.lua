@@ -1,4 +1,3 @@
-local base64 = require 'base64'
 local tcheck = require 'tcheck'
 local xio = require 'web.xio'
 
@@ -8,8 +7,8 @@ local function make_middleware(cfg)
 
   return function(req, res, nxt)
     local tok = xio.random(len)
-    local btok = base64.encode(tok)
-    req.request_id = btok
+    local btok = xio.b64encode(tok)
+    req.locals.request_id = btok
     req.headers:upsert(hdr, btok)
     res.headers:upsert(hdr, btok)
     nxt()
@@ -21,7 +20,7 @@ local M = {}
 -- The reqid package registers a middleware that adds a unique
 -- id to each request. The id is added to both the request and the
 -- response's headers (under the header name provided in the configuration)
--- and is also added on the request field request_id.
+-- and is also added on the request.locals.request_id field.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 

@@ -59,6 +59,12 @@ else
   sh.cmd('cat', 'run/secrets/pgroot_pwd'):redirect('run/secrets/pgpass')
   sh('chmod', '0600', 'run/secrets/pgpass')
 end
+io.write('>>> csrf auth key\n')
+if sh.test[[-s run/secrets/csrf_key]] then
+  io.write('<<< csrf key already generated, skipping\n')
+else
+  genpwd('csrf_key')
+end
 
 io.write('>>> environment variables\n')
 if sh.test[[-s ./.envrc]] then
@@ -71,6 +77,8 @@ export PGPORT=5432
 export PGCONNECT_TIMEOUT=10
 export PGUSER=postgres
 export PGDATABASE=postgres
+
+export LUAWEB_CSRFKEY=`cat run/secrets/csrf_key`
   ]]):redirect('./.envrc')
 end
 
@@ -85,6 +93,7 @@ build = {
   type = 'builtin'
 }
 dependencies = {
+  -- TODO: double-check that list
   "lua ~> %s",
   "basexx	0.4.1-1",
   "binaryheap	0.4-1",

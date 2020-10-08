@@ -1,3 +1,4 @@
+local base64 = require 'base64'
 local rand = require 'openssl.rand'
 
 -- ensure the CSPRNG is seeded
@@ -21,6 +22,19 @@ end
 -- the error message on error.
 function M.random(len)
   return rand.bytes(len)
+end
+
+-- Encodes s into a base64 string.
+function M.b64encode(s)
+  return base64.encode(s)
+end
+
+-- Decodes s which is a base64-encoded string. Returns nil if it was
+-- not properly encoded.
+function M.b64decode(s)
+  local ok, v = pcall(base64.decode, s)
+  if not ok then return end
+  return v
 end
 
 return M

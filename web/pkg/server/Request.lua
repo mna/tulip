@@ -1,3 +1,4 @@
+local cookie = require 'http.cookie'
 local neturl = require 'net.url'
 local tcheck = require 'tcheck'
 
@@ -64,10 +65,12 @@ function Request.new(stm, read_timeout)
     stream = stm,
     authority = hdrs:get(':authority'),
     headers = hdrs,
+    cookies = cookie.parse_cookies(hdrs),
     method = hdrs:get(':method'),
     rawurl = path,
     url = neturl.parse(path),
     read_timeout = read_timeout,
+    locals = {},
   }
 
   setmetatable(o, Request)
