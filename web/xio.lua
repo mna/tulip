@@ -1,7 +1,9 @@
-local M = {}
+local rand = require 'openssl.rand'
 
--- Never closed, the file descriptor will be released on process exit.
-local urandomfd = assert(io.open('/dev/urandom'))
+-- ensure the CSPRNG is seeded
+assert(rand.ready(), 'failed to seed CSPRNG')
+
+local M = {}
 
 -- Reads the full content of path and returns the string. On error,
 -- returns nil and the error message.
@@ -18,13 +20,7 @@ end
 -- Generates a random token of the specified length. Returns nil and
 -- the error message on error.
 function M.random(len)
-  local raw, err = urandomfd:read(len)
-  if not raw then return nil, err end
-
-  if #raw ~= len then
-    return nil, 'failed to generate random token of the requested length'
-  end
-  return raw
+  return rand.bytes(len)
 end
 
 return M

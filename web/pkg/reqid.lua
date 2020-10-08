@@ -19,7 +19,9 @@ end
 local M = {}
 
 -- The reqid package registers a middleware that adds a unique
--- id to each request.
+-- id to each request. The id is added to both the request and the
+-- response's headers (under the header name provided in the configuration)
+-- and is also added on the request field request_id.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 

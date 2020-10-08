@@ -1,7 +1,6 @@
 # list of todos
 
 * CSRF package: use gorilla/csrf as model, but add the session id to the hmac authentication of the csrf cookie to prevent further attacks (leverage luaossl hmac support)
-* Token generation: use luaossl `rand.bytes(count)` (and seed at startup with `rand.ready()`)
 * User account/auth package (register, validate email, reset password, TOTP?)
 * Message queue
 * Time series/metrics
