@@ -23,6 +23,7 @@ function M.test_web_server()
   ]]--
 
 
+  --[[
   local pipe = assert(posix.popen(function()
     local srv = server.listen{
       host = '127.0.0.1',
@@ -51,20 +52,14 @@ function M.test_web_server()
   local pfd = assert(stdio.fdopen(pipe.fd, 'r'))
   local port = pfd:read('l')
   io.write(string.format('>>> got from spwan: %q\n' , port))
+  --]]
 
-  local cq = cqueues.new()
-  cq:wrap(function()
-    local req = request.new_from_uri(string.format('http://127.0.0.1:%s/', port))
+    local req = request.new_from_uri('http://127.0.0.1:8880/hello')
     --print('>>>>> client request created', req:to_uri())
     local hdrs, res = req:go(10)
     print('>>>> client got', hdrs, res)
-    for ln in pfd:lines() do
-        print('>>> from server:', ln)
-    end
-    --print(hdrs:get(':status'))
-    --print(res:get_body_as_string(10))
-  end)
-  assert(cq:loop())
+    print(hdrs:get(':status'))
+    print(res:get_body_as_string(10))
 end
 
 return M
