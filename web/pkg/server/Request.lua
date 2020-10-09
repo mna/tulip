@@ -61,14 +61,38 @@ end
 function Request.new(stm, read_timeout)
   local hdrs = stm:get_headers(read_timeout)
   local path = hdrs:get(':path')
+
+  local _, ip, port = stm:peername()
+  if port then ip = ip .. ':' .. port end
+
+  local auth = hdrs:get(':authority')
+  local url = neturl.parse(path)
+  if not url.host or url.host == '' then
+    if auth and auth ~= '' then
+      url:setAuthority(auth)
+    end
+    if not url.host or url.host == '' then
+      url.host = hdrs:get('host')
+    end
+  end
+  if not url.scheme or url.scheme == '' then
+    if stm:checktls() then
+      url.scheme = 'https'
+    else
+      url.scheme = 'http'
+    end
+  end
+
   local o = {
     stream = stm,
-    authority = hdrs:get(':authority'),
+    remote_addr = ip,
+    proto = stm.connection.version,
+    authority = auth,
     headers = hdrs,
     cookies = cookie.parse_cookies(hdrs),
     method = hdrs:get(':method'),
     rawurl = path,
-    url = neturl.parse(path),
+    url = url,
     read_timeout = read_timeout,
     locals = {},
   }

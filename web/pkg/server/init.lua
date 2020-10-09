@@ -11,6 +11,11 @@ local function bootstrap_handler(app, readto, writeto)
   return function(_, stm)
     local req = Request.new(stm, readto)
     local res = Response.new(stm, writeto)
+    -- TODO: configure trusted proxy headers, to use
+    -- Forwarded or X-Forwarded-... headers (maybe via a trusted
+    -- secret). X-Real-Ip for peer (configurable? Cloudflare uses
+    -- different header).
+
     stm.request = req
     stm.response = res
     req.app, res.app = app, app

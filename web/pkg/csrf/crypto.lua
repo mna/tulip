@@ -12,9 +12,15 @@ local function xor_token(a, b)
   return string.char(table.unpack(c))
 end
 
-local function verify_mac(h, v, mac)
+local function verify_mac(hkey, v, mac)
+  local h = hmac.new(hkey, 'sha256')
   local mac2 = h:final(v)
   return mac == mac2
+end
+
+local function create_mac(hkey, v)
+  local h = hmac.new(hkey, 'sha256')
+  return h:final(v)
 end
 
 local M = {}
@@ -56,8 +62,7 @@ function M.decode(hkey, max_age, v, ...)
   -- verify MAC, to compute it prepend the extra values
   local mac_vals = {...}
   table.move(parts, 1, 2, #mac_vals + 1, mac_vals)
-  local h = hmac.new(hkey, 'sha256')
-  if not verify_mac(h, table.concat(mac_vals, '|'), parts[3]) then
+  if not verify_mac(hkey, table.concat(mac_vals, '|'), parts[3]) then
     return
   end
 
@@ -67,7 +72,25 @@ function M.decode(hkey, max_age, v, ...)
   local t2 = os.time()
   if max_age > 0 and (t2 - t1) > max_age then return end
 
-  return parts[2]
+  -- the value itself is base64-encoded, so that the pipe separator
+  -- is safe (cannot appear in the value).
+  return xio.b64decode(parts[2])
+end
+
+-- Encodes v to base64, creates the hmac authentication and
+-- returns the encoded token.
+function M.encode(hkey, v, ...)
+  local encoded = xio.b64encode(v)
+
+  -- create MAC with the extra values, then the date and the encoded
+  -- value.
+  local mac_vals = {...}
+  table.insert(mac_vals, tostring(os.time()))
+  table.insert(mac_vals, encoded)
+  local mac = create_mac(hkey, table.concat(mac_vals, '|'))
+
+  local cooked_vals = {mac_vals[-2], mac_vals[-1], mac}
+  return xio.b64encode(table.concat(cooked_vals, '|'))
 end
 
 return M

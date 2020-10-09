@@ -44,12 +44,19 @@ function Mw:read_raw_token_from_cookie(req)
   local ck = req.cookies[self.cookie_name]
   if not ck then return end
   if #ck.value > MAX_COOKIE_LEN then return end
-  return crypto.decode(self.auth_key, self.max_age, ck.value, ck.name, req.locals.session_id or '-')
+  return crypto.decode(self.auth_key,
+    self.max_age,
+    ck.value,
+    ck.name,
+    req.locals.session_id or '-')
 end
 
 function Mw:save_raw_token_in_cookie(raw_tok, req, res)
-  -- TODO: HMAC, encode, etc...
-  local encoded -- = ...
+  local encoded = crypto.encode(self.auth_key,
+    raw_tok,
+    self.cookie_name,
+    req.locals.session_id or '-')
+  if #encoded > MAX_COOKIE_LEN then return end
 
   local expiry = self.max_age
   if expiry then expiry = os.time() + expiry end
@@ -67,6 +74,7 @@ function Mw:save_raw_token_in_cookie(raw_tok, req, res)
     self.http_only,
     same_site)
   res.headers:append('set-cookie', ck)
+  return true
 end
 
 function Mw:__call(req, res, nxt)
@@ -81,7 +89,11 @@ function Mw:__call(req, res, nxt)
     raw_tok = xio.random(TOKEN_LEN)
 
     -- store the new raw token in the cookie
-    self:save_raw_token_in_cookie(raw_tok, req, res)
+    if not self:save_raw_token_in_cookie(raw_tok, req, res) then
+      req.locals.csrf_error = 'failed to generate CSRF token'
+      self.fail_handler(req, res, nxt)
+      return
+    end
   end
 
   -- get the masked, base64-encoded token for this request
@@ -92,7 +104,6 @@ function Mw:__call(req, res, nxt)
   -- if the request is not for a safe method, validate the csrf
   -- token.
   if not SAFE_METHODS[req.method] then
-    -- TODO: the request url DOES NOT have a scheme/host, just the path.
     if req.url.scheme == 'https' then
       -- validate origin for https requests
       local referer = neturl.parse(req.headers:get('referer'))

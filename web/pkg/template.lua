@@ -1,5 +1,6 @@
 local tcheck = require 'tcheck'
 local template = require 'resty.template'
+local xtable = require 'web.xtable'
 
 local M = {}
 
@@ -7,7 +8,9 @@ local function make_render(tpl)
   return function(app, path, ctx)
     ctx = ctx or {}
     if ctx.locals == nil then
-      ctx.locals = app.locals
+      ctx.locals = xtable.merge({}, app.locals)
+    else
+      ctx.locals = xtable.merge({}, app.locals, ctx.locals)
     end
     return tpl.process_file(path, ctx)
   end

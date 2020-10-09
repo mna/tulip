@@ -17,7 +17,15 @@ local function log_middleware(req, res, nxt)
   local rid = req.locals.request_id
 
   -- TODO: more fields, duration
-  req.app:log('i', {pkg = 'log', date = date, path = path, status = status, request_id = rid, full_url = tostring(req.url)})
+  req.app:log('i', {
+    pkg = 'log',
+    date = date,
+    path = path,
+    status = status,
+    request_id = rid,
+    full_url = tostring(req.url),
+    authority = req.authority,
+  })
 end
 
 -- The log package register a logging backend to stdout (in fact,

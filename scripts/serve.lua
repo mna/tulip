@@ -11,6 +11,7 @@ local app = App{
     port = 8080,
     reuseaddr = true,
     reuseport = true,
+
     limits = {
       connection_timeout = 10,
       idle_timeout = 60, -- keepalive?
@@ -18,6 +19,7 @@ local app = App{
       read_timeout = 20,
       write_timeout = 20,
     },
+
     tls = {
       required = true,
       protocol = 'TLS',
