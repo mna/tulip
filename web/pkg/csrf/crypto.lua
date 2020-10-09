@@ -1,3 +1,4 @@
+local hmac = require 'openssl.hmac'
 local xio = require 'web.xio'
 
 local function xor_token(a, b)
@@ -9,6 +10,11 @@ local function xor_token(a, b)
     table.insert(c, ca ~ cb)
   end
   return string.char(table.unpack(c))
+end
+
+local function verify_mac(h, v, mac)
+  local mac2 = h:final(v)
+  return mac == mac2
 end
 
 local M = {}
@@ -31,6 +37,37 @@ function M.unmask_token(masked_tok, len)
   local xord = string.sub(masked_tok, 1, len)
   local mask = string.sub(masked_tok, len + 1)
   return xor_token(mask, xord)
+end
+
+-- Decodes v from base64, validates the hmac authentication and
+-- returns the raw token on success, nil on error.
+function M.decode(hkey, max_age, v, ...)
+  -- decode from base64
+  local decoded = xio.b64decode(v)
+  if not decoded then return end
+
+  -- get parts, value is date|value|mac
+  local parts = {}
+  string.gsub(decoded, '([^|]+)', function(p)
+    table.insert(parts, p)
+  end)
+  if #parts ~= 3 then return end
+
+  -- verify MAC, to compute it prepend the extra values
+  local mac_vals = {...}
+  table.move(parts, 1, 2, #mac_vals + 1, mac_vals)
+  local h = hmac.new(hkey, 'sha256')
+  if not verify_mac(h, table.concat(mac_vals, '|'), parts[3]) then
+    return
+  end
+
+  -- verify date range
+  local t1 = math.tointeger(parts[1])
+  if not t1 then return end
+  local t2 = os.time()
+  if max_age > 0 and (t2 - t1) > max_age then return end
+
+  return parts[2]
 end
 
 return M

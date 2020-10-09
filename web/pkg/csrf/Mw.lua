@@ -4,6 +4,7 @@ local neturl = require 'net.url'
 local xio = require 'web.xio'
 
 local TOKEN_LEN = 32
+local MAX_COOKIE_LEN = 4096
 
 local SAFE_METHODS = {
   GET = true,
@@ -42,7 +43,8 @@ end
 function Mw:read_raw_token_from_cookie(req)
   local ck = req.cookies[self.cookie_name]
   if not ck then return end
-  -- TODO: decode, HMAC validate, etc.
+  if #ck.value > MAX_COOKIE_LEN then return end
+  return crypto.decode(self.auth_key, self.max_age, ck.value, ck.name, req.locals.session_id or '-')
 end
 
 function Mw:save_raw_token_in_cookie(raw_tok, req, res)
@@ -129,7 +131,13 @@ function Mw:__call(req, res, nxt)
     end
 
     -- unmask and decode the token received with the request
-    local req_raw_tok = crypto.unmask_token(self:read_masked_token_from_request(req), TOKEN_LEN)
+    local masked_tok = self:read_masked_token_from_request(req)
+    if not masked_tok then
+      req.locals.csrf_error = 'no CSRF token'
+      self.fail_handler(req, res, nxt)
+      return
+    end
+    local req_raw_tok = crypto.unmask_token(masked_tok, TOKEN_LEN)
     if raw_tok ~= req_raw_tok then
       req.locals.csrf_error = 'invalid CSRF token'
       self.fail_handler(req, res, nxt)
