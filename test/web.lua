@@ -5,6 +5,8 @@ local posix = require 'posix'
 local request = require 'http.request'
 local server = require 'http.server'
 local stdio = require 'posix.stdio'
+local unistd = require 'posix.unistd'
+local signal = require 'posix.signal'
 
 local M = {}
 
@@ -54,12 +56,21 @@ function M.test_web_server()
   io.write(string.format('>>> got from spwan: %q\n' , port))
   --]]
 
-    local req = request.new_from_uri('http://127.0.0.1:8880/hello')
-    --print('>>>>> client request created', req:to_uri())
-    local hdrs, res = req:go(10)
-    print('>>>> client got', hdrs, res)
-    print(hdrs:get(':status'))
-    print(res:get_body_as_string(10))
+  local pipe = posix.popen({'./scripts/serve.lua'}, 'r')
+  print('>>>> got pipe', inspect(pipe))
+  --local pfd = stdio.fdopen(pipe.fd, 'r')
+  --local port = pfd:read()
+  --print('>>>> ', port)
+  --pfd:close()
+
+  unistd.sleep(1)
+  local req = request.new_from_uri('https://127.0.0.1:8880/hello')
+  --print('>>>>> client request created', req:to_uri())
+  local hdrs, res = req:go(10)
+  print('>>>> client got', hdrs, res)
+  print(hdrs:get(':status'))
+  print(res:get_body_as_string(10))
+  signal.kill(pipe.pids[1])
 end
 
 return M
