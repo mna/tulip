@@ -16,7 +16,7 @@ local function log_middleware(req, res, nxt)
   local path = req.url.path
   local rid = req.locals.request_id
 
-  -- TODO: more fields, duration
+  -- TODO: more fields, duration, full_url could leak secrets on query string, but shouldn't be passed there anyway
   req.app:log('i', {
     pkg = 'log',
     date = date,
