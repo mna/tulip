@@ -42,12 +42,12 @@ end
 
 function Mw:read_raw_token_from_cookie(req)
   local ck = req.cookies[self.cookie_name]
-  if not ck then return end
-  if #ck.value > MAX_COOKIE_LEN then return end
+  if not ck or ck == '' then return end
+  if #ck > MAX_COOKIE_LEN then return end
   return crypto.decode(self.auth_key,
     self.max_age,
-    ck.value,
-    ck.name,
+    ck,
+    self.cookie_name,
     req.locals.session_id or '-')
 end
 

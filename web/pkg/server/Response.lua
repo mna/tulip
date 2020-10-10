@@ -1,4 +1,5 @@
 local headers = require 'http.headers'
+local xtable = require 'web.xtable'
 
 local Response = {__name = 'web.pkg.server.Response'}
 Response.__index = Response
@@ -61,7 +62,8 @@ function Response:write(opts)
       -- the path indicates a template to execute, which returns
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
-      bodystr = self.app:render(opts.path, opts.context)
+      local ctx = xtable.merge({}, self.app.locals, stm.request.locals, opts.context.locals)
+      bodystr = self.app:render(opts.path, ctx)
       len = #bodystr
     else
       bodyfile = io.open(opts.path)

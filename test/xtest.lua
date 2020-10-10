@@ -79,6 +79,11 @@ end
 -- and fname are module and function names as expected by the
 -- scripts/run_server.lua script, and extra arguments are passed
 -- as-is to the fname in the server process.
+--
+-- The f function is called with the server's port number as first
+-- argument, and a function to call to get output from the server's
+-- stderr as second argument (returns nil if there is no output
+-- available).
 function M.withserver(f, modname, fname, ...)
   local child = assert(process.exec('./scripts/run_server.lua', {
     modname, fname, ...
@@ -90,13 +95,16 @@ function M.withserver(f, modname, fname, ...)
   local start = os.time()
   while not port and (os.difftime(os.time(), start) < MAX_WAIT) do
     local s, err, again = child:stdout()
-    if not again then
+    if not again and (s or err) ~= nil then
       assert(s, err)
       for ln in string.gmatch(s, '([^\n]+)') do
         port = tonumber(ln)
         if port then break end
       end
     else
+      -- check if there's something in stderr
+      s = child:stderr()
+      if s then error('error in server process: ' .. s) end
       process.sleep(1)
     end
   end
@@ -106,7 +114,19 @@ function M.withserver(f, modname, fname, ...)
   process.sleep(1)
 
   -- call the function with the port number as argument
-  local ok, err = pcall(f, port)
+  local ok, err = pcall(f, port, function()
+    local start = os.time()
+    while os.difftime(os.time(), start) < MAX_WAIT do
+      local s, err, again = child:stderr()
+      if s then return s end
+      if again then
+        process.sleep(1)
+      else
+        if err then return err end
+        return
+      end
+    end
+  end)
   -- always terminate the server
   local err2 = child:kill(9)
   assert(ok, err)

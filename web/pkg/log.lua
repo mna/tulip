@@ -7,6 +7,14 @@ local function stdout_logger(t)
   io.write(cjson.encode(t) .. '\n')
 end
 
+local function make_file_logger(path)
+  local fd = assert(io.open(path, 'w+'))
+  return function(t)
+    fd:write(cjson.encode(t) .. '\n')
+    fd:flush()
+  end
+end
+
 local function log_middleware(req, res, nxt)
   local date = os.date('!%FT%T%z')
 
@@ -37,7 +45,11 @@ function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
   app.log_level = cfg.level
-  app:register_logger('web.pkg.log', stdout_logger)
+  if cfg.file then
+    app:register_logger('web.pkg.log', make_file_logger(cfg.file))
+  else
+    app:register_logger('web.pkg.log', stdout_logger)
+  end
   app:register_middleware('web.pkg.log', log_middleware)
 end
 
