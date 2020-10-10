@@ -22,10 +22,9 @@ local mod = require(modname)
 local fn = mod[fname]
 assert(type(fn) == 'function', 'function name must be an exported function')
 
-local app = App(fn())
-app.loggers = app.loggers or {}
+local app = App(fn(table.unpack(arg, 3)))
 app.log_level = 'd' -- must force this to get the server pkg log
-table.insert(app.loggers, function(t)
+app:register_logger('run_server', function(t)
   if t.pkg == 'server' and t.port then
     io.write(tostring(t.port) .. '\n')
     io.flush()

@@ -77,15 +77,18 @@ end
 -- Runs function f with a server running in a separate process,
 -- and ensures the process is terminated on return. The modname
 -- and fname are module and function names as expected by the
--- scripts/run_server.lua script.
-function M.withserver(modname, fname, f)
+-- scripts/run_server.lua script, and extra arguments are passed
+-- as-is to the fname in the server process.
+function M.withserver(f, modname, fname, ...)
   local child = assert(process.exec('./scripts/run_server.lua', {
-    modname, fname,
+    modname, fname, ...
   }, nil, '.', true))
 
   -- read until we get the port number
   local port
-  while not port do
+  local MAX_WAIT = 10
+  local start = os.time()
+  while not port and (os.difftime(os.time(), start) < MAX_WAIT) do
     local s, err, again = child:stdout()
     if not again then
       assert(s, err)
@@ -97,6 +100,7 @@ function M.withserver(modname, fname, f)
       process.sleep(1)
     end
   end
+  assert(port, 'could not read port number from the server process')
 
   -- make sure the server is running
   process.sleep(1)

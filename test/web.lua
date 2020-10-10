@@ -74,14 +74,14 @@ function M.config()
 end
 
 function M.test_web_server()
-  xtest.withserver('test.web', 'config', function(port)
+  xtest.withserver(function(port)
     local req = request.new_from_uri(
       string.format('http://localhost:%d/hello', port))
     local hdrs, res = req:go(10)
     print('>>>> client got', hdrs, res)
     print(hdrs:get(':status'))
     print(res:get_body_as_string(10))
-  end)
+  end, 'test.web', 'config')
 end
 
 return M
