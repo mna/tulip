@@ -89,7 +89,7 @@ function M.encode(hkey, v, ...)
   table.insert(mac_vals, encoded)
   local mac = create_mac(hkey, table.concat(mac_vals, '|'))
 
-  local cooked_vals = {mac_vals[-2], mac_vals[-1], mac}
+  local cooked_vals = {mac_vals[#mac_vals-1], mac_vals[#mac_vals], mac}
   return xio.b64encode(table.concat(cooked_vals, '|'))
 end
 

@@ -109,9 +109,8 @@ function M.withserver(f, modname, fname, ...)
   local ok, err = pcall(f, port)
   -- always terminate the server
   local err2 = child:kill(9)
-  if err2 then error(err2) end
-  -- raise error if the call did raise one
   assert(ok, err)
+  if err2 then error(err2) end
 end
 
 return M

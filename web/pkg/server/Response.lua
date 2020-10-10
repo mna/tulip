@@ -77,7 +77,7 @@ function Response:write(opts)
       end
     end
     hasbody = true
-  else
+  elseif hdrs:get(':status') ~= '204' then
     len = 0
   end
 

@@ -65,7 +65,7 @@ function Mw:save_raw_token_in_cookie(raw_tok, req, res)
   -- lua-http does not support same-site none.
   if same_site and same_site == 'none' then same_site = nil end
 
-  local ck = cookie.back(self.cookie_name,
+  local ck = cookie.bake(self.cookie_name,
     encoded,
     expiry,
     self.domain,
