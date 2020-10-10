@@ -2,6 +2,7 @@ local crypto = require 'web.pkg.csrf.crypto'
 local handler = require 'web.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
+local process = require 'process'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
 
@@ -22,9 +23,9 @@ end
 
 local M = {}
 
-function M.config()
+function M.config_http()
   return {
-    log = { level = 'd', file = 'csrf_server.out' },
+    log = { level = 'd', file = 'csrf_http.out' },
     server = { host = 'localhost', port = 0 },
     routes = {
       {method = 'GET', pattern = '^/', handler = write_token},
@@ -41,7 +42,25 @@ function M.config()
   }
 end
 
--- TODO: test over https with origin checks, and test expiration with short max_age
+function M.config_expiry()
+  return {
+    log = { level = 'd', file = 'csrf_expiry.out' },
+    server = { host = 'localhost', port = 0 },
+    routes = {
+      {method = 'GET', pattern = '^/', handler = write_token},
+      {method = 'POST', pattern = '^/', handler = handler.write{status = 204}},
+    },
+    middleware = { 'csrf', 'routes' },
+    csrf = {
+      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      max_age = 1,
+      secure = false,
+      same_site = 'none', -- required for the cookie_store to work
+    },
+  }
+end
+
+-- TODO: test over https with origin checks
 
 function M.test_csrf_over_http()
   local TO = 10
@@ -64,7 +83,7 @@ function M.test_csrf_over_http()
     local good_tok = body
 
     -- should be able to properly decode the cookie value
-    local cfg = M.config().csrf
+    local cfg = M.config_http().csrf
     local raw = crypto.decode(cfg.auth_key,
       cfg.max_age,
       ck,
@@ -174,7 +193,38 @@ function M.test_csrf_over_http()
     body = res:get_body_as_string(TO)
     lu.assertEquals(body, '')
     lu.assertEquals(hdrs:get(':status'), '204')
-  end, 'test.csrf', 'config')
+  end, 'test.csrf', 'config_http')
+end
+
+function M.test_csrf_expiry()
+  local TO = 10
+  xtest.withserver(function(port)
+    -- make a GET request to get a valid token
+    local req = request.new_from_uri(
+      string.format('http://localhost:%d/', port))
+    req.headers:upsert(':method', 'GET')
+
+    local hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    local body = res:get_body_as_string(TO)
+    lu.assertTrue(body and body ~= '')
+    lu.assertEquals(hdrs:get(':status'), '200')
+
+    -- sleep for a bit to let it expire
+    process.sleep(2)
+    local expired_tok = body
+
+    -- make a POST request with the token
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert('x-csrf-token', expired_tok)
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'Forbidden')
+    lu.assertEquals(hdrs:get(':status'), '403')
+  end, 'test.csrf', 'config_expiry')
 end
 
 return M
