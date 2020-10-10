@@ -7,7 +7,7 @@ local xtest = require 'test.xtest'
 
 local function set_session_id(req, _, nxt)
   if req.url.query.ssn then
-    req.session_id = req.url.query.ssn
+    req.locals.session_id = req.url.query.ssn
   end
   nxt()
 end
@@ -41,9 +41,11 @@ function M.config()
   }
 end
 
-function M.test_csrf()
+-- TODO: test over https with origin checks, and test expiration with short max_age
+
+function M.test_csrf_over_http()
   local TO = 10
-  xtest.withserver(function(port, stderr)
+  xtest.withserver(function(port)
     local req = request.new_from_uri(
       string.format('http://localhost:%d/', port))
     req.headers:upsert(':method', 'GET')
@@ -77,7 +79,7 @@ function M.test_csrf()
     lu.assertNotNil(hdrs and res)
 
     body = res:get_body_as_string(TO)
-    lu.assertEquals(body, 'Forbidden')
+    lu.assertStrContains(body, 'Forbidden')
     lu.assertEquals(hdrs:get(':status'), '403')
 
     -- making a POST request with the token in the header should succeed
@@ -95,7 +97,7 @@ function M.test_csrf()
     lu.assertNotNil(hdrs and res)
 
     body = res:get_body_as_string(TO)
-    lu.assertEquals(body, 'Forbidden')
+    lu.assertStrContains(body, 'Forbidden')
     lu.assertEquals(hdrs:get(':status'), '403')
 
     -- making another GET request returns a different token due to the mask
@@ -124,6 +126,48 @@ function M.test_csrf()
     req.headers:upsert(':method', 'POST')
     req.headers:upsert('content-type', 'application/x-www-form-urlencoded')
     req:set_body(neturl.buildQuery({_csrf_token = good_tok}))
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(body, '')
+    lu.assertEquals(hdrs:get(':status'), '204')
+
+    -- the canonical token in the cookie is still the same
+    local ck2 = req.cookie_store:get('localhost', '/', 'csrf')
+    lu.assertEquals(ck, ck2)
+
+    -- POSTing with a new session id causes the generation of a new cookie token,
+    -- so the request fails despite having what was a good token
+    req.headers:upsert('x-csrf-token', good_tok)
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert(':path', '/?ssn=abc')
+    req.headers:delete('content-type')
+    req:set_body('')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'Forbidden')
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- the canonical token in the cookie has changed
+    local ck3 = req.cookie_store:get('localhost', '/', 'csrf')
+    lu.assertNotEquals(ck, ck3)
+
+    -- making another GET request returns a new valid token
+    req.headers:upsert(':method', 'GET')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(hdrs:get(':status'), '200')
+
+    local good_tok3 = body
+
+    -- and this new token made for requests with the session works
+    req.headers:upsert('x-csrf-token', good_tok3)
+    req.headers:upsert(':method', 'POST')
     hdrs, res = req:go(TO)
     lu.assertNotNil(hdrs and res)
 

@@ -13,10 +13,10 @@ local SAFE_METHODS = {
   TRACE = true,
 }
 
-local function default_fail(_, res)
+local function default_fail(req, res)
   res:write{
     status = 403,
-    body = 'Forbidden',
+    body = 'Forbidden - ' .. req.locals.csrf_error,
     content_type = 'text/plain',
   }
 end
