@@ -24,9 +24,11 @@ assert(type(fn) == 'function', 'function name must be an exported function')
 
 local app = App(fn())
 app.loggers = app.loggers or {}
-table.insert(app.loggers, 1, function(t)
+app.log_level = 'd' -- must force this to get the server pkg log
+table.insert(app.loggers, function(t)
   if t.pkg == 'server' and t.port then
     io.write(tostring(t.port) .. '\n')
+    io.flush()
   end
 end)
 assert(app:run())

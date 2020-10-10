@@ -1,76 +1,87 @@
-local cqueues = require 'cqueues'
-local headers = require 'http.headers'
-local inspect = require 'inspect'
-local posix = require 'posix'
+local handler = require 'web.handler'
 local request = require 'http.request'
-local server = require 'http.server'
-local stdio = require 'posix.stdio'
-local unistd = require 'posix.unistd'
-local signal = require 'posix.signal'
+local xtest = require 'test.xtest'
 
 local M = {}
 
-function M.test_web_server()
-  --[[
-      print('>>>>> client read')
-      local port = con:read('*l')
-      print('>>>>> client done', port)
-      cqueues.sleep(0.5)
-      local req = request.new_from_uri(string.format('http://127.0.0.1:%s/', port))
-      print('>>>>> client request created', req:to_uri())
-      local hdrs, res = req:go(10)
-      print('>>>> client got', hdrs, res)
-      --print(hdrs:get(':status'))
-      --print(res:get_body_as_string(10))
-  ]]--
-
-
-  --[[
-  local pipe = assert(posix.popen(function()
-    local srv = server.listen{
+function M.config()
+  return {
+    log = {level = 'd'},
+    server = {
       host = '127.0.0.1',
       port = 0,
       reuseaddr = true,
       reuseport = true,
-      onstream = function(_, stm)
-        print('>>>>> server request received')
-        local hdrs = headers.new()
-        hdrs:upsert(':status', '200')
-        print('>>>>> server headers set')
-        local ok, msg = pcall(stm.write_headers, stm, hdrs, false)
-        print('>>>>> server write headers done', ok, msg)
-        stm:write_body_from_string('allo', 10)
-      end,
-    }
-    assert(srv:listen())
-    local _, _, port = srv:localname()
-    io.write(port .. '\n')
-    --print('>>>>> server will start')
-    assert(srv:loop())
-    --print('>>>>> server stopped')
-    return 0
-  end, 'r'))
 
-  local pfd = assert(stdio.fdopen(pipe.fd, 'r'))
-  local port = pfd:read('l')
-  io.write(string.format('>>> got from spwan: %q\n' , port))
-  --]]
+      limits = {
+        connection_timeout = 10,
+        idle_timeout = 60, -- keepalive?
+        max_active_connections = 1000,
+        read_timeout = 20,
+        write_timeout = 20,
+      },
+    },
 
-  local pipe = posix.popen({'./scripts/serve.lua'}, 'r')
-  print('>>>> got pipe', inspect(pipe))
-  --local pfd = stdio.fdopen(pipe.fd, 'r')
-  --local port = pfd:read()
-  --print('>>>> ', port)
-  --pfd:close()
+    routes = {
+      {method = 'GET', pattern = '^/hello', handler = handler.write{status = 200, body = 'hello, Martin!'}},
+      {method = 'GET', pattern = '^/fail', handler = function() error('this totally fails') end},
+      {method = 'GET', pattern = '^/json', handler = handler.write{
+        status = 200,
+        content_type = 'application/json',
+        body = {
+          name = 'Martin',
+          msg = 'Hi!',
+        },
+      }},
+      {method = 'GET', pattern = '^/url', handler = handler.write{
+        status = 200,
+        content_type = 'application/x-www-form-urlencoded',
+        body = {
+          name = 'Martin',
+          msg = 'Hi!',
+          teeth = 12,
+        },
+      }},
+    },
 
-  unistd.sleep(1)
-  local req = request.new_from_uri('https://127.0.0.1:8880/hello')
-  --print('>>>>> client request created', req:to_uri())
-  local hdrs, res = req:go(10)
-  print('>>>> client got', hdrs, res)
-  print(hdrs:get(':status'))
-  print(res:get_body_as_string(10))
-  signal.kill(pipe.pids[1])
+    middleware = {
+      handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
+      'reqid',
+      'routes',
+    },
+
+    reqid = {size = 12, header = 'x-request-id'},
+
+    json = {
+      encoder = {
+        allow_invalid_numbers = false,
+        number_precision = 4,
+        max_depth = 100,
+        sparse_array = {
+          convert_excessive = true, -- convert excessively sparse arrays to dict instead of failing
+          ratio = 2,
+          safe = 10,
+        },
+      },
+      decoder = {
+        allow_invalid_numbers = false,
+        max_depth = 100,
+      },
+    },
+
+    urlenc = {},
+  }
+end
+
+function M.test_web_server()
+  xtest.withserver('test.web', 'config', function(port)
+    local req = request.new_from_uri(
+      string.format('http://localhost:%d/hello', port))
+    local hdrs, res = req:go(10)
+    print('>>>> client got', hdrs, res)
+    print(hdrs:get(':status'))
+    print(res:get_body_as_string(10))
+  end)
 end
 
 return M

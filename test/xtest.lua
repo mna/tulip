@@ -1,4 +1,5 @@
 local fn = require 'fn'
+local process = require 'process'
 local stdlib = require 'posix.stdlib'
 local xpgsql = require 'xpgsql'
 
@@ -71,6 +72,42 @@ function M.newdb(connstr)
     return true, cleanup
   end
   return nil, cleanup, err
+end
+
+-- Runs function f with a server running in a separate process,
+-- and ensures the process is terminated on return. The modname
+-- and fname are module and function names as expected by the
+-- scripts/run_server.lua script.
+function M.withserver(modname, fname, f)
+  local child = assert(process.exec('./scripts/run_server.lua', {
+    modname, fname,
+  }, nil, '.', true))
+
+  -- read until we get the port number
+  local port
+  while not port do
+    local s, err, again = child:stdout()
+    if not again then
+      assert(s, err)
+      for ln in string.gmatch(s, '([^\n]+)') do
+        port = tonumber(ln)
+        if port then break end
+      end
+    else
+      process.sleep(1)
+    end
+  end
+
+  -- make sure the server is running
+  process.sleep(1)
+
+  -- call the function with the port number as argument
+  local ok, err = pcall(f, port)
+  -- always terminate the server
+  local err2 = child:kill(9)
+  if err2 then error(err2) end
+  -- raise error if the call did raise one
+  assert(ok, err)
 end
 
 return M
