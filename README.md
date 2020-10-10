@@ -11,22 +11,22 @@ Lua Web is a minimal and simple web framework that provides a lot with very litt
 Using only Lua (currently 5.3) and the PostgreSQL database (currently 12), the
 framework packs the following features:
 
-* HTTP and HTTPS
-* HTTP/1.1 and HTTP/2
-* Concurrent handling of requests
+* HTTP and HTTPS ✔
+* HTTP/1.1 and HTTP/2 ✔
+* Concurrent handling of requests ✔
 * Message Queue-style asynchronous processing
 * Time series-style storage of metrics
 * Cron-like scheduled processing
 * Hardened server with timeouts and connection capacity
-* SQL injection, XSS and CSRF protections
-* Template-based dynamic HTML page generation
-* Static file-based serving
+* SQL injection, XSS and CSRF protections ✔
+* Template-based dynamic HTML page generation ✔
+* Static file-based serving ✔
 * Account registration, token-based validation and password reset
 * Secure user authentication with cookie-based session
 * User- and group-based authorization
-* Straightforward pattern-based request multiplexer
-* Pluggable, extendable architecture
-* Transactional database migrations runner
+* Straightforward pattern-based request multiplexer ✔
+* Pluggable, extendable architecture ✔
+* Transactional database migrations runner ✔
 
 ## Development
 
@@ -59,6 +59,10 @@ To view code coverage:
 ```
 $ llrocks cover test/main.lua
 ```
+
+Note that because some tests (e.g. the csrf middleware) run the server in a separate
+process and only the client requests are made from the actual LuaUnit-executed process,
+test coverage reports lower numbers than what is actually covered.
 
 ## License
 

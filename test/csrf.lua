@@ -1,6 +1,7 @@
 local crypto = require 'web.pkg.csrf.crypto'
 local handler = require 'web.handler'
 local lu = require 'luaunit'
+local neturl = require 'net.url'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
 
@@ -36,12 +37,13 @@ function M.config()
       secure = false,
       same_site = 'none', -- required for the cookie_store to work
     },
+    urlenc = {},
   }
 end
 
 function M.test_csrf()
   local TO = 10
-  xtest.withserver(function(port)
+  xtest.withserver(function(port, stderr)
     local req = request.new_from_uri(
       string.format('http://localhost:%d/', port))
     req.headers:upsert(':method', 'GET')
@@ -95,6 +97,39 @@ function M.test_csrf()
     body = res:get_body_as_string(TO)
     lu.assertEquals(body, 'Forbidden')
     lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- making another GET request returns a different token due to the mask
+    req.headers:upsert(':method', 'GET')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(hdrs:get(':status'), '200')
+    lu.assertNotEquals(good_tok, body)
+
+    local good_tok2 = body
+
+    -- this new good_tok2 works too
+    req.headers:upsert('x-csrf-token', good_tok2)
+    req.headers:upsert(':method', 'POST')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(body, '')
+    lu.assertEquals(hdrs:get(':status'), '204')
+
+    -- the old good_tok is good too, and works in the form field
+    req.headers:delete('x-csrf-token')
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert('content-type', 'application/x-www-form-urlencoded')
+    req:set_body(neturl.buildQuery({_csrf_token = good_tok}))
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(body, '')
+    lu.assertEquals(hdrs:get(':status'), '204')
   end, 'test.csrf', 'config')
 end
 

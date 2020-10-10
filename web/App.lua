@@ -74,10 +74,11 @@ end
 -- registered encoders. If no encoder supports this mime type,
 -- returns nil, otherwise returns the encoded string.
 function App:encode(t, mime)
-  if not self.encoders then return end
-  for _, enc in pairs(self.encoders) do
-    local s = enc(t, mime)
-    if s then return s end
+  if self.encoders then
+    for _, enc in pairs(self.encoders) do
+      local s = enc(t, mime)
+      if s then return s end
+    end
   end
   error(string.format('no encoder registered for MIME type %q', mime))
 end
@@ -86,10 +87,11 @@ end
 -- the registered decoders. If no decoder supports this mime type,
 -- returns nil, otherwise returns the decoded value.
 function App:decode(s, mime)
-  if not self.decoders then return end
-  for _, dec in pairs(self.decoders) do
-    local t = dec(s, mime)
-    if t ~= nil then return t end
+  if self.decoders then
+    for _, dec in pairs(self.decoders) do
+      local t = dec(s, mime)
+      if t ~= nil then return t end
+    end
   end
   error(string.format('no decoder registered for MIME type %q', mime))
 end
