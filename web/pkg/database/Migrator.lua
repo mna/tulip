@@ -7,7 +7,7 @@ local MIGRATIONS = {
     CREATE TABLE "web_pkg_database_migrations" (
       "package" VARCHAR(100) NOT NULL,
       "version" INTEGER NOT NULL CHECK ("version" > 0),
-      "created" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
       PRIMARY KEY ("package")
     )
