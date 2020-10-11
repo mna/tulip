@@ -23,7 +23,7 @@ local M = {}
 -- of whether an error was raised or not, and the call returns the
 -- return values of the function or re-raise the error.
 --
--- It also registers the migrator, which runs when the app is
+-- It also runs the migrator, which runs when the app is
 -- started, executing all registered migrations from the config.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)

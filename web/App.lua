@@ -70,6 +70,18 @@ function App:__call(req, res, nxt)
   handler.chain_middleware(self.middleware, req, res, nxt)
 end
 
+-- Default implementation of App:render raises an error. The template
+-- package registers a valid implementation of that method.
+function App.render()
+  error('no template renderer registered')
+end
+
+-- Default implementation of App:db raises an error. The database
+-- package registers a valid implementation of that method.
+function App.db()
+  error('no database registered')
+end
+
 -- Encodes the table t to the specified mime type, using the
 -- registered encoders. If no encoder supports this mime type,
 -- returns nil, otherwise returns the encoded string.
