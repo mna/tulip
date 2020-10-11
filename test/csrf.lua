@@ -42,6 +42,36 @@ function M.config_http()
   }
 end
 
+function M.config_https()
+  return {
+    log = { level = 'd', file = 'csrf_https.out' },
+    server = {
+      host = 'localhost',
+      port = 0,
+      tls = {
+        required = true,
+        protocol = 'TLS',
+        certificate_path = 'run/certs/fullchain.pem',
+        private_key_path = 'run/certs/privkey.pem',
+      },
+    },
+    routes = {
+      {method = 'GET', pattern = '^/', handler = write_token},
+      {method = 'POST', pattern = '^/', handler = handler.write{status = 204}},
+    },
+    middleware = { set_session_id, 'csrf', 'routes' },
+    csrf = {
+      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      max_age = 3600,
+      same_site = 'none', -- required for the cookie_store to work
+      trusted_origins = {
+        'ok.localhost',
+      },
+    },
+    urlenc = {},
+  }
+end
+
 function M.config_expiry()
   return {
     log = { level = 'd', file = 'csrf_expiry.out' },
@@ -60,10 +90,78 @@ function M.config_expiry()
   }
 end
 
--- TODO: test over https with origin checks
+local TO = 10
+
+function M.test_csrf_over_https()
+  xtest.withserver(function(port)
+    local req = request.new_from_uri(
+      string.format('https://localhost:%d/', port))
+    req.headers:upsert(':method', 'GET')
+
+    local hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    local body = res:get_body_as_string(TO)
+    lu.assertTrue(body and body ~= '')
+    lu.assertEquals(hdrs:get(':status'), '200')
+    lu.assertStrIContains(hdrs:get('vary'), 'cookie')
+    local ck = req.cookie_store:get('localhost', '/', 'csrf')
+    lu.assertTrue(ck and ck ~= '')
+    lu.assertNotEquals(ck, body) -- different because body token is masked
+
+    local good_tok = body
+
+    -- making a POST request with the token in the header should fail due to no referer
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert('x-csrf-token', good_tok)
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'no referer')
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- making a POST request with the token and a referer from a different domain fails
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert('referer', 'http://example.com/')
+    req.headers:upsert('x-csrf-token', good_tok)
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'invalid referer')
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- POST request with the token and the exact domain as referer
+    req.headers:upsert('referer', 'https://localhost/ok')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(body, '')
+    lu.assertEquals(hdrs:get(':status'), '204')
+
+    -- POST request with the token and a non-trusted subdomain as referer
+    req.headers:upsert('referer', 'https://notok.localhost/')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'invalid referer')
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- POST request with the token and a trusted subdomain as referer
+    req.headers:upsert('referer', 'https://ok.localhost/')
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+
+    body = res:get_body_as_string(TO)
+    lu.assertEquals(body, '')
+    lu.assertEquals(hdrs:get(':status'), '204')
+  end, 'test.csrf', 'config_https')
+end
 
 function M.test_csrf_over_http()
-  local TO = 10
   xtest.withserver(function(port)
     local req = request.new_from_uri(
       string.format('http://localhost:%d/', port))
@@ -197,7 +295,6 @@ function M.test_csrf_over_http()
 end
 
 function M.test_csrf_expiry()
-  local TO = 10
   xtest.withserver(function(port)
     -- make a GET request to get a valid token
     local req = request.new_from_uri(
