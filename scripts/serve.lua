@@ -42,6 +42,7 @@ function M.config()
     routes = {
       {method = 'GET', pattern = '^/hello', handler = handler.write{status = 200, body = 'hello, Martin!'}},
       {method = 'GET', pattern = '^/fail', handler = function() error('this totally fails') end},
+      {method = 'GET', pattern = '^/pub/(.+)$', handler = handler.dir('scripts')},
       {method = 'GET', pattern = '^/json', handler = handler.write{
         status = 200,
         content_type = 'application/json',
