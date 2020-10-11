@@ -1,5 +1,7 @@
 # list of todos
 
+* Token package (one-time use, e.g. reset pwd, validate email)
+* Email package (probably provider-specific, but through a generic `App:send_email` method)
 * User account/auth package (register, validate email, reset password, TOTP?)
 * Message queue
 * Time series/metrics

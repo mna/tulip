@@ -1,6 +1,6 @@
 version: '3.6'
 services:
-  moongres:
+  pg:
     build: ./db/postgres/image
     command: -c 'config_file=/etc/postgresql/postgresql.conf'
     ports:

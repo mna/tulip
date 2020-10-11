@@ -1,4 +1,4 @@
-FROM postgres:12
+FROM postgres:13
 
 RUN set -ex                      \
       && apt-get --yes update    \
@@ -7,7 +7,7 @@ RUN set -ex                      \
         git                      \
         liblua5.3-dev            \
         lua5.3                   \
-        postgresql-server-dev-12 \
+        postgresql-server-dev-13 \
       && cd /tmp                 \
       && git clone https://github.com/citusdata/pg_cron.git \
       && cd pg_cron              \
@@ -22,16 +22,7 @@ RUN set -ex                      \
         LUALIB=-llua5.3          \
         LUAC=luac5.3             \
         LUA=lua5.3               \
-        install                  \
-      && make                    \
-        -C hstore                \
-        PG_CONFIG=pg_config      \
-        LUA_INCDIR=/usr/include/lua5.3 \
-        LUALIB=-llua5.3          \
-        LUAC=luac5.3             \
-        LUA=lua5.3               \
         install
 
 COPY ./install_pg_cron.sql /docker-entrypoint-initdb.d/install_pg_cron.sql
 COPY ./install_pllua.sql   /docker-entrypoint-initdb.d/install_pllua.sql
-COPY ./install_hstore.sql   /docker-entrypoint-initdb.d/install_hstore.sql
