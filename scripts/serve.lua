@@ -65,6 +65,7 @@ function M.config()
       'log',
       handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
       'reqid',
+      'csrf',
       'routes',
     },
 
@@ -92,16 +93,9 @@ function M.config()
     csrf = {
       auth_key = os.getenv('LUAWEB_CSRFKEY'),
       max_age = 3600 * 12, -- 12 hours, validity of token
-      domain = '', -- domain of the csrf cookie
-      path = '', -- path of the csrf cookie
       http_only = true,
       secure = true,
       same_site = 'lax', -- one of 'strict', 'lax', or 'none'
-      request_header = 'x-csrf-token', -- the name of the request header to look for a token
-      input_name = '_csrf_token', -- the name of the hidden input field to look for a token sent in a form
-      cookie_name = 'csrf',
-      fail_handler = function() end, -- default to sending 403
-      trusted_origins = {'...'},
     },
   }
 end
