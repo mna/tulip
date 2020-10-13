@@ -3,7 +3,7 @@ local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
 local function make_db(connstr)
-  return function(fn, ...)
+  return function(app, fn, ...)
     local conn = assert(xpgsql.connect(connstr))
     if not fn then return conn end
 
