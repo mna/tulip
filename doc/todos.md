@@ -11,3 +11,4 @@
 * Gzip middleware decoder for requests, encoder for responses
 * Deployment script, with support for arbitrary staging environments and update of existing deploys
 * Easy to use HTTP client with circuit breaker support?
+* Cohesive and consistent error handling

@@ -17,14 +17,14 @@ local function make_token(cfg)
     local v, err
     if tok then
       -- validate the token
-      v, err = pcall(token.validate, t, db, tok)
+      v, err = token.validate(t, db, tok)
     else
       -- generate a token
       if lookup_types and not lookup_types[t.type] then
         -- TODO: error or return nil, err?
         error(string.format('token type %q is invalid', t.type))
       end
-      v, err = pcall(token.generate, t, db)
+      v, err = token.generate(t, db)
     end
     if close then db:close() end
     return v, err
@@ -51,12 +51,22 @@ local M = {}
 --     generate a new token.
 --   < v: bool|string|nil = if tok is provided, returns a boolean
 --     that indicates if the token is valid, otherwise returns a
---     string that is the raw (non-encoded) generated token. Is
+--     string that is the base64-encoded generated token. Is
 --     nil on error.
 --   < err: string|nil = error message if v is nil.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.token = make_token(cfg)
+
+  local db = app.config.database
+  if not db then
+    error('no database registered')
+  end
+  db.migrations = db.migrations or {}
+  table.insert(db.migrations, {
+    package = 'web.pkg.token';
+    table.unpack(token.migrations)
+  })
 end
 
 return M
