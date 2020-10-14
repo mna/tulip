@@ -59,6 +59,21 @@ end
 local App = {__name = 'web.App'}
 App.__index = App
 
+-- List of App functions (key) to package "generic" names (value)
+-- to attach to the App and fail by default when called, to indicate
+-- that a package should be registered to get this functionality.
+local FAIL_PLACEHOLDERS = {
+  db = 'database',
+  render = 'template',
+  token = 'token',
+}
+
+for k, v in pairs(FAIL_PLACEHOLDERS) do
+  App[k] = function()
+    error(string.format('no %s package registered', v))
+  end
+end
+
 -- The App itself can be used as a middleware function. This is the
 -- initial handler called from the server package, and it calls the
 -- chain of middleware enabled for the application.
@@ -68,18 +83,6 @@ function App:__call(req, res, nxt)
     return
   end
   handler.chain_middleware(self.middleware, req, res, nxt)
-end
-
--- Default implementation of App:render raises an error. The template
--- package registers a valid implementation of that method.
-function App.render()
-  error('no template renderer registered')
-end
-
--- Default implementation of App:db raises an error. The database
--- package registers a valid implementation of that method.
-function App.db()
-  error('no database registered')
 end
 
 -- Encodes the table t to the specified mime type, using the

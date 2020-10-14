@@ -1,8 +1,11 @@
 # list of todos
 
 * Email package (probably provider-specific, but through a generic `App:send_email` method)
-* User account/auth package (register, validate email, reset password, TOTP?)
+* Validate required environment variables in .envrc + README
+
+* Flash messages that persist across redirects
 * Message queue
+* User account/auth package (register, validate email, reset password, TOTP?)
 * Time series/metrics
 * Pub/sub
 * Cron/scheduled jobs
@@ -10,4 +13,4 @@
 * Gzip middleware decoder for requests, encoder for responses
 * Deployment script, with support for arbitrary staging environments and update of existing deploys
 * Easy to use HTTP client with circuit breaker support?
-* Cohesive and consistent error handling
+* Cohesive and consistent error handling (throw vs nil+msg)
