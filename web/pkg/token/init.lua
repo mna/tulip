@@ -1,4 +1,5 @@
 local tcheck = require 'tcheck'
+local token = require 'web.pkg.token.token'
 
 local function make_token(cfg)
   local lookup_types
@@ -10,15 +11,23 @@ local function make_token(cfg)
   end
 
   return function(app, t, db, tok)
+    local close = not db
     db = db or app:db()
+
+    local v, err
     if tok then
       -- validate the token
+      v, err = pcall(token.validate, t, db, tok)
     else
       -- generate a token
-      if lookup_types and not lookup_types[t.typ] then
-        error(string.format('token type %q is invalid', t.typ))
+      if lookup_types and not lookup_types[t.type] then
+        -- TODO: error or return nil, err?
+        error(string.format('token type %q is invalid', t.type))
       end
+      v, err = pcall(token.generate, t, db)
     end
+    if close then db:close() end
+    return v, err
   end
 end
 
@@ -32,14 +41,19 @@ local M = {}
 --   * allowed_types: array of string = if set, only those types
 --     will be allowed for the tokens.
 --
--- ok, err = App:token(t[, db[, tok]])
---   * t: table = a table with the following fields:
---     * t.typ: string = the type of the token (e.g. resetpwd)
+-- v, err = App:token(t[, db[, tok]])
+--   > t: table = a table with the following fields:
+--     * t.type: string = the type of the token (e.g. resetpwd)
 --     * t.refid: number = the reference id of the token (e.g. user id)
 --     * t.max_age: number = number of seconds before token expires
---   * db: connection = optional database connection to use
---   * tok: string = if provided, validates that token, otherwise
+--   > db: connection = optional database connection to use
+--   > tok: string = if provided, validates that token, otherwise
 --     generate a new token.
+--   < v: bool|string|nil = if tok is provided, returns a boolean
+--     that indicates if the token is valid, otherwise returns a
+--     string that is the raw (non-encoded) generated token. Is
+--     nil on error.
+--   < err: string|nil = error message if v is nil.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.token = make_token(cfg)
