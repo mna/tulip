@@ -4,7 +4,7 @@ services:
     build: ./db/postgres/image
     command: -c 'config_file=/etc/postgresql/postgresql.conf'
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       - POSTGRES_PASSWORD_FILE=/run/secrets/root_pwd
     volumes:
