@@ -104,6 +104,7 @@ local MIGRATIONS = {
           "expiry" < EXTRACT(epoch FROM current_timestamp) AND
           "attempts" < "max_attempts";
 
+        -- TODO: instead, delete rows where id exists in pending?
         -- delete those messages from the active table
         DELETE FROM
           "web_pkg_mqueue_active"
@@ -132,6 +133,7 @@ local MIGRATIONS = {
           "expiry" < EXTRACT(epoch FROM current_timestamp) AND
           "attempts" >= "max_attempts";
 
+        -- TODO: same here, delete where id is in the dead table?
         -- delete those messages from the active table
         DELETE FROM
           "web_pkg_mqueue_active"
