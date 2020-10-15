@@ -2,21 +2,22 @@ local cjson = require('cjson').new()
 local request = require 'http.request'
 local tcheck = require 'tcheck'
 
-local BASE_URL = 'https://sendgrid.com/v3'
+local BASE_URL = 'https://api.sendgrid.com/v3'
 
 local function make_email(cfg)
   local default_from = cfg.from
-  local key = cfg.api
+  local key = cfg.api_key
 
   return function(app, t)
     tcheck({'*', 'table'}, app, t)
 
     local recipients = {}
-    recipients.to = {}
-    for _, to in ipairs(t.to) do
-      table.insert(recipients.to, {email = to})
+    if t.to then
+      recipients.to = {}
+      for _, to in ipairs(t.to) do
+        table.insert(recipients.to, {email = to})
+      end
     end
-
     if t.cc then
       recipients.cc = {}
       for _, cc in ipairs(t.cc) do
@@ -46,7 +47,9 @@ local function make_email(cfg)
     req.headers:upsert(':method', 'POST')
     req.headers:append('authorization', string.format('Bearer %s', key))
     req.headers:append('content-type', 'application/json')
-    req:set_body(cjson.encode(payload))
+
+    local body = cjson.encode(payload)
+    req:set_body(body)
 
     local hdrs, res = req:go(t.timeout)
     if not hdrs then
