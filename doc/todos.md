@@ -1,7 +1,7 @@
 # list of todos
 
-* Flash messages that persist across redirects
 * Message queue
+* Flash messages that persist across redirects
 * User account/auth package (register, validate email, reset password, TOTP?)
 * Time series/metrics
 * Pub/sub
@@ -11,3 +11,4 @@
 * Deployment script, with support for arbitrary staging environments and update of existing deploys
 * Easy to use HTTP client with circuit breaker support?
 * Cohesive and consistent error handling (throw vs nil+msg)
+* I18n solution (not just text translation, but static assets too)
