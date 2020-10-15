@@ -11,6 +11,8 @@ local function make_token(cfg)
   end
 
   return function(app, t, db, tok)
+    tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, db, tok)
+
     local close = not db
     db = db or app:db()
 

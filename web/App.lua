@@ -66,6 +66,8 @@ local FAIL_PLACEHOLDERS = {
   db = 'database',
   render = 'template',
   token = 'token',
+  email = 'email',
+  mqueue = 'message queue',
 }
 
 for k, v in pairs(FAIL_PLACEHOLDERS) do

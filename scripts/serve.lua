@@ -100,6 +100,7 @@ function M.config()
     },
 
     token = {},
+    mqueue = {},
     sendgrid = {
       from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
       api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),

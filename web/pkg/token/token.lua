@@ -4,21 +4,23 @@ local xpgsql = require 'xpgsql'
 local TOKEN_LEN = 32
 
 local MIGRATIONS = {
-  [[
-    CREATE TABLE "web_pkg_token_tokens" (
-      "token"   CHAR(44) NOT NULL,
-      "type"    VARCHAR(20) NOT NULL,
-      "ref_id"  INTEGER NOT NULL,
-      "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
-      "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  function (conn)
+    assert(conn:exec[[
+      CREATE TABLE "web_pkg_token_tokens" (
+        "token"   CHAR(44) NOT NULL,
+        "type"    VARCHAR(20) NOT NULL,
+        "ref_id"  INTEGER NOT NULL,
+        "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
+        "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-      PRIMARY KEY ("token"),
-      UNIQUE ("type", "ref_id")
-    )
-  ]],
-  [[
-    CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
-  ]],
+        PRIMARY KEY ("token"),
+        UNIQUE ("type", "ref_id")
+      )
+    ]])
+    assert(conn:exec[[
+      CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
+    ]])
+  end,
   [[
     CREATE PROCEDURE "web_pkg_token_expire" ()
     LANGUAGE SQL
