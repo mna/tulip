@@ -8,7 +8,7 @@ Lua web framework based on [http][] and [PostgreSQL][pg].
 ## Description
 
 Lua Web is a minimal and simple web framework that provides a lot with very little.
-Using only Lua (currently 5.3) and the PostgreSQL database (currently 12), the
+Using only Lua (currently 5.3) and the PostgreSQL database (currently 13), the
 framework packs the following features:
 
 * HTTP and HTTPS ✔
@@ -47,7 +47,7 @@ by running the init script:
 $ ./scripts/init.lua
 ```
 
-To run tests and benchmarks:
+To run tests and benchmarks (be sure to check the configuration section below):
 
 ```
 $ llrocks run test/main.lua
@@ -63,6 +63,23 @@ $ llrocks cover test/main.lua
 Note that because some tests (e.g. the csrf middleware) run the server in a separate
 process and only the client requests are made from the actual LuaUnit-executed process,
 test coverage reports lower numbers than what is actually covered.
+
+## Configuration
+
+While the `scripts/init.lua` script sets up most of the required configuration, some
+environment variables and secrets cannot be set automatically. Here's what the `.envrc`
+file managed by `direnv` should contain:
+
+* `PGPASSFILE`: init-generated
+* `PGHOST`: init-generated
+* `PGPORT`: init-generated
+* `PGCONNECT_TIMEOUT`: init-generated
+* `PGUSER`: init-generated
+* `PGDATABASE`: init-generated
+* `LUAWEB_CSRFKEY`: init-generated
+* `LUAWEB_SENDGRIDKEY`: set to a valid Sendgrid API key
+* `LUAWEB_TEST_FROMEMAIL`: set to a valid email address for tests
+* `LUAWEB_TEST_TOEMAIL`: set to a valid email address for tests
 
 ## License
 

@@ -1,8 +1,5 @@
 # list of todos
 
-* Email package (probably provider-specific, but through a generic `App:send_email` method)
-* Validate required environment variables in .envrc + README
-
 * Flash messages that persist across redirects
 * Message queue
 * User account/auth package (register, validate email, reset password, TOTP?)
