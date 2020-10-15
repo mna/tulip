@@ -1,4 +1,4 @@
-local cjson = require('cjson').new()
+local cjson = require('cjson.safe').new()
 local request = require 'http.request'
 local tcheck = require 'tcheck'
 

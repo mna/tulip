@@ -1,5 +1,6 @@
 local mqueue = require 'web.pkg.mqueue.mqueue'
 local tcheck = require 'tcheck'
+local xtable = require 'web.xtable'
 
 local function make_mqueue(cfg)
   local def_max_age = cfg.default_max_age
@@ -8,6 +9,25 @@ local function make_mqueue(cfg)
   return function(app, t, db, msg)
     tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
 
+    local close = not db
+    db = db or app:db()
+
+    local v, err
+    if msg then
+      -- enqueue the message
+      v, err = mqueue.enqueue(
+        xtable.merge({
+          max_age = def_max_age,
+          max_attempts = def_max_att,
+        }, t),
+        db, msg)
+    else
+      -- dequeue some messages
+      v, err = mqueue.dequeue(xtable.merge({max_receive = 1}, t), db)
+    end
+
+    if close then db:close() end
+    return v, err
   end
 end
 
