@@ -1,4 +1,4 @@
-local cjson = require 'cjson'
+local cjson = require('cjson').new()
 local request = require 'http.request'
 local tcheck = require 'tcheck'
 
@@ -7,8 +7,55 @@ local BASE_URL = 'https://sendgrid.com/v3'
 local function make_email(cfg)
   local default_from = cfg.from
   local key = cfg.api
+
   return function(app, t)
     tcheck({'*', 'table'}, app, t)
+
+    local recipients = {}
+    recipients.to = {}
+    for _, to in ipairs(t.to) do
+      table.insert(recipients.to, {email = to})
+    end
+
+    if t.cc then
+      recipients.cc = {}
+      for _, cc in ipairs(t.cc) do
+        table.insert(recipients.cc, {email = cc})
+      end
+    end
+    if t.bcc then
+      recipients.bcc = {}
+      for _, bcc in ipairs(t.bcc) do
+        table.insert(recipients.bcc, {email = bcc})
+      end
+    end
+
+    local payload = {
+      personalizations = {recipients},
+      from = {email = t.from or default_from},
+      subject = t.subject,
+      content = {
+        {
+          type = t.content_type or 'text/plain',
+          value = t.body,
+        },
+      },
+    }
+
+    local req = request.new_from_uri(BASE_URL .. '/mail/send')
+    req.headers:upsert(':method', 'POST')
+    req.headers:append('authorization', string.format('Bearer %s', key))
+    req.headers:append('content-type', 'application/json')
+    req:set_body(cjson.encode(payload))
+
+    local hdrs, res = req:go(t.timeout)
+    if not hdrs then
+      return nil, res
+    end
+    if tonumber(hdrs:get(':status')) >= 400 then
+      return nil, res:get_body_as_string(t.timeout)
+    end
+    return true
   end
 end
 
@@ -31,6 +78,7 @@ local M = {}
 --     * t.body: string = email body
 --     * t.content_type: string|nil = body MIME type, defaults to
 --       text/plain.
+--     * t.timeout: integer|nil = timeout of request in seconds
 --   < b: bool|nil = true on success, nil on error.
 --   < err: string|nil = error message if b is nil.
 function M.register(cfg, app)

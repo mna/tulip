@@ -98,6 +98,12 @@ function M.config()
       secure = true,
       same_site = 'lax', -- one of 'strict', 'lax', or 'none'
     },
+
+    token = {},
+    sendgrid = {
+      from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
+      api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),
+    },
   }
 end
 
