@@ -15,7 +15,7 @@ function M:teardown()
 end
 
 function M:beforeAll()
-  local ok, cleanup, err = xtest.newdb()
+  local ok, cleanup, err = xtest.newdb('', xtest.mockcron)
   if not ok then cleanup() end
   assert(ok, err)
 

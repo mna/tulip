@@ -33,7 +33,7 @@ end
 -- along with a function to call to delete the temporary database.  If it
 -- fails, it returns nil followed by the cleanup function and an error
 -- message.
-function M.newdb(connstr)
+function M.newdb(connstr, ...)
   local oldpwd = os.getenv('PGPASSWORD')
   if not oldpwd or oldpwd == '' then
     io.input('run/secrets/pgroot_pwd')
@@ -68,10 +68,44 @@ function M.newdb(connstr)
     return true
   end)
 
-  if ok then
-    return true, cleanup
+  if not ok then
+    return nil, cleanup, err
   end
-  return nil, cleanup, err
+
+  -- run any extra setup functions with a connection to the new
+  -- database.
+  local newconn = xpgsql.connect()
+  for i = 1, select('#', ...) do
+    ok, err = pcall(select(i, ...), newconn)
+    if not ok then
+      newconn:close()
+      return nil, cleanup, err
+    end
+  end
+  newconn:close()
+  return true, cleanup
+end
+
+function M.mockcron(conn)
+  assert(conn:exec('CREATE SCHEMA cron'))
+  assert(conn:exec[[
+    CREATE FUNCTION cron.schedule(job_name text, schedule text, command text)
+      RETURNS BIGINT
+    AS $$
+      BEGIN
+        RETURN 0;
+      END;
+    $$ LANGUAGE plpgsql;
+  ]])
+  assert(conn:exec[[
+    CREATE FUNCTION cron.unschedule(job_name text)
+      RETURNS BOOLEAN
+    AS $$
+      BEGIN
+        RETURN true;
+      END;
+    $$ LANGUAGE plpgsql;
+  ]])
 end
 
 -- Runs function f with a server running in a separate process,

@@ -16,6 +16,26 @@ local MIGRATIONS = {
       UNIQUE ("type", "ref_id")
     )
   ]],
+  [[
+    CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
+  ]],
+  [[
+    CREATE PROCEDURE "web_pkg_token_expire" ()
+    LANGUAGE SQL
+    AS $$
+      DELETE FROM
+        "web_pkg_token_tokens"
+      WHERE
+        "expiry" < EXTRACT(epoch FROM now())
+    $$;
+  ]],
+  -- schedule expiration of tokens every day at 1AM
+  function (conn)
+    assert(conn:query[[
+      SELECT
+        cron.schedule('web_pkg_token:expire', '0 1 * * *', 'CALL web_pkg_token_expire()')
+    ]])
+  end,
 }
 
 local SQL_CREATETOKEN = [[
