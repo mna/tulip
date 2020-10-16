@@ -27,7 +27,7 @@ WHERE
 ORDER BY
   "first_created"
 LIMIT $2
-FOR UPDATE
+FOR UPDATE SKIP LOCKED
 ]]
 
 local SQL_COPYACTIVE = [[
