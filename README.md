@@ -14,8 +14,9 @@ framework packs the following features:
 * HTTP and HTTPS ✔
 * HTTP/1.1 and HTTP/2 ✔
 * Concurrent handling of requests ✔
-* Message Queue-style asynchronous processing
-* Time series-style storage of metrics
+* Message Queue-style (at-least-once) reliable asynchronous processing ✔
+* Fire-and-forget (at-most-once) publish-subscribe mechanism
+* Time series-style metrics collection
 * Cron-like scheduled processing
 * Hardened server with timeouts and connection capacity
 * SQL injection, XSS and CSRF protections ✔
@@ -24,9 +25,9 @@ framework packs the following features:
 * Account registration, token-based validation and password reset
 * Secure user authentication with cookie-based session
 * User- and group-based authorization
-* Straightforward pattern-based request multiplexer ✔
-* Pluggable, extendable architecture ✔
+* Straightforward pattern-based routes handler multiplexer ✔
 * Transactional database migrations runner ✔
+* Pluggable, extendable architecture ✔
 
 ## Development
 
