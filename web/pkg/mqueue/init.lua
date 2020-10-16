@@ -5,9 +5,19 @@ local xtable = require 'web.xtable'
 local function make_mqueue(cfg)
   local def_max_age = cfg.default_max_age
   local def_max_att = cfg.default_max_attempts
+  local lookup_queues
+  if cfg.allowed_queues then
+    lookup_queues = {}
+    for _, q in ipairs(cfg.allowed_queues) do
+      lookup_queues[q] = true
+    end
+  end
 
   return function(app, t, db, msg)
     tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
+    if lookup_queues and not lookup_queues[t.queue] then
+      error(string.format('queue %q is invalid', t.queue))
+    end
 
     local close = not db
     db = db or app:db()
@@ -35,6 +45,8 @@ local M = {}
 --
 -- Requires: a database package
 -- Config:
+--   * allowed_queues: array of string = if set, only those queues
+--     will be allowed.
 --   * default_max_age: integer|nil = if set, use as default max age
 --     for the messages.
 --   * default_max_attempts: integer|nil = if set, use as default
