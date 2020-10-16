@@ -15,21 +15,19 @@ local function make_token(cfg)
 
     local close = not db
     db = db or app:db()
-
-    local v, err
-    if tok then
-      -- validate the token
-      v, err = token.validate(t, db, tok)
-    else
-      -- generate a token
-      if lookup_types and not lookup_types[t.type] then
-        -- TODO: error or return nil, err?
-        error(string.format('token type %q is invalid', t.type))
+    return db:with(close, function()
+      if tok then
+        -- validate the token
+        return token.validate(t, db, tok)
+      else
+        -- generate a token
+        if lookup_types and not lookup_types[t.type] then
+          -- TODO: error or return nil, err?
+          error(string.format('token type %q is invalid', t.type))
+        end
+        return token.generate(t, db)
       end
-      v, err = token.generate(t, db)
-    end
-    if close then db:close() end
-    return v, err
+    end)
   end
 end
 

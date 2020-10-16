@@ -11,23 +11,20 @@ local function make_mqueue(cfg)
 
     local close = not db
     db = db or app:db()
-
-    local v, err
-    if msg then
-      -- enqueue the message
-      v, err = mqueue.enqueue(
-        xtable.merge({
-          max_age = def_max_age,
-          max_attempts = def_max_att,
-        }, t),
-        db, msg)
-    else
-      -- dequeue some messages
-      v, err = mqueue.dequeue(xtable.merge({max_receive = 1}, t), db)
-    end
-
-    if close then db:close() end
-    return v, err
+    return db:with(close, function()
+      if msg then
+        -- enqueue the message
+        return mqueue.enqueue(
+          xtable.merge({
+            max_age = def_max_age,
+            max_attempts = def_max_att,
+          }, t),
+          db, msg)
+      else
+        -- dequeue some messages
+        return mqueue.dequeue(xtable.merge({max_receive = 1}, t), db)
+      end
+    end)
   end
 end
 
@@ -57,7 +54,7 @@ local M = {}
 --   < v: bool|array of tables|nil = if msg is provided, returns a boolean
 --     that indicates if the message was enqueued, otherwise returns an
 --     array of tables representing the messages to process. Each table has
---     an id and a payload fields. Is nil on error.
+--     an id and a payload fields and a :done(conn) method. Is nil on error.
 --   < err: string|nil = error message if v is nil.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
