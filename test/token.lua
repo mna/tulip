@@ -2,7 +2,6 @@ local lu = require 'luaunit'
 local process = require 'process'
 local xtest = require 'test.xtest'
 local xpgsql = require 'xpgsql'
-
 local App = require 'web.App'
 
 local M = {}
@@ -37,7 +36,7 @@ function M.test_token()
     local ok
     local tok, err = app:token({
       type = 'test',
-      refid = 1,
+      ref_id = 1,
       max_age = 10,
     })
     lu.assertNil(err)
@@ -46,7 +45,7 @@ function M.test_token()
     -- validating works
     ok, err = app:token({
       type = 'test',
-      refid = 1,
+      ref_id = 1,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertTrue(ok)
@@ -54,7 +53,7 @@ function M.test_token()
     -- once used, cannot be reused
     ok, err = app:token({
       type = 'test',
-      refid = 1,
+      ref_id = 1,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertFalse(ok)
@@ -62,7 +61,7 @@ function M.test_token()
     -- generate a new one with a short validity
     tok, err = app:token({
       type = 'test',
-      refid = 1,
+      ref_id = 1,
       max_age = 1,
     })
     lu.assertNil(err)
@@ -74,7 +73,7 @@ function M.test_token()
     -- validating reports false, despite valid type and id
     ok, err = app:token({
       type = 'test',
-      refid = 1,
+      ref_id = 1,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertFalse(ok)
@@ -91,7 +90,7 @@ function M.test_token()
     -- generate a new short-lived one
     tok, err = app:token({
       type = 'test',
-      refid = 2,
+      ref_id = 2,
       max_age = 1,
     })
     lu.assertNil(err)
@@ -104,7 +103,7 @@ function M.test_token()
     -- generate one for the same id again, long-lived
     tok, err = app:token({
       type = 'test',
-      refid = 2,
+      ref_id = 2,
       max_age = 120,
     })
     lu.assertNil(err)
@@ -118,7 +117,7 @@ function M.test_token()
     -- validating works
     ok, err = app:token({
       type = 'test',
-      refid = 2,
+      ref_id = 2,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertTrue(ok)
@@ -126,7 +125,7 @@ function M.test_token()
     -- generate another valid one
     tok, err = app:token({
       type = 'test',
-      refid = 3,
+      ref_id = 3,
       max_age = 120,
     })
     lu.assertNil(err)
@@ -135,7 +134,7 @@ function M.test_token()
     -- validating with wrong type/id
     ok, err = app:token({
       type = 'nottest',
-      refid = 0,
+      ref_id = 0,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertFalse(ok)
@@ -143,7 +142,7 @@ function M.test_token()
     -- token has been consumed, so does not work anymore
     ok, err = app:token({
       type = 'test',
-      refid = 3,
+      ref_id = 3,
     }, nil, tok)
     lu.assertNil(err)
     lu.assertFalse(ok)

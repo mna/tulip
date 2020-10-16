@@ -43,7 +43,7 @@ SELECT
   "max_age",
   EXTRACT(epoch FROM now()) + "max_age",
   "queue",
-  "message",
+  "payload",
   "first_created"
 FROM
   "web_pkg_mqueue_pending"
@@ -95,7 +95,7 @@ function M.enqueue(t, db, msg)
   end
 
   local ok, e2 = db:exec(SQL_CREATEPENDING,
-    t.refid,
+    t.ref_id,
     t.max_attempts,
     t.max_age,
     t.queue,

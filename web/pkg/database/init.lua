@@ -6,11 +6,7 @@ local function make_db(connstr)
   return function(app, fn, ...)
     local conn = assert(xpgsql.connect(connstr))
     if not fn then return conn end
-
-    local res = table.pack(pcall(fn, conn, ...))
-    conn:close()
-    assert(res[1], res[2])
-    return table.unpack(res, 2, res.n)
+    return conn:with(true, fn, ...)
   end
 end
 

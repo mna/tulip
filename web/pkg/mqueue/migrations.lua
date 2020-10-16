@@ -5,7 +5,7 @@ return {
       CREATE TABLE "web_pkg_mqueue_pending" (
         "id"              SERIAL NOT NULL,
         "ref_id"          INTEGER NOT NULL,
-        "attempts"        SMALLINT NOT NULL CHECK ("attempts" > 0),
+        "attempts"        SMALLINT NOT NULL CHECK ("attempts" >= 0),
         "max_attempts"    SMALLINT NOT NULL CHECK ("max_attempts" > 0),
         "max_age"         INTEGER NOT NULL CHECK ("max_age" > 0),
         "queue"           VARCHAR(20) NOT NULL,
@@ -77,7 +77,6 @@ return {
       CREATE PROCEDURE "web_pkg_mqueue_expire" ()
       AS $$
       BEGIN
-        START TRANSACTION;
         -- Note that current_timestamp stays the same for the duration
         -- of the transaction.
 
