@@ -64,10 +64,11 @@ App.__index = App
 -- that a package should be registered to get this functionality.
 local FAIL_PLACEHOLDERS = {
   db = 'database',
-  render = 'template',
-  token = 'token',
   email = 'email',
   mqueue = 'message queue',
+  pubsub = 'pubsub',
+  render = 'template',
+  token = 'token',
 }
 
 for k, v in pairs(FAIL_PLACEHOLDERS) do

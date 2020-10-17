@@ -1,3 +1,4 @@
+local pubsub = require 'web.pkg.pubsub.pubsub'
 local tcheck = require 'tcheck'
 
 local function make_pubsub(cfg)
@@ -8,6 +9,10 @@ local function make_pubsub(cfg)
       lookup_chans[chan] = true
     end
   end
+
+  -- dictionary to register handlers by channel, keyed with the channel and value is
+  -- an array of functions.
+  local handlers = {}
 
   return function(app, chan, fdb, msg)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
@@ -22,7 +27,7 @@ local function make_pubsub(cfg)
         return pubsub.publish(chan, fdb, msg)
       end)
     else
-      return pubsub.listen(chan, fdb)
+      return pubsub.subscribe(chan, fdb, handlers)
     end
   end
 end
@@ -38,7 +43,7 @@ local M = {}
 --   * allowed_channels: array of string = if set, only those channels
 --     will be allowed.
 --
--- ok, err = App:pubsub(chan, fdb[, msg]])
+-- ok, err = App:pubsub(chan, fdb[, msg])
 --   > chan: string = then pubsub channel
 --   > fdb: function|connection|nil = either a function to register
 --     as handler for that channel, or an optional database
