@@ -87,7 +87,10 @@ end
 -- message. If cb is provided, it is called with two arguments for
 -- each applied migration - the package name and the migration index.
 function Migrator:run(cb)
-  local conn = xpgsql.connect(self.connection_string)
+  local conn, err = xpgsql.connect(self.connection_string)
+  if not conn then
+    return nil, err
+  end
 
   for _, pkg in ipairs(self.order) do
     -- get the current version of this package

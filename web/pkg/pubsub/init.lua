@@ -18,7 +18,7 @@ local function make_pubsub(cfg)
   return function(app, chan, fdb, msg)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
     if lookup_chans and not lookup_chans[chan] then
-      error(string.format('channel %q is invalid', chan))
+      return nil, string.format('channel %q is invalid', chan)
     end
 
     if not state.connect then

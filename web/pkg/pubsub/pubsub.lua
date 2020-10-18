@@ -28,9 +28,17 @@ local function make_notifier(state)
 
   return function()
     while true do
-      if cqueues.poll({pollfd = conn:socket(); events = "r"}) then
+      local o, err = cqueues.poll({pollfd = conn:socket(), events = 'r'})
+      if not o then
+        print('>>>>> poll error: ', err)
+        return
+      end
+
+      if o then
         if not conn:consumeInput() then
           -- TODO: might indicate it requires a new connection
+          print('>>>>> consumeInput failed')
+          return
         end
 
         local n = conn:notifies()
@@ -39,8 +47,9 @@ local function make_notifier(state)
           local fns = state.handlers[notif.channel]
           if fns then
             for _, fn in ipairs(fns) do
-              if fn(notif) then
-                -- TODO: unregister that function
+              local ok, err = fn(notif)
+              if (not ok) and err == 'stop' then
+                return
               end
             end
           end
