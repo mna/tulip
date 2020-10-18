@@ -67,7 +67,7 @@ function M.test_pubsub()
       lu.assertIsTable(n)
       lu.assertEquals(n.channel, 'b')
       lu.assertEquals(n.payload.x, 7)
-      return nil, 'stop'
+      n:terminate()
     end)
     lu.assertNil(err)
     lu.assertTrue(ok)

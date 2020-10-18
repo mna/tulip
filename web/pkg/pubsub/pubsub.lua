@@ -13,7 +13,12 @@ local SQL_SUBSCRIBE = [[
 local Notification = {__name = 'web.pkg.pubsub.Notification'}
 Notification.__index = Notification
 
-local function new_notif(n)
+function Notification:terminate()
+  self._terminate = true
+  return true
+end
+
+function Notification.new(n)
   local o = {
     channel = n:relname(),
     payload = cjson.decode(n:extra()),
@@ -23,43 +28,76 @@ local function new_notif(n)
   return o
 end
 
+local function on_error(state, errcount, err)
+  local conn, n = state.error_handler(state.connection,
+    errcount, err, state.connect)
+  if conn then
+    -- TODO: listen to all registered channels
+    state.connection = conn
+    return conn._conn, n or errcount, false
+  end
+  return nil, errcount, true
+end
+
 local function make_notifier(state)
-  local conn = state.connection._conn
+  local raw_conn = state.connection._conn
+  local errcount = 0
+  local stop = false
 
   return function()
-    while true do
-      local o, err = cqueues.poll({pollfd = conn:socket(), events = 'r'})
-      if not o then
-        print('>>>>> poll error: ', err)
-        return
+    while not stop do
+      local poll_obj = {pollfd = raw_conn:socket(), events = 'r'}
+      do
+        local o, err = cqueues.poll(poll_obj)
+        if not o then
+          raw_conn, errcount, stop = on_error(state, errcount + 1, err)
+          goto continue
+        end
       end
 
-      if o then
-        if not conn:consumeInput() then
-          -- TODO: might indicate it requires a new connection
-          print('>>>>> consumeInput failed')
-          return
+      do
+        local ok, err = raw_conn:consumeInput()
+        if not ok then
+          raw_conn, errcount, stop = on_error(state, errcount + 1, err)
+          goto continue
         end
+      end
 
-        local n = conn:notifies()
-        if n then
-          local notif = new_notif(n)
-          local fns = state.handlers[notif.channel]
-          if fns then
-            for _, fn in ipairs(fns) do
-              local ok, err = fn(notif)
-              if (not ok) and err == 'stop' then
-                return
-              end
-            end
+      local n = raw_conn:notifies()
+      if not n then goto continue end
+
+      local notif = Notification.new(n)
+      local fns = state.handlers[notif.channel]
+      if fns then
+        for _, fn in ipairs(fns) do
+          fn(notif)
+          if notif._terminate then
+            cqueues.cancel(poll_obj)
+            state.connection:close()
+            return
           end
         end
       end
+
+      ::continue::
     end
   end
 end
 
+local DEFAULT_MAXERR = 3
+
 local M = {}
+
+function M.default_err_handler(conn, count, _, getconn)
+  if count > DEFAULT_MAXERR then
+    return
+  end
+
+  if conn then
+    conn:close()
+  end
+  return (getconn())
+end
 
 function M.publish(chan, db, msg)
   local payload = assert(cjson.encode(msg))
