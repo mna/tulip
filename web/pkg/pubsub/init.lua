@@ -1,3 +1,4 @@
+local fn = require 'fn'
 local pubsub = require 'web.pkg.pubsub.pubsub'
 local tcheck = require 'tcheck'
 
@@ -10,9 +11,9 @@ local function make_pubsub(cfg)
     end
   end
 
-  -- dictionary to register handlers by channel, keyed with the channel and value is
-  -- an array of functions.
-  local handlers = {}
+  local state = {
+    handlers = {},
+  }
 
   return function(app, chan, fdb, msg)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
@@ -20,14 +21,18 @@ local function make_pubsub(cfg)
       error(string.format('channel %q is invalid', chan))
     end
 
+    if not state.connect then
+      state.connect = cfg.get_connection or fn.partial(app.db, app)
+    end
+
     if msg then
       local close = not fdb
       local db = fdb or app:db()
-      return db:with(close, function()
-        return pubsub.publish(chan, fdb, msg)
+      return db:with(close, function(c)
+        return pubsub.publish(chan, c, msg)
       end)
     else
-      return pubsub.subscribe(chan, fdb, handlers)
+      return pubsub.subscribe(chan, fdb, state)
     end
   end
 end
@@ -42,6 +47,9 @@ local M = {}
 -- Config:
 --   * allowed_channels: array of string = if set, only those channels
 --     will be allowed.
+--   * get_connection: function = if set, used to get the long-running
+--     connection used to listen for notifications (and re-connect if
+--     connection is lost). Defaults to app:db().
 --
 -- ok, err = App:pubsub(chan, fdb[, msg])
 --   > chan: string = then pubsub channel
