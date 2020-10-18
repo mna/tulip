@@ -47,9 +47,11 @@ local function make_notifier(state)
   return function()
     while not stop do
       local poll_obj = {pollfd = raw_conn:socket(), events = 'r'}
+      print('>>>> current fd: ', poll_obj.pollfd)
       do
         local o, err = cqueues.poll(poll_obj)
         if not o then
+          cqueues.cancel(poll_obj)
           raw_conn, errcount, stop = on_error(state, errcount + 1, err)
           goto continue
         end
@@ -58,6 +60,7 @@ local function make_notifier(state)
       do
         local ok, err = raw_conn:consumeInput()
         if not ok then
+          cqueues.cancel(poll_obj)
           raw_conn, errcount, stop = on_error(state, errcount + 1, err)
           goto continue
         end
