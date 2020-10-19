@@ -16,7 +16,7 @@ local function make_pubsub(cfg)
     error_handler = cfg.error_handler or pubsub.default_err_handler,
   }
 
-  return function(app, chan, fdb, msg)
+  return function(app, chan, fdb, msg, cq)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
     if lookup_chans and not lookup_chans[chan] then
       return nil, string.format('channel %q is invalid', chan)
@@ -33,7 +33,7 @@ local function make_pubsub(cfg)
         return pubsub.publish(chan, c, msg)
       end)
     else
-      return pubsub.subscribe(chan, fdb, state)
+      return pubsub.subscribe(chan, fdb, state, cq)
     end
   end
 end
@@ -64,6 +64,8 @@ local M = {}
 --     return 0 to reset). By default, a function that calls
 --     get_connection to get a new connection, and fails permanently
 --     (i.e. returns nil) after 3 calls.
+--   * listeners: table = if set, key is the channel and value is an
+--     array of functions to register as listeners for that channel.
 --
 -- ok, err = App:pubsub(chan, fdb[, msg])
 --   > chan: string = then pubsub channel
@@ -84,6 +86,18 @@ function M.register(cfg, app)
 
   if not app.config.database then
     error('no database registered')
+  end
+end
+
+function M.activate(app, cq)
+  tcheck('web.App', app)
+
+  local cfg = app.config.pubsub
+  cfg.listeners = cfg.listeners or {}
+  for chan, fns in pairs(cfg.listeners) do
+    for _, f in ipairs(fns) do
+      assert(app:pubsub(chan, f, nil, cq))
+    end
   end
 end
 

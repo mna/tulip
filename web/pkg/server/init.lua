@@ -23,10 +23,11 @@ local function bootstrap_handler(app, readto, writeto)
   end
 end
 
-local function main(app)
+local function main(app, cq)
   local cfg = app.config.server
   local limits = cfg.limits or {}
   local opts = {
+    cq = cq,
     host = cfg.host,
     port = cfg.port,
     path = cfg.path,

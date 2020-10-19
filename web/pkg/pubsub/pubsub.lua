@@ -47,7 +47,6 @@ local function make_notifier(state)
   return function()
     while not stop do
       local poll_obj = {pollfd = raw_conn:socket(), events = 'r'}
-      print('>>>> current fd: ', poll_obj.pollfd)
       do
         local o, err = cqueues.poll(poll_obj)
         if not o then
@@ -108,7 +107,7 @@ function M.publish(chan, db, msg)
   return true
 end
 
-function M.subscribe(chan, f, state)
+function M.subscribe(chan, f, state, cq)
   local fns = state.handlers[chan] or {}
   table.insert(fns, f)
   state.handlers[chan] = fns
@@ -128,7 +127,7 @@ function M.subscribe(chan, f, state)
       state.connection = conn
 
       -- must start the coroutine that listens to notifications
-      local cq = cqueues.running()
+      cq = cq or cqueues.running()
       assert(cq, 'not running inside a cqueue coroutine')
       cq:wrap(make_notifier(state))
     end

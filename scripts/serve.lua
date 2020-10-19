@@ -2,6 +2,17 @@
 
 local handler = require 'web.handler'
 
+local function send_pubsub(req, res, nxt)
+  local app = req.app
+  local ok, err = app:pubsub('a', nil, {x=1})
+  if ok then
+    res:write{status = 204}
+  else
+    res:write{status = 500, body = err}
+  end
+  nxt()
+end
+
 local M = {}
 
 if string.match(arg[0], '/serve%.lua') then
@@ -60,6 +71,7 @@ function M.config()
           teeth = 12,
         },
       }},
+      {method = 'GET', pattern = '^/pubsub', handler = send_pubsub},
     },
 
     middleware = {
@@ -101,6 +113,11 @@ function M.config()
 
     token = {},
     mqueue = {},
+    pubsub = {
+      listeners = {
+        a = {function(n) print('>>> ', n.channel, n.payload) end},
+      },
+    },
     sendgrid = {
       from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
       api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),

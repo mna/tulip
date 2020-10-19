@@ -1,6 +1,5 @@
 # list of todos
 
-* Pub/sub
 * Cron/scheduled jobs
 * Time series/metrics
 * Complete testing of other packages

@@ -1,3 +1,4 @@
+local cqueues = require 'cqueues'
 local handler = require 'web.handler'
 local tcheck = require 'tcheck'
 
@@ -206,14 +207,16 @@ function App:lookup_logger(name)
   return lookup_common(self, 'loggers', name)
 end
 
-function App:activate()
+function App:activate(cq)
+  tcheck({'web.App', 'userdata'}, self, cq)
+
   if type(self.log_level) == 'string' then
     self.log_level = LOGLEVELS[self.log_level]
   end
 
   for _, pkg in ipairs(self.packages) do
     if pkg.activate then
-      pkg.activate(self)
+      pkg.activate(self, cq)
     end
   end
 
@@ -229,12 +232,13 @@ function App:activate()
 end
 
 function App:run()
-  self:activate()
+  local cq = cqueues.new()
+  self:activate(cq)
 
   if not self.main then
     error('no main field registered by app')
   end
-  return self:main()
+  return self:main(cq)
 end
 
 return function (cfg)
