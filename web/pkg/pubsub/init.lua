@@ -82,6 +82,9 @@ local M = {}
 --   < err: string|nil = error message if ok is nil.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
+  -- TODO: make the pubsub func a table with __call that holds the state,
+  -- so that activate can refer to it and set the cq in a less convoluted
+  -- way.
   app.pubsub = make_pubsub(cfg)
 
   if not app.config.database then

@@ -32,7 +32,11 @@ local function on_error(state, errcount, err)
   local conn, n = state.error_handler(state.connection,
     errcount, err, state.connect)
   if conn then
-    -- TODO: listen to all registered channels
+    -- listen to all registered channels, cannot really do anything about
+    -- LISTEN errors though...
+    for chan in pairs(state.handlers) do
+      conn:exec(string.format(SQL_SUBSCRIBE, chan))
+    end
     state.connection = conn
     return conn._conn, n or errcount, false
   end
