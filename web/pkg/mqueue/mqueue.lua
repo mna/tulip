@@ -5,17 +5,13 @@ local xpgsql = require 'xpgsql'
 local xstring = require 'web.xstring'
 
 local SQL_CREATEPENDING = [[
-INSERT INTO
-  "web_pkg_mqueue_pending"
-  ("ref_id", "attempts", "max_attempts", "max_age", "queue", "payload")
-VALUES
-  ($1, 0, $2, $3, $4, $5)
+  SELECT
+    web_pkg_mqueue_enqueue($1, $2::smallint, $3::integer, $4);
 ]]
 
 local SQL_SELECTPENDING = [[
 SELECT
   "id",
-  "ref_id",
   "attempts",
   "max_attempts",
   "max_age",
@@ -35,11 +31,10 @@ FOR UPDATE SKIP LOCKED
 local SQL_COPYACTIVE = [[
 INSERT INTO
   "web_pkg_mqueue_active"
-  ("id", "ref_id", "attempts", "max_attempts", "max_age",
+  ("id", "attempts", "max_attempts", "max_age",
    "expiry", "queue", "payload", "first_created")
 SELECT
   "id",
-  "ref_id",
   "attempts" + 1,
   "max_attempts",
   "max_age",
@@ -76,7 +71,6 @@ end
 
 local function model(o)
   o.id = tonumber(o.id)
-  o.ref_id = tonumber(o.ref_id)
   o.attempts = tonumber(o.attempts)
   o.max_attempts = tonumber(o.max_attempts)
   o.max_age = tonumber(o.max_age)
@@ -97,11 +91,10 @@ function M.enqueue(t, db, msg)
     return nil, e1
   end
 
-  local ok, e2 = db:exec(SQL_CREATEPENDING,
-    t.ref_id,
+  local ok, e2 = db:query(SQL_CREATEPENDING,
+    t.queue,
     t.max_attempts,
     t.max_age,
-    t.queue,
     payload)
   if not ok then
     return nil, e2

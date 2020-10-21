@@ -54,7 +54,6 @@ local M = {}
 --
 -- v, err = App:mqueue(t[, db[, msg]])
 --   > t: table = a table with the following fields:
---     * t.ref_id: number|nil = the reference id of the message (e.g. user id)
 --     * t.max_attempts: number|nil = maximum number of attempts
 --     * t.max_age: number|nil = number of seconds to process message
 --     * t.queue: string = queue name

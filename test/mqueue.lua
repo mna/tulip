@@ -52,7 +52,6 @@ function M.test_mqueue()
     -- enqueue a message
     v, err = app:mqueue({
       queue = 'q',
-      ref_id = 1,
     }, nil, {x='a'})
     lu.assertNil(err)
     lu.assertTrue(v)
@@ -61,7 +60,6 @@ function M.test_mqueue()
     v, err = app:mqueue({queue = 'q'})
     lu.assertNil(err)
     lu.assertEquals(#v, 1)
-    lu.assertEquals(v[1].ref_id, 1)
     lu.assertEquals(v[1].attempts, 0) -- attempts completed at this point
     lu.assertIsNumber(v[1].id)
     lu.assertIsTable(v[1].payload)
@@ -80,7 +78,6 @@ function M.test_mqueue()
     v, err = app:mqueue({queue = 'q'})
     lu.assertNil(err)
     lu.assertEquals(#v, 1)
-    lu.assertEquals(v[1].ref_id, 1)
     lu.assertEquals(v[1].attempts, 1)
     lu.assertIsNumber(v[1].id)
     lu.assertIsTable(v[1].payload)
@@ -108,7 +105,6 @@ function M.test_mqueue()
       for i = 1, 3 do
         v, err = app:mqueue({
           queue = q,
-          ref_id = i,
         }, nil, {x=i})
         lu.assertNil(err)
         lu.assertTrue(v)
@@ -129,22 +125,22 @@ function M.test_mqueue()
 
     lu.assertNil(err)
     lu.assertEquals(#v, 2)
-    lu.assertEquals(v[1].ref_id, 1)
-    lu.assertEquals(v[2].ref_id, 2)
+    lu.assertEquals(v[1].payload.x, 1)
+    lu.assertEquals(v[2].payload.x, 2)
 
     -- get 10 messages from q2, has only 3
     v, err = app:mqueue({queue = 'q2', max_receive = 10})
     lu.assertNil(err)
     lu.assertEquals(#v, 3)
-    lu.assertEquals(v[1].ref_id, 1)
-    lu.assertEquals(v[2].ref_id, 2)
-    lu.assertEquals(v[3].ref_id, 3)
+    lu.assertEquals(v[1].payload.x, 1)
+    lu.assertEquals(v[2].payload.x, 2)
+    lu.assertEquals(v[3].payload.x, 3)
 
     -- get the other message from q1
     v, err = app:mqueue({queue = 'q1'})
     lu.assertNil(err)
     lu.assertEquals(#v, 1)
-    lu.assertEquals(v[1].ref_id, 3)
+    lu.assertEquals(v[1].payload.x, 3)
 
     -- mark it as done
     v, err = app:db(function(c)
@@ -161,8 +157,8 @@ function M.test_mqueue()
     v, err = app:mqueue({queue = 'q1', max_receive = 10})
     lu.assertNil(err)
     lu.assertEquals(#v, 2)
-    lu.assertEquals(v[1].ref_id, 1)
-    lu.assertEquals(v[2].ref_id, 2)
+    lu.assertEquals(v[1].payload.x, 1)
+    lu.assertEquals(v[2].payload.x, 2)
 
     -- no messages from q1 in the dead table
     rows = app:db(function(c)

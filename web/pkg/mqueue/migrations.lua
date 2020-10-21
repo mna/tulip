@@ -4,12 +4,11 @@ return {
     assert(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_pending" (
         "id"              SERIAL NOT NULL,
-        "ref_id"          INTEGER NOT NULL,
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" >= 0),
         "max_attempts"    SMALLINT NOT NULL CHECK ("max_attempts" > 0),
         "max_age"         INTEGER NOT NULL CHECK ("max_age" > 0),
         "queue"           VARCHAR(20) NOT NULL,
-        "payload"         VARCHAR(1024) NOT NULL,
+        "payload"         JSONB NOT NULL,
         "first_created"   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "created"         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -26,13 +25,12 @@ return {
     assert(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_active" (
         "id"              INTEGER NOT NULL CHECK ("id" > 0),
-        "ref_id"          INTEGER NOT NULL,
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" > 0),
         "max_attempts"    SMALLINT NOT NULL CHECK ("max_attempts" > 0),
         "max_age"         INTEGER NOT NULL CHECK ("max_age" > 0),
         "expiry"          INTEGER NOT NULL CHECK ("expiry" > 0),
         "queue"           VARCHAR(20) NOT NULL,
-        "payload"         VARCHAR(1024) NOT NULL,
+        "payload"         JSONB NOT NULL,
         "first_created"   TIMESTAMPTZ NOT NULL,
         "created"         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -50,12 +48,11 @@ return {
     assert(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_dead" (
         "id"              INTEGER NOT NULL CHECK ("id" > 0),
-        "ref_id"          INTEGER NOT NULL,
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" > 0),
         "max_attempts"    SMALLINT NOT NULL CHECK ("max_attempts" > 0),
         "max_age"         INTEGER NOT NULL CHECK ("max_age" > 0),
         "queue"           VARCHAR(20) NOT NULL,
-        "payload"         VARCHAR(1024) NOT NULL,
+        "payload"         JSONB NOT NULL,
         "first_created"   TIMESTAMPTZ NOT NULL,
         "created"         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -84,11 +81,10 @@ return {
         -- is not reached.
         INSERT INTO
           "web_pkg_mqueue_pending"
-          ("id", "ref_id", "attempts", "max_attempts", "max_age",
+          ("id", "attempts", "max_attempts", "max_age",
            "queue", "payload", "first_created")
         SELECT
           "id",
-          "ref_id",
           "attempts",
           "max_attempts",
           "max_age",
@@ -112,11 +108,10 @@ return {
         -- dead table.
         INSERT INTO
           "web_pkg_mqueue_dead"
-          ("id", "ref_id", "attempts", "max_attempts", "max_age",
+          ("id", "attempts", "max_attempts", "max_age",
            "queue", "payload", "first_created")
         SELECT
           "id",
-          "ref_id",
           "attempts",
           "max_attempts",
           "max_age",
@@ -167,4 +162,21 @@ return {
         cron.schedule('web_pkg_mqueue:gc', '0 2 * * *', 'CALL web_pkg_mqueue_gc()')
     ]])
   end,
+
+  -- a function to enqueue a message
+  [[
+    CREATE FUNCTION "web_pkg_mqueue_enqueue"
+      (queue TEXT, max_att SMALLINT, max_age INTEGER, payload TEXT)
+      RETURNS INTEGER
+    LANGUAGE SQL
+    AS $$
+      INSERT INTO
+        "web_pkg_mqueue_pending"
+        ("attempts", "max_attempts", "max_age", "queue", "payload")
+      VALUES
+        (0, max_att, max_age, queue, payload::jsonb)
+      RETURNING
+        "id"
+    $$;
+  ]],
 }
