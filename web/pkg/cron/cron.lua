@@ -1,3 +1,5 @@
+local cjson = require('cjson.safe').new()
+
 local SQL_SCHEDULECMD = [[
   SELECT
     cron.schedule($1, $2, $3)
@@ -24,10 +26,10 @@ function M.schedule(job, db, t)
       payload = assert(payload(job, db, t))
     end
 
-    -- TODO: add a enqueue DB function in mqueue, and call this
-    -- in the cron schedule
-    assert(db:query(SQL_SCHEDULEJOB, job, t.schedule, t.max_age, t.max_attempts))
+    local json = cjson.encode(payload)
+    assert(db:query(SQL_SCHEDULEJOB, job, t.schedule, t.max_age, t.max_attempts, json))
   end
+  return true
 end
 
 function M.unschedule(job, db)

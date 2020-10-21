@@ -51,6 +51,9 @@ local M = {}
 --   * default_max_attempts: integer|nil = if set, use as default
 --     maximum number of attempts to process a job's message, defaults
 --     to 1.
+--   * jobs: dictionary|nil = if set, list of jobs to schedule
+--     at startup. The key is the job name, and the value is the same
+--     as the t table that can be passed in App:schedule.
 --
 -- v, err = App:schedule(job[, db[, t]])
 --   > job: string = name of the job
@@ -78,6 +81,16 @@ function M.register(cfg, app)
   end
   if not app.config.mqueue then
     error('no message queue registered')
+  end
+end
+
+function M.activate(app)
+  tcheck('web.App', app)
+
+  local cfg = app.config.cron
+  cfg.jobs = cfg.jobs or {}
+  for job, t in pairs(cfg.jobs) do
+    assert(app:schedule(job, nil, t))
   end
 end
 

@@ -85,6 +85,8 @@ function M.register(cfg, app)
   -- TODO: make the pubsub func a table with __call that holds the state,
   -- so that activate can refer to it and set the cq in a less convoluted
   -- way.
+  -- TODO: test pubsub usage in a representative way, e.g. for server-sent
+  -- events or websocket, see if it is usable.
   app.pubsub = make_pubsub(cfg)
 
   if not app.config.database then
