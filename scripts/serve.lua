@@ -1,6 +1,7 @@
 #!/usr/bin/env -S llrocks run
 
 local handler = require 'web.handler'
+local xpgsql = require 'xpgsql'
 
 local function send_pubsub(req, res, nxt)
   local app = req.app
@@ -9,6 +10,65 @@ local function send_pubsub(req, res, nxt)
     res:write{status = 204}
   else
     res:write{status = 500, body = err}
+  end
+  nxt()
+end
+
+local function list_jobs(req, res, nxt)
+  local app = req.app
+  local rows = assert(app:db(function(c)
+    return xpgsql.models(assert(c:query[[
+      SELECT
+        jobid,
+        jobname,
+        schedule,
+        command
+      FROM
+        cron.job
+      ORDER BY
+        jobname
+    ]]))
+  end))
+  res:write{
+    status = 200,
+    content_type = 'application/json',
+    body = rows,
+  }
+  nxt()
+end
+
+local function list_messages(req, res, nxt)
+  local app = req.app
+  local msg_type = req.pathargs[1]
+  local stmt = string.format([[
+    SELECT
+      id,
+      attempts,
+      max_attempts,
+      max_age,
+      queue,
+      payload,
+      first_created
+    FROM
+      web_pkg_mqueue_%s
+  ]], msg_type)
+
+  if msg_type == 'pending' or msg_type == 'active' or
+    msg_type == 'dead' then
+    local rows = assert(app:db(function(c)
+      return xpgsql.models(assert(c:query(stmt)))
+    end))
+    res:write{
+      status = 200,
+      content_type = 'application/json',
+      body = rows,
+    }
+  else
+    res:write{
+      status = 400,
+      content_type = 'text/plain',
+      body = string.format('invalid message type: %s', msg_type),
+    }
   end
   nxt()
 end
@@ -72,6 +132,8 @@ function M.config()
         },
       }},
       {method = 'GET', pattern = '^/pubsub', handler = send_pubsub},
+      {method = 'GET', pattern = '^/jobs', handler = list_jobs},
+      {method = 'GET', pattern = '^/messages/([^/]+)', handler = list_messages},
     },
 
     middleware = {
@@ -111,6 +173,11 @@ function M.config()
       same_site = 'lax', -- one of 'strict', 'lax', or 'none'
     },
 
+    cron = {
+      jobs = {
+        startup = '10 * * * *',
+      },
+    },
     token = {},
     mqueue = {},
     pubsub = {

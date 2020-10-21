@@ -22,7 +22,7 @@ function M.schedule(job, db, t)
   if t.command then
     assert(db:query(SQL_SCHEDULECMD, job, t.schedule, t.command))
   else
-    local payload = t.payload
+    local payload = t.payload or {}
     if type(payload) == 'function' then
       payload = assert(payload(job, db, t))
     end
