@@ -69,6 +69,7 @@ local FAIL_PLACEHOLDERS = {
   mqueue = 'message queue',
   pubsub = 'pubsub',
   render = 'template',
+  schedule = 'cron',
   token = 'token',
 }
 
