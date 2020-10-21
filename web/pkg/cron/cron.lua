@@ -7,7 +7,8 @@ local SQL_SCHEDULECMD = [[
 
 local SQL_SCHEDULEJOB = [[
   SELECT
-    cron.schedule($1, $2, 'SELECT web_pkg_mqueue_enqueue(...)')
+    cron.schedule($1, $2,
+      'SELECT web_pkg_mqueue_enqueue('%s', %d::smallint, %d::integer, '%s')')
 ]]
 
 local SQL_UNSCHEDULE = [[
@@ -27,7 +28,12 @@ function M.schedule(job, db, t)
     end
 
     local json = cjson.encode(payload)
-    assert(db:query(SQL_SCHEDULEJOB, job, t.schedule, t.max_age, t.max_attempts, json))
+    -- format the schedule job SQL statement with properly-escaped
+    -- text values for the queue name and the payload.
+    local qname = db:format_array{job}
+    local jsonstr = db:format_array{json}
+    local stmt = string.format(SQL_SCHEDULEJOB, qname, t.max_attempts, t.max_age, jsonstr)
+    assert(db:query(stmt, job, t.schedule))
   end
   return true
 end

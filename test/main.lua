@@ -1,5 +1,6 @@
 local lu = require 'luaunit'
 
+TestCron = require 'test.cron'
 TestCsrf = require 'test.csrf'
 TestMigrate = require 'test.migrate'
 TestMqueue = require 'test.mqueue'

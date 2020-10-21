@@ -16,7 +16,7 @@ local function make_mqueue(cfg)
   return function(app, t, db, msg)
     tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
     if lookup_queues and not lookup_queues[t.queue] then
-      error(string.format('queue %q is invalid', t.queue))
+      return nil, string.format('queue %q is invalid', t.queue)
     end
 
     local close = not db

@@ -16,7 +16,7 @@ local function make_schedule(cfg)
   return function(app, job, db, t)
     tcheck({'*', 'string', 'table|nil', 'string|table|nil'}, app, job, db, t)
     if lookup_jobs and not lookup_jobs[job] then
-      error(string.format('job %q is invalid', job))
+      return nil, string.format('job %q is invalid', job)
     end
 
     local close = not db
