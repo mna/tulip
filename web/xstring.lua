@@ -1,3 +1,5 @@
+local time = require 'posix.time'
+
 local M = {}
 
 -- turn pat into a case-insensitive pattern.
@@ -41,6 +43,25 @@ function M.capitalize(s)
   return string.gsub(s, '%f[%g](%g)', function(c)
     return string.upper(c)
   end)
+end
+
+-- parses a time in string RFC-3339 format to an epoch value.
+function M.totime(s)
+  local t, err = time.strptime(s, '%Y-%m-%d %H:%M:%S')
+  if not t then
+    return nil, err
+  end
+  -- convert PosixTm to os.time table
+  local tt = {
+    year = 1900 + t.tm_year,
+    month = t.tm_mon + 1,
+    day = t.tm_mday,
+    hour = t.tm_hour,
+    min = t.tm_min,
+    sec = t.tm_sec,
+    isdst = t.tm_isdst,
+  }
+  return os.time(tt)
 end
 
 return M

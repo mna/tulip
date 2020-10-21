@@ -2,6 +2,7 @@ local cjson = require('cjson.safe').new()
 local fn = require 'fn'
 local migrations = require 'web.pkg.mqueue.migrations'
 local xpgsql = require 'xpgsql'
+local xstring = require 'web.xstring'
 
 local SQL_CREATEPENDING = [[
 INSERT INTO
@@ -19,7 +20,8 @@ SELECT
   "max_attempts",
   "max_age",
   "queue",
-  "payload"
+  "payload",
+  "first_created"
 FROM
   "web_pkg_mqueue_pending"
 WHERE
@@ -79,6 +81,7 @@ local function model(o)
   o.max_attempts = tonumber(o.max_attempts)
   o.max_age = tonumber(o.max_age)
   o.payload = cjson.decode(o.payload)
+  o.first_created = xstring.totime(o.first_created)
   setmetatable(o, Message)
 
   return o
