@@ -1,5 +1,4 @@
 local lu = require 'luaunit'
-
 local xstring = require 'web.xstring'
 
 local M = {}
@@ -58,6 +57,28 @@ function M.test_capitalize()
   for _, c in pairs(cases) do
     local got = xstring.capitalize(c.from)
     lu.assertEquals(got, c.out)
+  end
+end
+
+function M.test_totime()
+  for _ = 1, 10000 do
+    local y = math.random(1900, 2100)
+    local mo = math.random(1, 12)
+    local d = math.random(1, 31)
+    local h = math.random(0, 23)
+    local mi = math.random(0, 59)
+    local s = math.random(0, 59)
+
+    if d > 28 and mo == 2 then
+      d = 28
+    elseif d == 31 and mo == 2 or mo == 4 or mo == 6 or mo == 9 or mo == 11 then
+      d = 30
+    end
+
+    local input = string.format('%04d-%02d-%02d %02d:%02d:%02d', y, mo, d, h, mi, s)
+    local t, err = xstring.totime(input)
+    lu.assertNil(err)
+    lu.assertIsNumber(t)
   end
 end
 

@@ -59,7 +59,6 @@ function M.totime(s)
     hour = t.tm_hour,
     min = t.tm_min,
     sec = t.tm_sec,
-    isdst = t.tm_isdst,
   }
   return os.time(tt)
 end

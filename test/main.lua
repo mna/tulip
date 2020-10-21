@@ -9,5 +9,6 @@ TestReadme = require 'test.readme'
 TestSendgrid = require 'test.sendgrid'
 TestToken = require 'test.token'
 TestXstring = require 'test.xstring'
+TestXtable = require 'test.xtable'
 
 os.exit(lu.LuaUnit.run())
