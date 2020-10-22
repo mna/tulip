@@ -1,9 +1,12 @@
 local tcheck = require 'tcheck'
 local xio = require 'web.xio'
 
+local DEFAULT_SIZE = 12
+local DEFAULT_HEADER = 'x-request-id'
+
 local function make_middleware(cfg)
-  local len = cfg.size
-  local hdr = cfg.header
+  local len = cfg.size or DEFAULT_SIZE
+  local hdr = cfg.header or DEFAULT_HEADER
 
   return function(req, res, nxt)
     local tok = xio.random(len)
