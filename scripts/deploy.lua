@@ -1,0 +1,38 @@
+-- Deploy is the combination of:
+-- 1. create an infrastructure (optional)
+-- 2. install the database on that infrastructure (optional)
+-- 3. deploy the new code to that infrastructure
+-- 4. (re)start the application's services
+-- 5. activate this deployment (optional)
+--
+-- Each of those steps are broken down in sub-steps. The command
+-- looks like this:
+--
+-- $ deploy www.example.com
+--
+-- By default, this is sufficient to run the most common case, which
+-- is to deploy the current HEAD to the existing infrastructure
+-- associated with that sub-domain (as identified by looking up the
+-- node with the IP address linked to the sub-domain). The existing
+-- database is left untouched, and only the new code is deployed and
+-- the application is restarted (so only steps 3 and 4 are executed).
+--
+-- More complex scenarios follow:
+--
+-- $ deploy --create 'region:size[:image]' --ssh-keys 'list,of,names' --tags 'list,of,tags' www.example.com
+--     Create a new infrastructure with the specified region, size, and optional image,
+--     and enable the ssh keys identified by name and apply the set of tags.
+--     If no image is provided, a new image is created and used. Steps 1, 2 (an empty database),
+--     3, 4 and 5 are executed. Step 5 simply involves mapping the sub-domain to the IP address
+--     of the new node.
+--
+-- $ deploy --create ... --restore-db 'db-backup-id' www.example.com
+--     Create a new infrastructure, but restores the database from the specified backup.
+--
+-- $ deploy --with-db 'db-backup-id' --with-code 'git-tag' www.example.com
+--     Restore the database from the specified backup in the existing infrastructure (so, execute
+--     steps 2, 3 and 4 only).
+--
+-- $ deploy --with-db 'db-backup-id' --without-code www.example.com
+--     Restore the database from the specified backup in the existing infrastructure and do not
+--     deploy any code (so, execute steps 2 and 4 only).
