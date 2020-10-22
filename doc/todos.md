@@ -1,7 +1,5 @@
 # list of todos
 
-* Complete testing of other packages
-
 * Time series/metrics
 * Flash messages that persist across redirects
 * User account/auth package (register, validate email, reset password, TOTP?)
