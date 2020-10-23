@@ -1,3 +1,4 @@
+local fn = require 'fn'
 local inspect = require 'inspect'
 local sh = require 'shell'
 
@@ -26,6 +27,26 @@ local function get_domain(domain)
   return o
 end
 
+local function get_ssh_keys(list)
+  local names = {}
+  for name in string.gmatch(list, '([^,]+)') do
+    names[name] = true
+  end
+
+  local out = assert(sh.cmd(
+    'doctl', 'compute', 'ssh-key', 'list',
+    '--no-header', '--format', 'ID,Name,FingerPrint'
+  ):output())
+
+  local ar = {}
+  for id, name, fp in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)') do
+    if names[name] then
+      table.insert(ar, {id = id, name = name, fingerprint = fp})
+    end
+  end
+  return ar
+end
+
 local function create_image(dom_obj, opts)
 
 end
@@ -44,19 +65,40 @@ local function create_node(dom_obj, opts)
     image = create_image(dom_obj, opts)
   end
 
-  -- TODO: resolve ssh keys, prepare tag names format
+  local key_ids
+  if opts.ssh_keys then
+    -- ssh key ids need to be comma-separated
+    local keys = get_ssh_keys(opts.ssh_keys)
+    key_ids = table.concat(fn.reduce(function(cumul, _, v)
+      table.insert(cumul, v.id)
+      return cumul
+    end, {}, ipairs(keys)), ',')
+  end
+  local tags
+  if opts.tags then
+    tags = opts.tags -- tags need to be comma-separated
+  end
 
-  -- TODO: how to name the node? This would likely be the same name as an existing
-  -- deployment for the same domain...
-  local name = string.gsub(dom_obj.domain, '%.', '-')
-  assert(sh('doctl', 'compute', 'droplet', 'create', name,
-    '--image', image,
-    '--region', region,
-    '--size', size,
-    '--wait'))
+  -- DigitalOcean doesn't prevent creation of nodes with the same name.
+  -- Add the current epoch to help make it unique.
+  local name = string.gsub(dom_obj.domain, '%.', '-') .. '.' .. os.time()
+  local args = {
+    'doctl', 'compute', 'droplet', 'create', name,
+    '--image', image, '--region', region,
+    '--size', size, '--wait',
+  }
+  if key_ids then
+    table.insert(args, '--ssh-keys')
+    table.insert(args, key_ids)
+  end
+  if tags then
+    table.insert(args, '--tag-names')
+    table.insert(args, tags)
+  end
+  assert(sh(table.unpack(args)))
 end
 
-local function get_node(dom_obj, opts)
+local function get_node(dom_obj)
   if not dom_obj.A then
     error('domain is not associated to any node')
   end
