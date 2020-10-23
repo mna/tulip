@@ -47,8 +47,75 @@ local function get_ssh_keys(list)
   return ar
 end
 
-local function create_image(dom_obj, opts)
+local function create_image(dom_obj, region, opts)
+  local SIZE = 's-1vcpu-1gb'
+  local BASE_IMAGE = 'fedora-32-x64'
 
+  local key_ids
+  if opts.ssh_keys then
+    -- ssh key ids need to be comma-separated
+    local keys = get_ssh_keys(opts.ssh_keys)
+    key_ids = table.concat(fn.reduce(function(cumul, _, v)
+      table.insert(cumul, v.id)
+      return cumul
+    end, {}, ipairs(keys)), ',')
+  end
+  local tags
+  if opts.tags then
+    tags = opts.tags -- tags need to be comma-separated
+  end
+
+  -- DigitalOcean doesn't prevent creation of nodes with the same name.
+  -- Add the current epoch to help make it unique.
+  local name = string.gsub(dom_obj.domain, '%.', '-') .. '.base.' .. os.time()
+  local args = {
+    'doctl', 'compute', 'droplet', 'create', name,
+    '--image', BASE_IMAGE, '--region', region,
+    '--size', SIZE, '--wait',
+  }
+  if key_ids then
+    table.insert(args, '--ssh-keys')
+    table.insert(args, key_ids)
+  end
+  if tags then
+    table.insert(args, '--tag-names')
+    table.insert(args, tags)
+  end
+  -- TODO: add the userdata file
+  assert(sh(table.unpack(args)))
+
+  -- get this droplet's id
+  local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name', '--no-header'):output()
+  local base_id
+  for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
+    if nm == name then
+      base_id = id
+      break
+    end
+  end
+  assert(base_id, 'could not find base node used to create image')
+
+  -- TODO: shutdown the node
+  -- TODO: snapshot the node
+  -- TODO: destroy the node
+end
+
+local function get_image(image)
+  -- validate that the image is valid and warn if it is a public
+  -- one (unlikely to be secured and ready to run the app)
+  local out = sh.cmd('doctl', 'compute', 'image', 'get', image, '--format', 'Public', '--no-header'):output()
+  if not out then
+    error('image does not exist')
+  elseif out ~= 'false' then
+    io.write(string.format(
+      'image %s is public, it is probably not secure nor fitting to deploy on this, continue anyway? [y/N]',
+      image))
+    local res = io.read('l')
+    if not string.match(res, '^%s*[yY]') then
+      error('canceled by user')
+    end
+  end
+  return image
 end
 
 local function create_node(dom_obj, opts)
@@ -62,7 +129,9 @@ local function create_node(dom_obj, opts)
 
   local region, size, image = table.unpack(parts)
   if not image then
-    image = create_image(dom_obj, opts)
+    image = create_image(dom_obj, region, opts)
+  else
+    image = get_image(image)
   end
 
   local key_ids
@@ -119,9 +188,9 @@ return function(domain, opts)
 
   local node
   if opts.create then
-    node = create_node(dom_obj, opts)
+   node = create_node(dom_obj, opts)
   else
-    node = get_node(dom_obj, opts)
+    node = get_node(dom_obj)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
   end
 
