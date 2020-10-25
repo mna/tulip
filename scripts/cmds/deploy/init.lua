@@ -1,6 +1,8 @@
 local fn = require 'fn'
 local inspect = require 'inspect'
+local process = require 'process'
 local sh = require 'shell'
+local userdata = require 'scripts.cmds.deploy.userdata'
 
 local function get_domain(domain)
   -- assume the part before the first dot is the subdomain
@@ -60,6 +62,10 @@ local function create_image(dom_obj, region, opts)
       return cumul
     end, {}, ipairs(keys)), ',')
   end
+  if (not key_ids) or key_ids == '' then
+    error('at least one ssh key must be provided to prevent password-based login')
+  end
+
   local tags
   if opts.tags then
     tags = opts.tags -- tags need to be comma-separated
@@ -71,7 +77,7 @@ local function create_image(dom_obj, region, opts)
   local args = {
     'doctl', 'compute', 'droplet', 'create', name,
     '--image', BASE_IMAGE, '--region', region,
-    '--size', SIZE, '--wait',
+    '--size', SIZE, '--user-data', userdata, '--wait',
   }
   if key_ids then
     table.insert(args, '--ssh-keys')
@@ -81,7 +87,6 @@ local function create_image(dom_obj, region, opts)
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  -- TODO: add the userdata file
   assert(sh(table.unpack(args)))
 
   -- get this droplet's id
@@ -95,9 +100,28 @@ local function create_image(dom_obj, region, opts)
   end
   assert(base_id, 'could not find base node used to create image')
 
-  -- TODO: shutdown the node
-  -- TODO: snapshot the node
-  -- TODO: destroy the node
+  error(string.format('done creating base node, id=%s', base_id))
+
+  -- TODO: actually, grab the generated passwords/secrets before shutdown? how?
+  -- TODO: shutdown the node at the end of the userdata
+
+  local status = 'active'
+  local start = os.time()
+  while status ~= 'off' and os.difftime(os.time(), start) < 1000 do
+    process.sleep(10)
+    status = sh.cmd('doctl', 'compute', 'droplet', 'get', base_id, '--format', 'Status', '--no-header'):output()
+  end
+  if status ~= 'off' then
+    error(string.format(
+      'failed to shutdown base image node %s (id=%s) to take snapshot, delete it manually', name, base_id))
+  end
+
+  if not sh('doctl', 'compute', 'droplet-action', 'snapshot', base_id, '--snapshot-name', name, '--wait') then
+    error(string.format('failed to create snapshot image of node %s (id=%s), delete it manually', name, base_id))
+  end
+  if not sh('doctl', 'compute', 'droplet', 'delete', base_id, '--force') then
+    error(string.format('failed to destroy base image node %s (id=%s), delete it manually', name, base_id))
+  end
 end
 
 local function get_image(image)
@@ -134,6 +158,8 @@ local function create_node(dom_obj, opts)
     image = get_image(image)
   end
 
+  -- ssh key(s) is required, otherwise the droplet is created with
+  -- a root password, insecure.
   local key_ids
   if opts.ssh_keys then
     -- ssh key ids need to be comma-separated
@@ -143,6 +169,10 @@ local function create_node(dom_obj, opts)
       return cumul
     end, {}, ipairs(keys)), ',')
   end
+  if (not key_ids) or key_ids == '' then
+    error('at least one ssh key must be provided to prevent password-based login')
+  end
+
   local tags
   if opts.tags then
     tags = opts.tags -- tags need to be comma-separated

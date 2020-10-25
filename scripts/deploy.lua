@@ -65,6 +65,8 @@ Options:
   --without-code        Does not deploy code.
 ]]
 
+-- TODO: assign infra to a project, assign a firewall to node?
+
 local parser = OptionParser(help)
 local arg, opts = parser:parse(_G.arg)
 
