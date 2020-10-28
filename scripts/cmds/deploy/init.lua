@@ -87,12 +87,12 @@ local function create_image(dom_obj, region, opts)
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  io.output(string.format('> create image node %s...', name)); io.flush()
+  io.write(string.format('> create image node %s...', name)); io.flush()
   assert(sh.cmd(table.unpack(args)):output())
-  io.output(' ok\n')
+  io.write(' ok\n')
 
   -- get this droplet's id
-  io.output(string.format('> get image node id of %s...', name)); io.flush()
+  io.write(string.format('> get image node id of %s...', name)); io.flush()
   local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name', '--no-header'):output()
   local base_id
   for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
@@ -102,7 +102,7 @@ local function create_image(dom_obj, region, opts)
     end
   end
   assert(base_id, 'could not find base node used to create image')
-  io.output(' ok\n')
+  io.write(' ok\n')
 
   error(string.format('done creating base node, id=%s', base_id))
 
