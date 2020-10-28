@@ -286,7 +286,22 @@ local function get_node(dom_obj)
   end
 end
 
+local REQUIRES_CREATE = {
+  'firewall',
+  'project',
+  'ssh_keys',
+  'tags',
+}
+
 return function(domain, opts)
+  if not opts.create then
+    for _, arg in ipairs(REQUIRES_CREATE) do
+      if opts[arg] then
+        error(string.format('option %s requires --create', arg))
+      end
+    end
+  end
+
   local dom_obj = get_domain(domain)
   assert(dom_obj, 'domain does not exist')
 

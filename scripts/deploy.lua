@@ -53,9 +53,9 @@ Options:
 
   --create=R:S:I        Create a new node using region R, size S and the optional
                         image I (creates a new image if not provided).
-  --firewall=NAME       Assign this firewall to the new node.
+  --firewall=NAME       Assign this firewall to the new node. Requires --create.
   -h, --help            Display this help and exit.
-  --project=NAME        Assign the new node to this project.
+  --project=NAME        Assign the new node to this project. Requires --create.
   --ssh-keys=k1,k2,...  Associate the ssh keys identified by the comma-separated list of key
                         names with the new node. Requires --create.
   --tags=t1,t2,...      Associate the comma-separated list of tags with the new node.
