@@ -115,16 +115,18 @@ local function create_image(dom_obj, region, opts)
 
   io.write(string.format(
     [[
-> base node for %s is being configured, you may inspect its progress by running:
+> base node for %s is being configured...
+  You may inspect its progress by running:
     $ doctl compute ssh %s
   and follow the configuration progress by running:
     $ journalctl -fu cloud-final
 
-  Note that it will reboot after configuration, you should check that after the
-  reboot everything is running correctly, e.g. by running:
+  Note that it will reboot after configuration, you should check that
+  after the reboot everything is running correctly, e.g. by running:
     $ systemctl status
 
-  You should extract the generated secrets and store them securely:
+  You should extract the generated secrets locally and store them
+  securely:
     $ mkdir -p ./run/secrets/%s
     $ scp root@%s:/opt/secrets/* ./run/secrets/%s/
 
@@ -169,12 +171,13 @@ local function get_image(image)
   -- one (unlikely to be secured and ready to run the app)
   log('> get image %s...', image)
   local out = (
-    sh.cmd('doctl', 'compute', 'image', 'list', image, '--format', 'ID,Name,Public', '--public') |
-    sh.cmd('egrep', '\\s+' .. image .. '\\s+')):output()
-  local id, _, pub = string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)')
+    sh.cmd('doctl', 'compute', 'image', 'list', '--format', 'ID,Name,Public', '--public') |
+    sh.cmd('grep', '--fixed-strings', ' ' .. image .. ' ')):output()
+  local id, _, pub = string.match(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)')
   if not id then
     error('image does not exist')
   elseif pub ~= 'false' then
+    print('\n', out, id, pub)
     io.write(string.format(
       'image %s is public, it is probably not secure nor fitting to deploy on this, continue anyway? [y/N]',
       image))
@@ -237,7 +240,7 @@ local function create_node(dom_obj, opts)
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  log('> create node %s based on image %s...', name, image)
+  log('> create node %s based on image id %s...', name, image_id)
   local out = assert(sh.cmd(table.unpack(args)):output())
   local id, _, ip4 = string.match(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)')
   log(' ok\n')
@@ -267,7 +270,7 @@ return function(domain, opts)
 
   local node
   if opts.create then
-   node = create_node(dom_obj, opts)
+    node = create_node(dom_obj, opts)
   else
     node = get_node(dom_obj)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
