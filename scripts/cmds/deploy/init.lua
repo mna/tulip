@@ -44,6 +44,7 @@ local function get_ssh_keys(list)
     names[name] = true
   end
 
+  log('> get ssh key id(s)...')
   local out = assert(sh.cmd(
     'doctl', 'compute', 'ssh-key', 'list',
     '--no-header', '--format', 'ID,Name,FingerPrint'
@@ -55,23 +56,25 @@ local function get_ssh_keys(list)
       table.insert(ar, {id = id, name = name, fingerprint = fp})
     end
   end
+  log(' ok\n')
   return ar
 end
 
+-- creates a node to configure a new image, takes a snapshot of the node then
+-- destroys it and returns the id of the snapshot, ready to use in a node creation.
 local function create_image(dom_obj, region, opts)
   local SIZE = 's-1vcpu-1gb'
   local BASE_IMAGE = 'fedora-32-x64'
 
-  local key_ids
-  if opts.ssh_keys then
+  if opts.ssh_keys and not opts.key_ids then
     -- ssh key ids need to be comma-separated
     local keys = get_ssh_keys(opts.ssh_keys)
-    key_ids = table.concat(fn.reduce(function(cumul, _, v)
+    opts.key_ids = table.concat(fn.reduce(function(cumul, _, v)
       table.insert(cumul, v.id)
       return cumul
     end, {}, ipairs(keys)), ',')
   end
-  if (not key_ids) or key_ids == '' then
+  if (not opts.key_ids) or (opts.key_ids == '') then
     error('at least one ssh key must be provided to prevent password-based login')
   end
 
@@ -85,23 +88,19 @@ local function create_image(dom_obj, region, opts)
   local name = string.gsub(dom_obj.domain, '%.', '-') .. '.base.' .. os.time()
   local args = {
     'doctl', 'compute', 'droplet', 'create', name,
-    '--image', BASE_IMAGE, '--region', region,
+    '--image', BASE_IMAGE, '--region', region, '--ssh-keys', opts.key_ids,
     '--size', SIZE, '--user-data', imguserdata, '--wait',
   }
-  if key_ids then
-    table.insert(args, '--ssh-keys')
-    table.insert(args, key_ids)
-  end
   if tags then
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  log('> create image node %s...', name)
+  log('> create base image node %s...', name)
   assert(sh.cmd(table.unpack(args)):output())
   log(' ok\n')
 
   -- get this droplet's id
-  log('> get image node id of %s...', name)
+  log('> get base image node id of %s...', name)
   local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name,Public IPv4', '--no-header'):output()
   local base_id, base_ip
   for id, nm, ip in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)') do
@@ -133,25 +132,38 @@ Press ENTER when ready to continue.
 ]], name, base_id, name, base_ip, name))
   io.read('l')
 
-  if not sh('doctl', 'compute', 'droplet-action', 'shutdown', base_id, '--wait') then
+  log('> shutdown base image node %s...', name)
+  if not sh.cmd('doctl', 'compute', 'droplet-action', 'shutdown', base_id, '--wait'):output() then
     error(string.format('failed to shutdown base image node %s (id=%s), delete it manually', name, base_id))
   end
-  if not sh('doctl', 'compute', 'droplet-action', 'snapshot', base_id, '--snapshot-name', name, '--wait') then
+  log(' ok\n')
+  log('> create snapshot %s of base image node...', name)
+  local snapshot_id = sh.cmd('doctl', 'compute', 'droplet-action', 'snapshot', base_id,
+    '--snapshot-name', name, '--format', 'Resource ID', '--no-header', '--wait'):output()
+  if not snapshot_id then
     error(string.format('failed to create snapshot image of node %s (id=%s), delete it manually', name, base_id))
   end
-  if not sh('doctl', 'compute', 'droplet', 'delete', base_id, '--force') then
+  log(' ok\n')
+  log('> destroy base image node %s...', name)
+  if not sh.cmd('doctl', 'compute', 'droplet', 'delete', base_id, '--force'):output() then
     error(string.format('failed to destroy base image node %s (id=%s), delete it manually', name, base_id))
   end
+  log(' ok\n')
+  return snapshot_id
 end
 
+-- returns the image ID of the image corresponding to the provided name/slug.
 local function get_image(image)
   -- validate that the image is valid and warn if it is a public
   -- one (unlikely to be secured and ready to run the app)
   log('> get image %s...', image)
-  local out = sh.cmd('doctl', 'compute', 'image', 'get', image, '--format', 'Public', '--no-header'):output()
-  if not out then
+  local out = (
+    sh.cmd('doctl', 'compute', 'image', 'list', image, '--format', 'ID,Name,Public', '--public') |
+    sh.cmd('egrep', '\\s+' .. image .. '\\s+')):output()
+  local id, _, pub = string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)')
+  if not id then
     error('image does not exist')
-  elseif out ~= 'false' then
+  elseif pub ~= 'false' then
     io.write(string.format(
       'image %s is public, it is probably not secure nor fitting to deploy on this, continue anyway? [y/N]',
       image))
@@ -161,7 +173,7 @@ local function get_image(image)
     end
   end
   log(' ok\n')
-  return image
+  return id
 end
 
 local function create_node(dom_obj, opts)
@@ -174,24 +186,25 @@ local function create_node(dom_obj, opts)
   end
 
   local region, size, image = table.unpack(parts)
+  local image_id
   if not image then
-    image = create_image(dom_obj, region, opts)
+    image_id = create_image(dom_obj, region, opts)
   else
-    image = get_image(image)
+    image_id = get_image(image)
   end
+  assert(image_id, 'could not get image id')
 
   -- ssh key(s) is required, otherwise the droplet is created with
   -- a root password, insecure.
-  local key_ids
-  if opts.ssh_keys then
+  if opts.ssh_keys and not opts.key_ids then
     -- ssh key ids need to be comma-separated
     local keys = get_ssh_keys(opts.ssh_keys)
-    key_ids = table.concat(fn.reduce(function(cumul, _, v)
+    opts.key_ids = table.concat(fn.reduce(function(cumul, _, v)
       table.insert(cumul, v.id)
       return cumul
     end, {}, ipairs(keys)), ',')
   end
-  if (not key_ids) or key_ids == '' then
+  if (not opts.key_ids) or (opts.key_ids == '') then
     error('at least one ssh key must be provided to prevent password-based login')
   end
 
@@ -205,18 +218,19 @@ local function create_node(dom_obj, opts)
   local name = string.gsub(dom_obj.domain, '%.', '-') .. '.' .. os.time()
   local args = {
     'doctl', 'compute', 'droplet', 'create', name,
-    '--image', image, '--region', region,
-    '--size', size, '--wait',
+    '--image', image_id, '--region', region,
+    '--ssh-keys', opts.key_ids, '--size', size, '--wait',
+    '--format', 'ID,Name,Public IPv4', '--no-header',
   }
-  if key_ids then
-    table.insert(args, '--ssh-keys')
-    table.insert(args, key_ids)
-  end
   if tags then
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  assert(sh(table.unpack(args)))
+  log('> create node %s based on image %s...', name, image)
+  local out = assert(sh.cmd(table.unpack(args)):output())
+  local id, _, ip4 = string.match(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)')
+  log(' ok\n')
+  return {id = id, name = name, ip4 = ip4}
 end
 
 local function get_node(dom_obj)
@@ -248,6 +262,5 @@ return function(domain, opts)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
   end
 
-  print(inspect(dom_obj))
   print(inspect(node))
 end
