@@ -28,7 +28,7 @@ local function get_domain(domain)
     main, '--no-header', '--format', 'ID,Type,Data,Name'
   ):output())
 
-  local o = {domain = domain, subdomain = sub}
+  local o = {domain = domain, subdomain = sub, maindomain = main}
   for id, typ, data, name in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)%s+(%S+)') do
     if name == sub and (typ == 'A' or typ == 'AAAA') then
       o[typ] = {id = id, ip = data}
@@ -36,6 +36,28 @@ local function get_domain(domain)
   end
   log(' ok\n')
   return o
+end
+
+-- assign the domain to this node
+local function set_domain(dom_obj, node)
+  -- if the domain is already mapped to an ip address, update it
+  local out = assert(sh.cmd('doctl', 'compute', 'domain', 'records', 'list',
+    dom_obj.maindomain, '--format', 'ID,Type', '--no-header'):output())
+  local rec_id = string.match(out, '%f[^%s\0](%S+)%s+A')
+  if rec_id then
+    log('> update domain A record of %s to %s...', dom_obj.domain, node.ip4)
+    assert(sh.cmd('doctl', 'compute', 'domain', 'records', 'update',
+      dom_obj.maindomain, '--record-name', dom_obj.subdomain,
+      '--record-id', rec_id, '--record-ttl', 120, '--record-type', 'A',
+      '--record-data', node.ip4):output())
+  else
+    log('> create domain A record of %s to %s...', dom_obj.domain, node.ip4)
+    assert(sh.cmd('doctl', 'compute', 'domain', 'records', 'create',
+      dom_obj.maindomain, '--record-name', dom_obj.subdomain,
+      '--record-ttl', 120, '--record-type', 'A',
+      '--record-data', node.ip4):output())
+  end
+  log(' ok\n')
 end
 
 local function get_ssh_keys(list)
@@ -276,5 +298,11 @@ return function(domain, opts)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
   end
 
+  -- TODO: steps 2-4
+
+  if opts.create then
+    -- activate the new node for that sub-domain
+    set_domain(dom_obj, node)
+  end
   print(inspect(node))
 end
