@@ -2,7 +2,7 @@ local fn = require 'fn'
 local inspect = require 'inspect'
 local process = require 'process'
 local sh = require 'shell'
-local userdata = require 'scripts.cmds.deploy.userdata'
+local imguserdata = require 'scripts.cmds.deploy.imguserdata'
 
 local function get_domain(domain)
   -- assume the part before the first dot is the subdomain
@@ -77,7 +77,7 @@ local function create_image(dom_obj, region, opts)
   local args = {
     'doctl', 'compute', 'droplet', 'create', name,
     '--image', BASE_IMAGE, '--region', region,
-    '--size', SIZE, '--user-data', userdata, '--wait',
+    '--size', SIZE, '--user-data', imguserdata, '--wait',
   }
   if key_ids then
     table.insert(args, '--ssh-keys')
@@ -87,9 +87,12 @@ local function create_image(dom_obj, region, opts)
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  assert(sh(table.unpack(args)))
+  io.output(string.format('> create image node %s...', name)); io.flush()
+  assert(sh.cmd(table.unpack(args)):output())
+  io.output(' ok\n')
 
   -- get this droplet's id
+  io.output(string.format('> get image node id of %s...', name)); io.flush()
   local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name', '--no-header'):output()
   local base_id
   for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
@@ -99,6 +102,7 @@ local function create_image(dom_obj, region, opts)
     end
   end
   assert(base_id, 'could not find base node used to create image')
+  io.output(' ok\n')
 
   error(string.format('done creating base node, id=%s', base_id))
 

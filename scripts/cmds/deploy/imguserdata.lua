@@ -1,7 +1,7 @@
 local function bash()
   return [[#!/usr/bin/env bash
 
-# This is the cloud-init user data script used to setup a new machine
+# This is the cloud-init user data script used to setup a new image
 # in a consistent way.
 
 set -euo pipefail
@@ -13,30 +13,44 @@ local function dnf()
 # upgrade all packages
 dnf --assumeyes upgrade
 
-# TODO: actually better use postgres12 as bundled in fedora, too much
-# trouble fixing unexpected paths and stuff with pg_cron
-
-# install the postgres 13 yum repository
-dnf --assumeyes install  \
-  https://download.postgresql.org/pub/repos/yum/reporpms/F-32-x86_64/pgdg-fedora-repo-latest.noarch.rpm
-
 # install required packages
-dnf --assumeyes install  \
-  certbot                \
-  fail2ban               \
-  gcc                    \
-  git                    \
-  libpq5-devel           \
-  lsof                   \
-  lua-devel              \
-  luarocks               \
-  make                   \
-  openssl-devel          \
-  postgresql13-devel     \
-  postgresql13-server    \
-  sendmail               \
-  the_silver_searcher    \
+dnf --assumeyes install   \
+  certbot                 \
+  fail2ban                \
+  gcc                     \
+  git                     \
+  libpq-devel             \
+  lsof                    \
+  lua-devel               \
+  luarocks                \
+  make                    \
+  openssl-devel           \
+  postgresql              \
+  postgresql-server       \
+  postgresql-server-devel \
+  redhat-rpm-config       \
+  sendmail                \
+  the_silver_searcher     \
   vim
+]]
+end
+
+local function secrets()
+  return [[
+mkdir -p /opt/secrets
+
+# postgresql root password
+openssl rand -base64 32 | tr '+/=' '._-' > /opt/secrets/pgroot_pwd
+chmod 0600 /opt/secrets/pgroot_pwd
+
+# postgresql pgpass file
+echo -n 'localhost:*:*:postgres:' > /opt/secrets/pgpass
+cat /opt/secrets/pgroot_pwd >> /opt/secrets/pgpass
+chmod 0600 /opt/secrets/pgpass
+
+# CSRF secret key
+openssl rand -base64 32 | tr '+/=' '._-' > /opt/secrets/csrf_key
+chmod 0600 /opt/secrets/csrf_key
 ]]
 end
 
@@ -84,11 +98,23 @@ make && make install
 popd
 
 # initialize the database and start the service
-/usr/pgsql-13/bin/postgresql-13-setup initdb
-systemctl enable --now postgresql-13
-psql --username postgres --command 'CREATE EXTENSION pg_cron;'
+postgresql-setup --initdb  \
+  --unit postgresql        \
+  --auth=scram-sha-256     \
+  --locale=en_US           \
+  --encoding=UTF8          \
+  --pwfile=/opt/secrets/pgroot_pwd
 
-# TODO: set postgres root password, update configuration as required
+cat >> /var/lib/pgsql/data/postgresql.conf <<EOF
+shared_preload_libraries = 'pg_cron'
+cron.database_name = 'postgres'
+EOF
+
+systemctl enable --now postgresql
+
+PGPASSFILE=/opt/secrets/pgpass \
+  psql --username postgres     \
+       --command 'CREATE EXTENSION pg_cron;'
 ]]
 end
 
@@ -104,7 +130,7 @@ end
 return table.concat{
   bash(),
   dnf(),
-  -- TODO: generate secrets
+  secrets(),
   firewalld(),
   -- TODO: configure certbot
   fail2ban(),
