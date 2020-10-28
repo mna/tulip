@@ -1,14 +1,22 @@
 local fn = require 'fn'
 local inspect = require 'inspect'
-local process = require 'process'
 local sh = require 'shell'
 local imguserdata = require 'scripts.cmds.deploy.imguserdata'
+
+local function log(s, ...)
+  local msg = string.format(s, ...)
+  io.write(msg)
+  if not string.match(msg, '\n$') then
+    io.flush()
+  end
+end
 
 local function get_domain(domain)
   -- assume the part before the first dot is the subdomain
   local sub, main = string.match(domain, '^([^%.]+)%.(.+)$')
 
   -- check if the domain exists
+  log('> get domain %s...', main)
   local ok = (sh.cmd('doctl', 'compute', 'domain', 'list', '--no-header', '--format', 'Domain') |
     sh.cmd('grep', string.format('^%s$', main))):exec()
   if not ok then
@@ -26,6 +34,7 @@ local function get_domain(domain)
       o[typ] = {id = id, ip = data}
     end
   end
+  log(' ok\n')
   return o
 end
 
@@ -87,39 +96,46 @@ local function create_image(dom_obj, region, opts)
     table.insert(args, '--tag-names')
     table.insert(args, tags)
   end
-  io.write(string.format('> create image node %s...', name)); io.flush()
+  log('> create image node %s...', name)
   assert(sh.cmd(table.unpack(args)):output())
-  io.write(' ok\n')
+  log(' ok\n')
 
   -- get this droplet's id
-  io.write(string.format('> get image node id of %s...', name)); io.flush()
-  local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name', '--no-header'):output()
-  local base_id
-  for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
+  log('> get image node id of %s...', name)
+  local out = sh.cmd('doctl', 'compute', 'droplet', 'list', '--format', 'ID,Name,Public IPv4', '--no-header'):output()
+  local base_id, base_ip
+  for id, nm, ip in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)') do
     if nm == name then
       base_id = id
+      base_ip = ip
       break
     end
   end
   assert(base_id, 'could not find base node used to create image')
-  io.write(' ok\n')
+  log(' ok\n')
 
-  error(string.format('done creating base node, id=%s', base_id))
+  io.write(string.format(
+    [[
+> base node for %s is being configured, you may inspect its progress by running:
+    $ doctl compute ssh %s
+  and follow the configuration progress by running:
+    $ journalctl -fu cloud-final
 
-  -- TODO: actually, grab the generated passwords/secrets before shutdown? how?
-  -- TODO: shutdown the node at the end of the userdata
+  Note that it will reboot after configuration, you should check that after the
+  reboot everything is running correctly, e.g. by running:
+    $ systemctl status
 
-  local status = 'active'
-  local start = os.time()
-  while status ~= 'off' and os.difftime(os.time(), start) < 1000 do
-    process.sleep(10)
-    status = sh.cmd('doctl', 'compute', 'droplet', 'get', base_id, '--format', 'Status', '--no-header'):output()
+  You should extract the generated secrets and store them securely:
+    $ mkdir -p ./run/secrets/%s
+    $ scp root@%s:/opt/secrets/* ./run/secrets/%s/
+
+Press ENTER when ready to continue.
+]], name, base_id, name, base_ip, name))
+  io.read('l')
+
+  if not sh('doctl', 'compute', 'droplet-action', 'shutdown', base_id, '--wait') then
+    error(string.format('failed to shutdown base image node %s (id=%s), delete it manually', name, base_id))
   end
-  if status ~= 'off' then
-    error(string.format(
-      'failed to shutdown base image node %s (id=%s) to take snapshot, delete it manually', name, base_id))
-  end
-
   if not sh('doctl', 'compute', 'droplet-action', 'snapshot', base_id, '--snapshot-name', name, '--wait') then
     error(string.format('failed to create snapshot image of node %s (id=%s), delete it manually', name, base_id))
   end
@@ -131,6 +147,7 @@ end
 local function get_image(image)
   -- validate that the image is valid and warn if it is a public
   -- one (unlikely to be secured and ready to run the app)
+  log('> get image %s...', image)
   local out = sh.cmd('doctl', 'compute', 'image', 'get', image, '--format', 'Public', '--no-header'):output()
   if not out then
     error('image does not exist')
@@ -143,6 +160,7 @@ local function get_image(image)
       error('canceled by user')
     end
   end
+  log(' ok\n')
   return image
 end
 
@@ -206,11 +224,13 @@ local function get_node(dom_obj)
     error('domain is not associated to any node')
   end
 
+  log('> get node associated with IP address %s...', dom_obj.A.ip)
   local out = assert(sh.cmd('doctl', 'compute', 'droplet', 'list',
     '--format', 'ID,Name,Public IPv4', '--no-header'):output())
 
   for id, name, ip4 in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)%s+(%S+)') do
     if ip4 == dom_obj.A.ip then
+      log(' ok\n')
       return {id = id, name = name, ip4 = ip4}
     end
   end
