@@ -60,6 +60,46 @@ local function set_domain(dom_obj, node)
   log(' ok\n')
 end
 
+local function set_project(project, node)
+  log('> assign node to project %s...', project)
+
+  local out = assert(sh.cmd('doctl', 'projects', 'list',
+    '--format', 'ID,Name', '--no-header'):output())
+  local proj_id
+  for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
+    if nm == project then
+      proj_id = id
+      break
+    end
+  end
+  assert(proj_id, 'could not find project')
+
+  assert(sh.cmd('doctl', 'projects', 'resources', 'assign',
+    proj_id, '--resource', 'do:droplet:' .. node.id):output())
+
+  log(' ok\n')
+end
+
+local function set_firewall(firewall, node)
+  log('> assign firewall %s to node...', firewall)
+
+  local out = assert(sh.cmd('doctl', 'compute', 'firewall', 'list',
+    '--format', 'ID,Name', '--no-header'):output())
+  local fw_id
+  for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
+    if nm == firewall then
+      fw_id = id
+      break
+    end
+  end
+  assert(fw_id, 'could not find firewall')
+
+  assert(sh.cmd('doctl', 'compute', 'firewall', 'add-droplets',
+    fw_id, '--droplet-ids', node.id):output())
+
+  log(' ok\n')
+end
+
 local function get_ssh_keys(list)
   local names = {}
   for name in string.gmatch(list, '([^,]+)') do
@@ -308,6 +348,12 @@ return function(domain, opts)
   local node
   if opts.create then
     node = create_node(dom_obj, opts)
+    if opts.project then
+      set_project(opts.project, node)
+    end
+    if opts.firewall then
+      set_firewall(opts.firewall, node)
+    end
   else
     node = get_node(dom_obj)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
