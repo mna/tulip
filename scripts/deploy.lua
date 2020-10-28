@@ -62,7 +62,7 @@ Options:
                         Requires --create.
   -V, --version         Display the version and exit.
   --with-code=TAG       Installs the code at the git version identified by TAG. Defaults to
-                        the current HEAD.
+                        the latest tag.
   --with-db=DB          Restores or installs the specified database backup.
   --without-code        Does not deploy code.
 ]]

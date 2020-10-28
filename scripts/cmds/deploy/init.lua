@@ -1,7 +1,6 @@
 local fn = require 'fn'
-local inspect = require 'inspect'
 local sh = require 'shell'
-local imguserdata = require 'scripts.cmds.deploy.imguserdata'
+local imgsh = require 'scripts.cmds.deploy.image_script'
 
 local function log(s, ...)
   local msg = string.format(s, ...)
@@ -151,7 +150,7 @@ local function create_image(dom_obj, region, opts)
   local args = {
     'doctl', 'compute', 'droplet', 'create', name,
     '--image', BASE_IMAGE, '--region', region, '--ssh-keys', opts.key_ids,
-    '--size', SIZE, '--user-data', imguserdata, '--wait',
+    '--size', SIZE, '--user-data', imgsh, '--wait',
   }
   if tags then
     table.insert(args, '--tag-names')
@@ -202,7 +201,8 @@ Press ENTER when ready to continue.
   end
   log(' ok\n')
   log('> create snapshot %s of base image node...', name)
-  if not sh.cmd('doctl', 'compute', 'droplet-action', 'snapshot', base_id, '--snapshot-name', name, '--wait'):output() then
+  if not sh.cmd('doctl', 'compute', 'droplet-action', 'snapshot',
+      base_id, '--snapshot-name', name, '--wait'):output() then
     error(string.format('failed to create snapshot image of node %s (id=%s), delete it manually', name, base_id))
   end
   log(' ok\n')
@@ -326,6 +326,17 @@ local function get_node(dom_obj)
   end
 end
 
+local function deploy_code(tag, node)
+  if not tag then
+    -- get latest tag
+    tag = assert(sh.cmd('git', 'describe', '--tags', '--abbrev=0'):output())
+  end
+  log('> deploy code at tag %s to %s...', tag, node.name)
+  assert(sh.cmd('doctl', 'compute', 'ssh', node.id,
+    '--ssh-command', '# TODO: get deploy script'):output())
+  log(' ok\n')
+end
+
 local REQUIRES_CREATE = {
   'firewall',
   'project',
@@ -359,11 +370,20 @@ return function(domain, opts)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
   end
 
-  -- TODO: steps 2-4
+  if opts.with_db then
+    -- TODO: step 2: install database from backup
+  end
+
+  if not opts.without_code then
+    deploy_code(opts.with_code, node)
+  end
+
+  -- TODO: restart services, always. This means that running the
+  -- command like this does nothing except restart services:
+  -- $ deploy --without-code www.example.com
 
   if opts.create then
     -- activate the new node for that sub-domain
     set_domain(dom_obj, node)
   end
-  print(inspect(node))
 end
