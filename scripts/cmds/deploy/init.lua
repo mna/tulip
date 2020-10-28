@@ -138,9 +138,7 @@ Press ENTER when ready to continue.
   end
   log(' ok\n')
   log('> create snapshot %s of base image node...', name)
-  local snapshot_id = sh.cmd('doctl', 'compute', 'droplet-action', 'snapshot', base_id,
-    '--snapshot-name', name, '--format', 'Resource ID', '--no-header', '--wait'):output()
-  if not snapshot_id then
+  if not sh.cmd('doctl', 'compute', 'droplet-action', 'snapshot', base_id, '--snapshot-name', name, '--wait'):output() then
     error(string.format('failed to create snapshot image of node %s (id=%s), delete it manually', name, base_id))
   end
   log(' ok\n')
@@ -149,6 +147,19 @@ Press ENTER when ready to continue.
     error(string.format('failed to destroy base image node %s (id=%s), delete it manually', name, base_id))
   end
   log(' ok\n')
+
+  log('> get snapshot id of %s...', name)
+  local snapshot_id
+  out = sh.cmd('doctl', 'compute', 'image', 'list', '--format', 'ID,Name', '--no-header'):output()
+  for id, nm in string.gmatch(out, '%f[^%s\0](%S+)%s+(%S+)') do
+    if nm == name then
+      snapshot_id = id
+      break
+    end
+  end
+  assert(snapshot_id, 'could not find snapshot')
+  log(' ok\n')
+
   return snapshot_id
 end
 
