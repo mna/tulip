@@ -1,7 +1,8 @@
-local fn = require 'fn'
-local sh = require 'shell'
-local imgsh = require 'scripts.cmds.deploy.image_script'
 local codesh = require 'scripts.cmds.deploy.code_script'
+local fn = require 'fn'
+local imgsh = require 'scripts.cmds.deploy.image_script'
+local sh = require 'shell'
+local svcsh = require 'scripts.cmds.deploy.svc_script'
 
 local function log(s, ...)
   local msg = string.format(s, ...)
@@ -333,11 +334,19 @@ local function deploy_code(tag, node)
     tag = assert(sh.cmd('git', 'describe', '--tags', '--abbrev=0'):output())
   end
   log('> deploy code at tag %s to %s...', tag, node.name)
-  assert(
-    (
-      sh.cmd('echo', codesh(tag)) |
-      sh.cmd('ssh', 'root@' .. node.ip4)
-    ):output())
+  assert((
+    sh.cmd('echo', codesh(tag)) |
+    sh.cmd('ssh', '-o', 'StrictHostKeyChecking no', 'root@' .. node.ip4)
+  ):output())
+  log(' ok\n')
+end
+
+local function restart_services(node)
+  log('> restart services on %s...', node.name)
+  assert((
+    sh.cmd('echo', svcsh) |
+    sh.cmd('ssh', '-o', 'StrictHostKeyChecking no', 'root@' .. node.ip4)
+  ):output())
   log(' ok\n')
 end
 
@@ -388,9 +397,7 @@ return function(domain, opts)
   end
 
   -- step 4: restart DB and app services
-  -- TODO: restart services, always. This means that running the
-  -- command like this does nothing except restart services:
-  -- $ deploy --without-code www.example.com
+  restart_services(node)
 
   -- step 5: activate the new deployment, if a new node was created
   if opts.create then
