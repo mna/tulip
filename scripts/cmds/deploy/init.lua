@@ -1,6 +1,7 @@
 local fn = require 'fn'
 local sh = require 'shell'
 local imgsh = require 'scripts.cmds.deploy.image_script'
+local codesh = require 'scripts.cmds.deploy.code_script'
 
 local function log(s, ...)
   local msg = string.format(s, ...)
@@ -332,8 +333,11 @@ local function deploy_code(tag, node)
     tag = assert(sh.cmd('git', 'describe', '--tags', '--abbrev=0'):output())
   end
   log('> deploy code at tag %s to %s...', tag, node.name)
-  assert(sh.cmd('doctl', 'compute', 'ssh', node.id,
-    '--ssh-command', '# TODO: get deploy script'):output())
+  assert(
+    (
+      sh.cmd('echo', codesh(tag)) |
+      sh.cmd('ssh', 'root@' .. node.ip4)
+    ):output())
   log(' ok\n')
 end
 
@@ -345,6 +349,7 @@ local REQUIRES_CREATE = {
 }
 
 return function(domain, opts)
+  -- check that provided flags are accepted in the current context
   if not opts.create then
     for _, arg in ipairs(REQUIRES_CREATE) do
       if opts[arg] then
@@ -353,9 +358,11 @@ return function(domain, opts)
     end
   end
 
+  -- get the domain object, which must already exist on the provider
   local dom_obj = get_domain(domain)
   assert(dom_obj, 'domain does not exist')
 
+  -- step 1: create new node if requested
   local node
   if opts.create then
     node = create_node(dom_obj, opts)
@@ -370,18 +377,22 @@ return function(domain, opts)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))
   end
 
+  -- step 2: restore from a database backup if requested
   if opts.with_db then
     -- TODO: step 2: install database from backup
   end
 
+  -- step 3: deploy the code if requested
   if not opts.without_code then
     deploy_code(opts.with_code, node)
   end
 
+  -- step 4: restart DB and app services
   -- TODO: restart services, always. This means that running the
   -- command like this does nothing except restart services:
   -- $ deploy --without-code www.example.com
 
+  -- step 5: activate the new deployment, if a new node was created
   if opts.create then
     -- activate the new node for that sub-domain
     set_domain(dom_obj, node)
