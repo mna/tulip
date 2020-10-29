@@ -1,10 +1,11 @@
 #!/usr/bin/env -S llrocks run
 
--- usage: ./scripts/run_server.lua FILE FUNCTIONNAME
+-- usage: ./scripts/run_server.lua FILE [FUNCTIONNAME]
 -- This scripts runs a web.App by requiring FILE which must be
 -- a Lua file reachable from this script, and calls FUNCTIONNAME
 -- on this FILE, which must be a valid function exported by the
--- module.
+-- module. If FUNCTIONNAME is not provided, FILE should export
+-- a table ready to use as web.App configuration.
 --
 -- The function should return the App configuration ready to use,
 -- and then the script creates and runs the app with that
@@ -16,13 +17,22 @@ local tcheck = require 'tcheck'
 local App = require 'web.App'
 
 local modname, fname = arg[1], arg[2]
-tcheck({'string', 'string'}, modname, fname)
+tcheck({'string', 'string|nil'}, modname, fname)
 
 local mod = require(modname)
-local fn = mod[fname]
-assert(type(fn) == 'function', 'function name must be an exported function')
 
-local app = App(fn(table.unpack(arg, 3)))
+local config
+if fname then
+  local fn = mod[fname]
+  assert(type(fn) == 'function', 'function name must be an exported function')
+  config = fn(table.unpack(arg, 3))
+elseif type(mod) ~= 'table' then
+  error('module should export a table')
+else
+  config = mod
+end
+
+local app = App(config)
 app.log_level = 'd' -- must force this to get the server pkg log
 app:register_logger('run_server', function(t)
   if t.pkg == 'server' and t.port then

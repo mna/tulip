@@ -1,0 +1,12 @@
+#!/usr/bin/env lua
+
+-- This is the script that is executed by deployments.
+-- It configures an App using the config table returned by the
+-- scripts.bench module, to benchmark performance of the web
+-- server.
+
+local bench = require 'scripts.bench'
+local App = require 'web.App'
+
+local app = App(bench)
+assert(app:run())
