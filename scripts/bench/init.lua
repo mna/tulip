@@ -4,7 +4,7 @@ return {
   log = {level = 'debug'},
 
   server = {
-    host = '127.0.0.1',
+    host = '0.0.0.0',
     port = 80,
     reuseaddr = true,
     reuseport = true,
@@ -26,12 +26,13 @@ return {
     ]]--
   },
 
-  database = {
-    connection_string = '',
-  },
+  database = {connection_string = ''},
+
+  ['scripts.bench.plugin'] = {},
 
   routes = {
     {method = 'GET', pattern = '^/hello$', handler = handler.write{status = 200, body = 'hello, Martin!\n'}},
+    {method = 'GET', pattern = '^/data/([^/]*)$', middleware = {'scripts.bench.plugin'}},
   },
 
   middleware = {
@@ -42,4 +43,16 @@ return {
   },
 
   reqid = {size = 12, header = 'x-request-id'},
+
+  json = {
+    encoder = {
+      allow_invalid_numbers = false,
+      number_precision = 4,
+      max_depth = 100,
+    },
+    decoder = {
+      allow_invalid_numbers = false,
+      max_depth = 100,
+    },
+  },
 }

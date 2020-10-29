@@ -180,6 +180,7 @@ local function create_image(dom_obj, region, opts)
   io.write(string.format(
     [[
 > base node for %s is being configured...
+
   You may inspect its progress by running:
     $ doctl compute ssh %s
   and follow the configuration progress by running:
@@ -407,4 +408,11 @@ return function(domain, opts)
     -- activate the new node for that sub-domain
     set_domain(dom_obj, node)
   end
+
+  log([[
+> done.
+
+  You may inspect the node by running:
+    $ doctl compute ssh %s
+]], node.id)
 end
