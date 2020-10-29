@@ -1,0 +1,95 @@
+$ hey -z 10s 'http://www.llam.site/hello'
+
+Summary:
+  Total:	10.0200 secs
+  Slowest:	0.6732 secs
+  Fastest:	0.0157 secs
+  Average:	0.0377 secs
+  Requests/sec:	1324.1532
+
+  Total data:	199020 bytes
+  Size/request:	15 bytes
+
+Response time histogram:
+  0.016 [1]	|
+  0.081 [12288]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.147 [824]	|■■■
+  0.213 [98]	|
+  0.279 [28]	|
+  0.344 [4]	|
+  0.410 [1]	|
+  0.476 [1]	|
+  0.542 [17]	|
+  0.607 [5]	|
+  0.673 [1]	|
+
+
+Latency distribution:
+  10% in 0.0245 secs
+  25% in 0.0267 secs
+  50% in 0.0289 secs
+  75% in 0.0317 secs
+  90% in 0.0372 secs
+  95% in 0.1358 secs
+  99% in 0.1502 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:	0.0002 secs, 0.0157 secs, 0.6732 secs
+  DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0064 secs
+  req write:	0.0000 secs, 0.0000 secs, 0.0007 secs
+  resp wait:	0.0374 secs, 0.0157 secs, 0.6730 secs
+  resp read:	0.0001 secs, 0.0000 secs, 0.0014 secs
+
+Status code distribution:
+  [200]	13268 responses
+
+
+
+
+
+
+$ hey -z 10s 'http://www.llam.site/data/'
+
+Summary:
+  Total:	10.3121 secs
+  Slowest:	0.7235 secs
+  Fastest:	0.0178 secs
+  Average:	0.0772 secs
+  Requests/sec:	635.0820
+
+  Total data:	2418010 bytes
+  Size/request:	369 bytes
+
+Response time histogram:
+  0.018 [1]	|
+  0.088 [5149]	|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.159 [873]	|■■■■■■■
+  0.230 [152]	|■
+  0.300 [123]	|■
+  0.371 [47]	|
+  0.441 [62]	|
+  0.512 [34]	|
+  0.582 [11]	|
+  0.653 [27]	|
+  0.724 [70]	|■
+
+
+Latency distribution:
+  10% in 0.0272 secs
+  25% in 0.0315 secs
+  50% in 0.0389 secs
+  75% in 0.0612 secs
+  90% in 0.1494 secs
+  95% in 0.2686 secs
+  99% in 0.6610 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:	0.0004 secs, 0.0178 secs, 0.7235 secs
+  DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0053 secs
+  req write:	0.0000 secs, 0.0000 secs, 0.0007 secs
+  resp wait:	0.0766 secs, 0.0177 secs, 0.7234 secs
+  resp read:	0.0001 secs, 0.0000 secs, 0.0009 secs
+
+Status code distribution:
+  [200]	6549 responses
+
