@@ -136,6 +136,72 @@ echo '>>> lua dependencies'
 # application file).
 luarocks install luarocks-fetch-gitrec
 luarocks install luaossl 'CFLAGS=-DHAVE_EVP_KDF_CTX=1 -fPIC'
+
+# install dependencies required by the dummy app to test connection
+# to postgres and sleep.
+luarocks install cqueues-pgsql
+luarocks install xpgsql
+]]
+end
+
+local function service()
+  return [[
+echo '>>> application service'
+
+# install a dummy lua app just to be able to test the setup,
+# until an actual app is deployed.
+mkdir -p /opt/app/scripts
+
+cat > /opt/app/scripts/run <<EOF
+#!/usr/bin/env lua
+
+local cqueues = require 'cqueues'
+local xpgsql = require 'xpgsql'
+
+local cq = cqueues.new()
+cq:wrap(function()
+  local conn = assert(xpgsql.connect())
+  while true do
+    local res = assert(conn:exec('SELECT 1'))
+    assert(res[1][1] == '1')
+    cqueues.sleep(10)
+  end
+end)
+assert(cq:loop())
+EOF
+
+chmod +x /opt/app/scripts/run
+
+cat > /etc/systemd/system/app.service <<EOF
+[Unit]
+Description=The Application service
+
+Requires=postgresql.service
+After=network.target
+
+Conflicts=certbot.service
+Before=certbot.service
+
+[Service]
+Type=exec
+ExecStart=/opt/app/scripts/run
+Restart=always
+
+WorkingDirectory=/opt/app
+
+Environment=PGPASSFILE=/opt/secrets/pgpass
+Environment=PGHOST=localhost
+Environment=PGPORT=5432
+Environment=PGCONNECT_TIMEOUT=10
+Environment=PGUSER=postgres
+Environment=PGDATABASE=postgres
+Environment=LUAWEB_CSRFKEY=`cat /opt/secrets/csrf_key`
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable --now app
 ]]
 end
 
@@ -151,5 +217,6 @@ return table.concat{
   fail2ban(),
   postgres(),
   luadeps(),
+  service(),
   '\nreboot\n',
 }

@@ -8,8 +8,7 @@ end
 local function stop()
   return [[
 # stop both the DB and app services
-# TODO: create app service in base image?
-# systemctl stop app
+systemctl stop app
 systemctl stop postgresql
 ]]
 end
