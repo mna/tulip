@@ -16,12 +16,24 @@ end
 
 local function install(tag)
   return string.format([[
+if [ -d "/opt/app" ]; then
+  rm -rf /opt/app.bak
+  mv -T /opt/app /opt/app.bak
+fi
+
 mkdir -p /opt/app
 curl -o /tmp/%s.tar.gz "https://git.sr.ht/~mna/luaweb/archive/%s.tar.gz"
 cd /tmp
-tar -xzf %s.tar.gz
-mv %s/* /opt/app/
+tar --strip-components=1 --directory /opt/app -xzf %s.tar.gz
+rm -f /tmp/%s.tar.gz
 ]], tag, tag, tag, tag)
+end
+
+local function luadeps()
+  return [[
+cd /opt/app
+luarocks install --only-deps *.rockspec
+]]
 end
 
 return function(tag)
@@ -29,5 +41,6 @@ return function(tag)
     bash(),
     stop(),
     install(tag),
+    luadeps(),
   }
 end

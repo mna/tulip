@@ -26,6 +26,7 @@ dnf --assumeyes install   \
   lsof                    \
   lua-devel               \
   luarocks                \
+  m4                      \
   make                    \
   openssl-devel           \
   postgresql              \
