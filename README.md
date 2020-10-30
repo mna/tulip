@@ -15,9 +15,9 @@ framework packs the following features:
 * HTTP/1.1 and HTTP/2 ✔
 * Concurrent handling of requests ✔
 * Message Queue-style (at-least-once) reliable asynchronous processing ✔
-* Fire-and-forget (at-most-once) publish-subscribe mechanism
+* Fire-and-forget (at-most-once) publish-subscribe mechanism ✔
 * Time series-style metrics collection
-* Cron-like scheduled processing
+* Cron-like scheduled processing ✔
 * Hardened server with timeouts and connection capacity
 * SQL injection, XSS and CSRF protections ✔
 * Template-based dynamic HTML page generation ✔
@@ -27,6 +27,7 @@ framework packs the following features:
 * User- and group-based authorization
 * Straightforward pattern-based routes handler multiplexer ✔
 * Transactional database migrations runner ✔
+* Efficient database access with connection pooling ✔
 * Pluggable, extendable architecture ✔
 
 ## Development
