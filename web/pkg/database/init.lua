@@ -3,6 +3,8 @@ local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
+-- TODO: a way to close the pool, releasing all connections
+
 local function try_from_pool(pool, idle_to, life_to)
   if (not pool) or #pool == 0 then return end
 
@@ -42,13 +44,21 @@ local function make_pooled_close(conn, pool, max_idle)
   end
 end
 
-local function make_db(cfg)
+local function make_db(cfg, app)
   local connstr = cfg.connection_string
   local idle_to = (cfg.pool and cfg.pool.idle_timeout) or 0
   local life_to = (cfg.pool and cfg.pool.life_timeout) or 0
   local max_idle = (cfg.pool and cfg.pool.max_idle) or 2
   local max_open = (cfg.pool and cfg.pool.max_open) or 0
   local pool = cfg.pool and {open = 0}
+
+  if pool then
+    app:register_finalizer('web.pkg.database', function()
+      for _, c in ipairs(pool) do
+        c:_close()
+      end
+    end)
+  end
 
   return function(_, fn, ...)
     local conn = try_from_pool(pool, idle_to, life_to)
@@ -99,7 +109,7 @@ local M = {}
 --     0 (no timeout) and 0 (no timeout).
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-  app.db = make_db(cfg)
+  app.db = make_db(cfg, app)
 end
 
 function M.activate(app)

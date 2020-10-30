@@ -196,6 +196,18 @@ function App:lookup_decoder(name)
   return lookup_common(self, 'decoders', name)
 end
 
+-- Register a finalizer in the list of finalizers.
+function App:register_finalizer(name, fz)
+  tcheck({'*', 'string', 'table|function'}, self, name, fz)
+  register_common(self, 'finalizers', name, fz)
+end
+
+-- Get the registered finalizer instance for that name, or nil if none.
+function App:lookup_finalizer(name)
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, 'finalizers', name)
+end
+
 -- Register a logger in the list of loggers.
 function App:register_logger(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
@@ -232,6 +244,9 @@ function App:activate(cq)
   end
 end
 
+-- Runs the application, activating any registered package and
+-- calling App:main. It returns the value(s) returned by App:main
+-- and calls any registered finalizer before returning.
 function App:run()
   local cq = cqueues.new()
   self:activate(cq)
@@ -239,7 +254,13 @@ function App:run()
   if not self.main then
     error('no main field registered by app')
   end
-  return self:main(cq)
+  local res = table.pack(self:main(cq))
+  if self.finalizers then
+    for _, f in pairs(self.finalizers) do
+      f(self)
+    end
+  end
+  return table.unpack(res, 1, res.n)
 end
 
 return function (cfg)
