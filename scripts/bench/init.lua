@@ -26,7 +26,14 @@ return {
     ]]--
   },
 
-  database = {connection_string = ''},
+  database = {
+    connection_string = '',
+    pool = {
+      max_idle = 10,
+      max_open = 100,
+      idle_timeout = 60,
+    },
+  },
 
   ['scripts.bench.plugin'] = {},
 
