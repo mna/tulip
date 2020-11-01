@@ -87,6 +87,20 @@ local app = App{
 
     other_job = { schedule = '...', command = '...', max_attempts = 3, max_age = 30 },
   },
+
+  metrics = {
+    resolution = 10, -- in seconds, counters will cumulate values
+    -- with timestamps of that resolution, and gauges will use the
+    -- last value recorded in that span. Raw metrics do not take this
+    -- resolution into account.
+
+    buffer = {
+      -- persist when max_entries is reached or max_delay is passed,
+      -- whichever comes first.
+      max_entries = 100,
+      max_delay = 10,
+    },
+  },
 }
 
 assert(app:run())
