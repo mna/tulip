@@ -1,5 +1,4 @@
 local auxlib = require 'cqueues.auxlib'
-local cqueues = require 'cqueues'
 local condition = require 'cqueues.condition'
 local lu = require 'luaunit'
 local socket = require 'cqueues.socket'
@@ -50,37 +49,56 @@ function M.test_metrics()
       lu.assertNil(ok)
       lu.assertStrContains(err, '"zzz" is invalid')
 
+      local want = {}
       -- valid call, defaults to 1
       ok, err = app:metrics('a', 'counter')
       lu.assertNil(err)
       lu.assertTrue(ok)
+      table.insert(want, 'a:1|c')
 
       -- valid call, explicit value
-      ok, err = app:metrics('b', 'gauge', 10)
+      ok, err = app:metrics('b', 'gauge', 2)
       lu.assertNil(err)
       lu.assertTrue(ok)
+      table.insert(want, 'b:2|g')
 
       -- valid call, sampled
-      ok, err = app:metrics('c', 'counter', 2, {['@'] = 0.1})
+      ok, err = app:metrics('c', 'counter', 3, {['@'] = 0.5})
       lu.assertNil(err)
       lu.assertTrue(ok)
+      table.insert(want, 'c:3|c|@0.5')
 
       -- valid call, tags
-      ok, err = app:metrics('c', 'counter', 3, {x='i', y='ii'})
+      ok, err = app:metrics('c', 'counter', 4, {x='i', y='ii'})
       lu.assertNil(err)
       lu.assertTrue(ok)
+      table.insert(want, 'c#x=i,y=ii:4|c')
 
       -- valid call, tags and sampled
-      ok, err = app:metrics('c', 'counter', 3, {['@'] = 0.9, x='i', y='ii'})
+      ok, err = app:metrics('c', 'counter', 5, {['@'] = 0.9, x='i', y='ii'})
       lu.assertNil(err)
       lu.assertTrue(ok)
+      table.insert(want, 'c#x=i,y=ii:5|c|@0.9')
+
 
       ok = cond:wait(1)
       lu.assertTrue(ok)
-      local inspect = require 'inspect'
-      print('>>> ', inspect(received))
+
+      -- check the received strings, will always have at least 3 results
+      lu.assertTrue(#received >= 3)
+
+      -- now check each received string
+      for _, v in ipairs(received) do
+        local ix = tonumber(string.match(v, ':(%d)|'))
+        if ix == 3 then
+          print('> wrote the 0.5 sample')
+        elseif ix == 5 then
+          print('> wrote the 0.9 sample')
+        end
+        lu.assertEquals(v, want[ix])
+      end
     end)
-    cq:loop()
+    assert(cq:loop())
   end
 
   app:run()

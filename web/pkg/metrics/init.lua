@@ -58,11 +58,12 @@ local function make_metrics(cfg)
     -- build the packet
     local pkt = name
     if tags then
+      table.sort(tags)
       pkt = pkt .. '#' .. table.concat(tags, ',')
     end
     pkt = pkt .. ':' .. tostring(val) .. '|' .. type_code
     if sample then
-      pkt = pkt .. '@' .. tostring(sample)
+      pkt = pkt .. '|@' .. tostring(sample)
     end
 
     local ok, ecode = sock:xwrite(pkt, 'n', to)
