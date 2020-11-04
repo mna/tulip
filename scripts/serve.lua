@@ -3,6 +3,12 @@
 local handler = require 'web.handler'
 local xpgsql = require 'xpgsql'
 
+local function write_metrics(req, _, nxt)
+  local app = req.app
+  assert(app:metrics('web.request', 'counter'))
+  nxt()
+end
+
 local function send_pubsub(req, res, nxt)
   local app = req.app
   local ok, err = app:pubsub('a', nil, {x=1})
@@ -140,6 +146,7 @@ function M.config()
       'log',
       handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
       'reqid',
+      write_metrics,
       'csrf',
       'routes',
     },
@@ -188,6 +195,11 @@ function M.config()
     sendgrid = {
       from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
       api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),
+    },
+    metrics = {
+      host = '127.0.0.1',
+      port = 8125,
+      write_timeout = 5,
     },
   }
 end

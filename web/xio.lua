@@ -24,6 +24,11 @@ function M.random(len)
   return rand.bytes(len)
 end
 
+-- Generates a uniform random integer between [0, n-1].
+function M.randomint(n)
+  return rand.uniform(n)
+end
+
 -- Encodes s into a base64 string.
 function M.b64encode(s)
   return base64.encode(s)

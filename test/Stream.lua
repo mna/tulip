@@ -1,5 +1,6 @@
 local headers = require 'http.headers'
 
+-- Stream mocks a lua-http Stream object for tests.
 local Stream = {__name = 'test.Stream', connection = {version = 1.1}}
 Stream.__index = Stream
 

@@ -66,6 +66,7 @@ App.__index = App
 local FAIL_PLACEHOLDERS = {
   db = 'database',
   email = 'email',
+  metrics = 'metrics',
   mqueue = 'message queue',
   pubsub = 'pubsub',
   render = 'template',

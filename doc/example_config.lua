@@ -89,17 +89,9 @@ local app = App{
   },
 
   metrics = {
-    resolution = 10, -- in seconds, counters will cumulate values
-    -- with timestamps of that resolution, and gauges will use the
-    -- last value recorded in that span. Raw metrics do not take this
-    -- resolution into account.
-
-    buffer = {
-      -- persist when max_entries is reached or max_delay is passed,
-      -- whichever comes first.
-      max_entries = 100,
-      max_delay = 10,
-    },
+    -- configures the server where to send UDP metric packets
+    host = '127.0.0.1',
+    port = 8125,
   },
 }
 
