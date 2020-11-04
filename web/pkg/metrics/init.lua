@@ -1,8 +1,39 @@
 local auxlib = require 'cqueues.auxlib'
+local cqueues = require 'cqueues'
 local errno = require 'cqueues.errno'
 local socket = require 'cqueues.socket'
 local tcheck = require 'tcheck'
 local xio = require 'web.xio'
+
+local function make_middleware(cfg)
+  local mw = cfg.middleware
+  local counter = mw.counter
+  local timer = mw.timer
+
+  return function(req, res, nxt)
+    local app = req.app
+
+    local start = cqueues.monotime()
+    nxt()
+    local dur = cqueues.monotime() - start
+
+    local labels = {
+      path = req.url.path,
+      method = req.method,
+      status = res.headers:get(':status'),
+    }
+    if counter then
+      labels['@'] = counter.sample
+      app:metrics(counter.name or 'web.http.requests_total',
+        'counter', 1, labels)
+    end
+    if timer then
+      labels['@'] = timer.sample
+      app:metrics(timer.name or 'web.http.request_duration_milliseconds',
+        'timer', math.modf(dur * 1000), labels)
+    end
+  end
+end
 
 local function make_metrics(cfg)
   -- ok to assert here, this is called during the register phase.
@@ -87,6 +118,15 @@ local M = {}
 --   * port: number = the port of the statsd-compatible UDP server to send
 --     metrics to.
 --   * write_timeout: number = write timeout of metrics in seconds.
+--   * middleware.counter.name,
+--     middleware.timer.name: string = the name of the counter/timer metrics
+--     to record in the middleware.
+--   * middleware.counter.sample,
+--     middleware.timer.sample: number = the sample rate of the counter/timer
+--     metric.
+--   If there is no middleware.counter or middleware.timer config, then that
+--   metric is not recorded, and if there is no middleware table, then the
+--   middleware is not registered.
 --
 -- v, err = App:metrics(name, type[, value[, t]])
 --   > name: string = name of the metric
@@ -100,11 +140,13 @@ local M = {}
 --   < v: bool|nil = True if the metric was registered successfully.
 --     Is nil on error.
 --   < err: string|nil = error message if v is nil.
---
--- TODO: should register a middleware for route metrics.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.metrics = make_metrics(cfg)
+
+  if cfg.middleware then
+    app:register_middleware('web.pkg.metrics', make_middleware(cfg))
+  end
 end
 
 return M
