@@ -86,7 +86,7 @@ io.write('>>> lua dependencies\n')
 local luaver = (sh.cmd('lua', '-v') |
                 sh.cmd('cut', '-d', ' ', '-f2') |
                 sh.cmd('cut', '-d', '.', '-f1,2')):output()
--- TODO: luarocks-fetch-gitrec must be installed in standard location,
+-- NOTE: luarocks-fetch-gitrec must be installed in standard location,
 -- i.e. via luarocks install.
 local rocksfile = 'luaweb-git-1.rockspec'
 sh.cmd('echo', string.format([[

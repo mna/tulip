@@ -3,7 +3,6 @@ build = {
   type = 'builtin'
 }
 dependencies = {
-  -- TODO: double-check that list
   "lua ~> 5.3",
   "base64 1.5-2",
   "basexx	0.4.1-1",

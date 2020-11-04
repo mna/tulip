@@ -1,4 +1,5 @@
 local cjson = require('cjson').new()
+local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 
 local M = {}
@@ -18,21 +19,22 @@ end
 local function log_middleware(req, res, nxt)
   local date = os.date('!%FT%T%z')
 
+  local start = cqueues.monotime()
   nxt()
+  local dur = cqueues.monotime() - start
 
   local status = tonumber(res.headers:get(':status'))
   local path = req.url.path
   local rid = req.locals.request_id
 
-  -- TODO: more fields, duration, full_url could leak secrets on query string, but shouldn't be passed there anyway
+  -- TODO: sent bytes would be nice
   req.app:log('i', {
-    pkg = 'log',
-    date = date,
-    path = path,
-    status = status,
-    request_id = rid,
-    full_url = tostring(req.url),
-    authority = req.authority,
+    pkg = 'log', date = date,
+    path = path, status = status,
+    request_id = rid, full_url = tostring(req.url),
+    authority = req.authority, remote_addr = req.remote_addr,
+    http_version = req.proto, method = req.method,
+    duration = string.format('%.3f', dur),
   })
 end
 
