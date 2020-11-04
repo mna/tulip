@@ -1,6 +1,5 @@
 # list of todos
 
-* Time series/metrics
 * Flash messages that persist across redirects
 * User account/auth package (register, validate email, reset password, TOTP?)
 * Non-web apps (e.g. message queue worker, log collector)

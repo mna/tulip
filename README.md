@@ -16,7 +16,7 @@ framework packs the following features:
 * Concurrent handling of requests ✔
 * Message Queue-style (at-least-once) reliable asynchronous processing ✔
 * Fire-and-forget (at-most-once) publish-subscribe mechanism ✔
-* Time series-style metrics collection
+* Statsd-compatible metrics collection ✔
 * Cron-like scheduled processing ✔
 * Hardened server with timeouts and connection capacity
 * SQL injection, XSS and CSRF protections ✔
