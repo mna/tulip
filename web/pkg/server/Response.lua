@@ -120,8 +120,7 @@ function Response.new(stm, write_timeout)
     write_timeout = write_timeout,
     bytes_written = 0,
   }
-  setmetatable(o, Response)
-  return o
+  return setmetatable(o, Response)
 end
 
 return Response

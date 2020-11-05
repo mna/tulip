@@ -97,8 +97,7 @@ function Request.new(stm, read_timeout)
     locals = {},
   }
 
-  setmetatable(o, Request)
-  return o
+  return setmetatable(o, Request)
 end
 
 return Request

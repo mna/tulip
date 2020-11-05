@@ -70,15 +70,19 @@ function Message:done(conn)
 end
 
 local function model(o)
+  o.raw_payload = o.payload
+  local pld, err = cjson.decode(o.payload)
+  o.payload = pld
+  if not pld then
+    o.payload_err = err
+  end
+
   o.id = tonumber(o.id)
   o.attempts = tonumber(o.attempts)
   o.max_attempts = tonumber(o.max_attempts)
   o.max_age = tonumber(o.max_age)
-  o.payload = cjson.decode(o.payload)
   o.first_created = xstring.totime(o.first_created)
-  setmetatable(o, Message)
-
-  return o
+  return setmetatable(o, Message)
 end
 
 local M = {
