@@ -35,6 +35,34 @@ local function make_middleware(cfg)
   end
 end
 
+local function make_wmiddleware(cfg)
+  local mw = cfg.wmiddleware
+  local counter = mw.counter
+  local timer = mw.timer
+
+  return function(msg, nxt)
+    local app = msg.app
+
+    local start = cqueues.monotime()
+    nxt()
+    local dur = cqueues.monotime() - start
+
+    local labels = {
+      queue = msg.queue,
+    }
+    if counter then
+      labels['@'] = counter.sample
+      app:metrics(counter.name or 'worker.messages_total',
+        'counter', 1, labels)
+    end
+    if timer then
+      labels['@'] = timer.sample
+      app:metrics(timer.name or 'worker.message_duration_milliseconds',
+        'timer', math.modf(dur * 1000), labels)
+    end
+  end
+end
+
 local function make_metrics(cfg)
   -- ok to assert here, this is called during the register phase.
   local sock = auxlib.assert(socket.connect(
@@ -109,6 +137,8 @@ local M = {}
 
 -- The metrics package registers an App:metrics method that reports
 -- a metric to the configured UDP server, in the statsd protocol.
+-- It also optionally registers a middleware and a wmiddleware if
+-- the corresponding config tables are set.
 --
 -- Config:
 --   * allowed_metrics: array of string = if set, only those metrics
@@ -118,15 +148,15 @@ local M = {}
 --   * port: number = the port of the statsd-compatible UDP server to send
 --     metrics to.
 --   * write_timeout: number = write timeout of metrics in seconds.
---   * middleware.counter.name,
---     middleware.timer.name: string = the name of the counter/timer metrics
---     to record in the middleware.
---   * middleware.counter.sample,
---     middleware.timer.sample: number = the sample rate of the counter/timer
+--   * [w]middleware.counter.name,
+--     [w]middleware.timer.name: string = the name of the counter/timer metrics
+--     to record in the [w]middleware.
+--   * [w]middleware.counter.sample,
+--     [w]middleware.timer.sample: number = the sample rate of the counter/timer
 --     metric.
---   If there is no middleware.counter or middleware.timer config, then that
---   metric is not recorded, and if there is no middleware table, then the
---   middleware is not registered.
+--   If there is no [w]middleware.counter or [w]middleware.timer config, then that
+--   metric is not recorded, and if there is no [w]middleware table, then the
+--   [w]middleware is not registered.
 --
 -- v, err = App:metrics(name, type[, value[, t]])
 --   > name: string = name of the metric
@@ -146,6 +176,9 @@ function M.register(cfg, app)
 
   if cfg.middleware then
     app:register_middleware('web.pkg.metrics', make_middleware(cfg))
+  end
+  if cfg.wmiddleware then
+    app:register_wmiddleware('web.pkg.metrics', make_wmiddleware(cfg))
   end
 end
 

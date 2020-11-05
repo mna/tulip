@@ -57,6 +57,25 @@ local function metatable_name(o)
   end
 end
 
+local function resolve_common(app, field, mws)
+  for i, mw in ipairs(mws) do
+    local typ = type(mw)
+    if typ == 'string' then
+      local mwi = lookup_common(app, field, mw)
+      if not mwi then
+        if string.match(field, '^_') then
+          field = string.sub(field, 2)
+        end
+        error(string.format('no %s registered for %q', field, mw))
+      end
+      mws[i] = mwi
+    elseif metatable_name(mw) == 'web.App' then
+      -- if mw is an App, activate it
+      mw:activate()
+    end
+  end
+end
+
 local App = {__name = 'web.App'}
 App.__index = App
 
@@ -159,19 +178,27 @@ end
 -- Resolve any middleware referenced by name with the actual instance registered
 -- for that name. Raises an error if a middleware name is unknown.
 function App:resolve_middleware(mws)
-  for i, mw in ipairs(mws) do
-    local typ = type(mw)
-    if typ == 'string' then
-      local mwi = self:lookup_middleware(mw)
-      if not mwi then
-        error(string.format('no middleware registered for %q', mw))
-      end
-      mws[i] = mwi
-    elseif metatable_name(mw) == 'web.App' then
-      -- if mw is an App, activate it
-      mw:activate()
-    end
-  end
+  tcheck({'*', 'table'}, self, mws)
+  return resolve_common(self, '_middleware', mws)
+end
+
+-- Register a wmiddleware in the list of available wmiddleware.
+function App:register_wmiddleware(name, mw)
+  tcheck({'*', 'string', 'table|function'}, self, name, mw)
+  register_common(self, '_wmiddleware', name, mw)
+end
+
+-- Get the registered wmiddleware instance for that name, or nil if none.
+function App:lookup_wmiddleware(name)
+  tcheck({'*', 'string'}, self, name)
+  return lookup_common(self, '_wmiddleware', name)
+end
+
+-- Resolve any wmiddleware referenced by name with the actual instance registered
+-- for that name. Raises an error if a wmiddleware name is unknown.
+function App:resolve_wmiddleware(mws)
+  tcheck({'*', 'table'}, self, mws)
+  return resolve_common(self, '_wmiddleware', mws)
 end
 
 -- Register an encoder in the list of encoders.

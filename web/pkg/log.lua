@@ -35,14 +35,32 @@ local function log_middleware(req, res, nxt)
     http_version = req.proto, method = req.method,
     duration = string.format('%.3f', dur),
     bytes_written = res.bytes_written,
+    type = 'web request',
+  })
+end
+
+local function log_wmiddleware(msg, nxt)
+  local date = os.date('!%FT%T%z')
+
+  local start = cqueues.monotime()
+  nxt()
+  local dur = cqueues.monotime() - start
+
+  -- TODO: processing result?
+  msg.app:log('i', {
+    pkg = 'log', date = date,
+    queue = msg.queue, attempt = msg.attempts,
+    msgid = msg.id, duration = string.format('%.3f', dur),
+    type = 'worker message',
   })
 end
 
 -- The log package register a logging backend to stdout (in fact,
 -- it writes to io.output(), so if set to a file, will log to
 -- that file). It also configures the log levels to consider for
--- all logging backends and registers a logging middleware that is
--- not enabled by default, under the name 'web.pkg.log'.
+-- all logging backends and registers a logging middleware and
+-- wmiddleare that are not enabled by default, under the name
+-- 'web.pkg.log'.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
@@ -53,6 +71,7 @@ function M.register(cfg, app)
     app:register_logger('web.pkg.log', stdout_logger)
   end
   app:register_middleware('web.pkg.log', log_middleware)
+  app:register_wmiddleware('web.pkg.log', log_wmiddleware)
 end
 
 return M

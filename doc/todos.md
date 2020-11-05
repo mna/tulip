@@ -11,3 +11,4 @@
 * I18n solution (not just text translation, but static assets too)
 * Graceful shutdown with per-package hooks (semi-done with finalizers)
 * A better way to check for package dependencies (e.g. checking for 'database' would not work if the config was under 'web.pkg.database').
+* Test App composition, for both web and worker contexts

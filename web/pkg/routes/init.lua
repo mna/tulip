@@ -6,8 +6,7 @@ Mw.__index = Mw
 
 function Mw.new()
   local o = {}
-  setmetatable(o, Mw)
-  return o
+  return setmetatable(o, Mw)
 end
 
 function Mw:__call(req, res, nxt)
