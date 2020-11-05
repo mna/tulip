@@ -1,15 +1,16 @@
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
+local Semaphore = require 'web.Semaphore'
 
 local function make_main(cfg)
-  local min_sleep, max_sleep = (cfg.idle_sleep or 1), (cfg.idle_max_sleep or 60)
-  local max_threads = cfg.max_concurrency or 1
+  local min_sleep, max_sleep = (cfg.idle_sleep or 1), (cfg.max_idle_sleep or 60)
+  local sema = Semaphore.new(cfg.max_concurrency or 1)
   local batch = cfg.dequeue_batch or 1
   local queues = cfg.queues or {}
   assert(#queues > 0, 'no queue specified')
 
-  return function(app)
-    local sleep = nil
+  return function(app, cq)
+    local sleep
     local t = {max_receive = batch}
 
     while true do
@@ -45,9 +46,9 @@ local M = {}
 --   * idle_sleep: number = seconds to sleep when there are no
 --     messages to process. The first time no messages are available,
 --     it will sleep for idle_sleep, and double this sleep time on
---     each loop without message, up to idle_max_sleep, until there
+--     each loop without message, up to max_idle_sleep, until there
 --     are messages to process. Defaults to 1.
---   * idle_max_sleep: number = maximum number of seconds to sleep
+--   * max_idle_sleep: number = maximum number of seconds to sleep
 --     when there are no messages to process. Defaults to 60.
 --   * queues: array of strings = name of queues to process, which
 --     can include name of cron jobs, which are essentially queues.

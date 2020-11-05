@@ -29,17 +29,39 @@ local app = App{
     },
   },
 
+  worker = {
+    queues = {'a', 'b'},
+    idle_sleep = 1,
+    max_idle_sleep = 60,
+    max_concurrency = 5,
+    dequeue_batch = 2,
+  },
+
   -- automatically uses the middleware package, that registers app-wide
-  -- middleware.
+  -- web middleware, that is, func(req, res, nxt) signatures.
   middleware = {
     'routes',
   },
 
-  -- automatically uses the mux package
+  -- wmiddleware is like middleware, but for worker queues. Those have
+  -- the func(msg, nxt) signatures.
+  wmiddleware = {
+    'wroutes',
+  },
+
+  -- automatically uses the mux package, those are web middleware routes.
+  -- func(req, res, nxt) signatures.
   routes = {
     no_such_method = function() end,
     not_found = function() end,
     {method = 'GET', pattern = '^/$', handler = function() end},
+  },
+
+  -- wroutes is like routes, but for worker queues. It maps a message to
+  -- a handler based on the pattern. func(msg, nxt) signatures.
+  wroutes = {
+    not_found = function() end,
+    {pattern = '^queue_name$', handler = function() end},
   },
 
   -- automatically uses the database package, which includes the
@@ -62,12 +84,9 @@ local app = App{
     root_path = '/tpl',
   },
 
+  -- log also registers a middleware and wmiddleware.
   log = {
     level = 'i',
-  },
-
-  static = {
-    root_path = '/path/to/static',
   },
 
   ['third.party.pkg'] = {
@@ -88,6 +107,7 @@ local app = App{
     other_job = { schedule = '...', command = '...', max_attempts = 3, max_age = 30 },
   },
 
+  -- metrics also registers a middleware and wmiddleware.
   metrics = {
     -- configures the server where to send UDP metric packets
     host = '127.0.0.1',

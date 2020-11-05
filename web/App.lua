@@ -83,6 +83,7 @@ end
 -- The App itself can be used as a middleware function. This is the
 -- initial handler called from the server package, and it calls the
 -- chain of middleware enabled for the application.
+-- TODO: maybe this could be setup with the middleware package?
 function App:__call(req, res, nxt)
   if not self.middleware then
     if nxt then nxt() end
@@ -241,6 +242,13 @@ function App:activate(cq)
     local mux = self:lookup_middleware('web.pkg.routes')
     if mux then
       self.middleware = {mux}
+    end
+  end
+  -- special-case: same as above, but for worker middleware.
+  if not self.wmiddleware then
+    local mux = self:lookup_middleware('web.pkg.wroutes')
+    if mux then
+      self.wmiddleware = {mux}
     end
   end
 end
