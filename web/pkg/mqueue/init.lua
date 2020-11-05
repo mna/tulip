@@ -54,8 +54,8 @@ local M = {}
 --
 -- v, err = App:mqueue(t[, db[, msg]])
 --   > t: table = a table with the following fields:
---     * t.max_attempts: number|nil = maximum number of attempts
---     * t.max_age: number|nil = number of seconds to process message
+--     * t.max_attempts: number|nil = maximum number of attempts (enqueue only)
+--     * t.max_age: number|nil = number of seconds to process message (enqueue only)
 --     * t.queue: string = queue name
 --     * t.max_receive: number|nil = maximum number of messages to
 --       receive, when the call is a dequeue operation. Defaults to 1.
