@@ -27,7 +27,6 @@ local function log_middleware(req, res, nxt)
   local path = req.url.path
   local rid = req.locals.request_id
 
-  -- TODO: sent bytes would be nice
   req.app:log('i', {
     pkg = 'log', date = date,
     path = path, status = status,
@@ -35,6 +34,7 @@ local function log_middleware(req, res, nxt)
     authority = req.authority, remote_addr = req.remote_addr,
     http_version = req.proto, method = req.method,
     duration = string.format('%.3f', dur),
+    bytes_written = res.bytes_written,
   })
 end
 

@@ -85,6 +85,7 @@ function Response:write(opts)
 
   if len then hdrs:upsert('content-length', tostring(len)) end
 
+  -- TODO: if closefile, should close it, no asserts
   assert(stm:write_headers(hdrs, ishead or not hasbody, timeout))
   if ishead or not hasbody then
     if closefile then bodyfile:close() end
@@ -93,9 +94,11 @@ function Response:write(opts)
 
   if bodystr then
     assert(stm:write_body_from_string(bodystr, timeout))
+    self.bytes_written = len
   else
     if io.type(bodyfile) == 'file' then
       -- write from the file handle
+      -- TODO: how to get bytes writen in this case?
       local ok, err = stm:write_body_from_file(bodyfile, timeout)
       if closefile then bodyfile:close() end
       assert(ok, err)
@@ -103,6 +106,7 @@ function Response:write(opts)
       -- write in chunks
       for s in bodyfile() do
         assert(stm:write_chunk(s, false, timeout))
+        self.bytes_written = self.bytes_written + #s
       end
       assert(stm:write_chunk('', true, timeout))
     end
@@ -114,6 +118,7 @@ function Response.new(stm, write_timeout)
     headers = headers.new(),
     stream = stm,
     write_timeout = write_timeout,
+    bytes_written = 0,
   }
   setmetatable(o, Response)
   return o
