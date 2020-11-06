@@ -2,33 +2,55 @@ local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 local Semaphore = require 'web.Semaphore'
 
+local MAX_ERRORS = 5
+
 local function make_main(cfg)
   local min_sleep, max_sleep = (cfg.idle_sleep or 1), (cfg.max_idle_sleep or 60)
   local sema = Semaphore.new(cfg.max_concurrency or 1)
   local batch = cfg.dequeue_batch or 1
   local queues = cfg.queues or {}
+  local errh = cfg.error_handler
   assert(#queues > 0, 'no queue specified')
 
   return function(app, cq)
     local sleep
-    local t = {max_receive = batch}
+    local t = {max_receive = batch, errcount = 0}
 
     while true do
       for _, q in ipairs(queues) do
         t.queue = q
         local msgs, err = app:mqueue(t)
         if not msgs then
-          -- log error (or error handler?) and treat as #msgs == 0?
+          t.errcount = t.errcount + 1
+          if errh then
+            if not errh(t, err) then return end
+          else
+            -- log error (or error handler?) and treat as #msgs == 0?
+            app:log('e', {})
+            if t.errcount >= MAX_ERRORS then
+              error(err)
+            end
+          end
+        else
+          t.errcount = 0
         end
 
-        if #msgs == 0 then
+        if (not msgs) or (#msgs == 0) then
           sleep = sleep or min_sleep
           cqueues.sleep(sleep)
           sleep = sleep * 2
           if sleep > max_sleep then sleep = max_sleep end
         else
           sleep = nil
-          -- TODO: handler... then mark as done on success
+          for _, msg in ipairs(msgs) do
+            sema:acquire()
+            cq:wrap(function()
+              -- TODO: bootstrap handler chain...
+              msg.app = app
+              app(msg)
+              sema:release()
+            end)
+          end
         end
       end
     end
@@ -58,6 +80,17 @@ local M = {}
 --     once from a queue. Keep in mind that this is per queue that the
 --     worker will process, and the time-to-live of the message starts
 --     at the moment it is dequeued. Defaults to 1.
+--   * error_handler: function = if set, called when an error occurs in
+--     the worker look (e.g. when trying to dequeue a batch of messages).
+--     The first argument is the t table used to call the dequeue App:mqueue
+--     function, with an added field errcount that counts the number
+--     of successive errors, and the second argument is the error itself.
+--     If the handler returns true-ish, processing continues, otherwise
+--     the main function returns. By default an error is raised after
+--     5 consecutive errors, sleeping as when no message is received
+--     in-between.
+--     Errors that happen while processing a message are not handled
+--     with this, use a handler.wrecover middleware for that.
 --
 -- It registers an App:main function and takes control of the process,
 -- running until explicitly stopped.

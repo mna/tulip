@@ -12,7 +12,7 @@ function Semaphore.new(n)
   return setmetatable(o, Semaphore)
 end
 
-function Semaphore:aquire()
+function Semaphore:acquire()
   while self.count == 0 do
     self.cond:wait()
   end

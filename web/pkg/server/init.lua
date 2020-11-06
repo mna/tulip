@@ -34,6 +34,7 @@ local function main(app, cq)
     max_concurrent = limits.max_active_connections,
     onstream = bootstrap_handler(app, limits.read_timeout, limits.write_timeout),
   }
+  -- TODO: configurable error handler?
 
   if cfg.tls then
     if cfg.tls.required then
