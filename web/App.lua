@@ -1,5 +1,4 @@
 local cqueues = require 'cqueues'
-local handler = require 'web.handler'
 local tcheck = require 'tcheck'
 
 local function register_packages(app, cfg)
@@ -97,18 +96,6 @@ for k, v in pairs(FAIL_PLACEHOLDERS) do
   App[k] = function()
     error(string.format('no %s package registered', v))
   end
-end
-
--- The App itself can be used as a middleware function. This is the
--- initial handler called from the server package, and it calls the
--- chain of middleware enabled for the application.
--- TODO: maybe this could be setup with the middleware package?
-function App:__call(req, res, nxt)
-  if not self.middleware then
-    if nxt then nxt() end
-    return
-  end
-  handler.chain_middleware(self.middleware, req, res, nxt)
 end
 
 -- Encodes the table t to the specified mime type, using the
@@ -259,23 +246,6 @@ function App:activate(cq)
   for _, pkg in ipairs(self.packages) do
     if pkg.activate then
       pkg.activate(self, cq)
-    end
-  end
-
-  -- special-case: if there is no middleware installed for the App,
-  -- but there is a web.pkg.routes middleware registered, install
-  -- it automatically.
-  if not self.middleware then
-    local mux = self:lookup_middleware('web.pkg.routes')
-    if mux then
-      self.middleware = {mux}
-    end
-  end
-  -- special-case: same as above, but for worker middleware.
-  if not self.wmiddleware then
-    local mux = self:lookup_middleware('web.pkg.wroutes')
-    if mux then
-      self.wmiddleware = {mux}
     end
   end
 end

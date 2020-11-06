@@ -25,6 +25,7 @@ local function app_config()
       not_found = function(_, res) res.explicit = true; res:write{status = 404} end,
       no_such_method = function(_, res, ms) res.methods = ms; res:write{status = 405} end,
     },
+    middleware = {'routes'},
     reqid = {},
   }
 end

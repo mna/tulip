@@ -33,8 +33,8 @@ local function main(app, cq)
     intra_stream_timeout = limits.idle_timeout,
     max_concurrent = limits.max_active_connections,
     onstream = bootstrap_handler(app, limits.read_timeout, limits.write_timeout),
+    onerror = cfg.error_handler,
   }
-  -- TODO: configurable error handler?
 
   if cfg.tls then
     if cfg.tls.required then
@@ -64,9 +64,39 @@ local M = {}
 -- handling requests by calling the app as initial middleware.
 -- Once the app is started, it registers the http server as the
 -- 'server' field on the app.
+--
+-- Requires: the middleware package.
+-- Config:
+--   * host: string|nil = address to bind to.
+--   * port: number|nil = port number to use.
+--   * path: string|nil = path to a UNIX socket.
+--   * reuseaddr: boolean = set the SO_REUSEADDR flag.
+--   * reuseport: boolean = set the SO_REUSEPORT flag.
+--   * error_handler: function|nil = if set, handles errors raised by the
+--     web server. For per-request error handling, use handler.recover.
+--     Receives the http.server instance, the error context (http.server,
+--     http.stream, http.connection, etc.), the operation string (e.g.
+--     'accept'), the error message and the error code. The default handler
+--     raises an error.
+--   * limits.connection_timeout: number = connection timeout in seconds.
+--   * limits.idle_timeout: number = idle connection timeout in seconds.
+--   * limits.max_active_connections: number = maximum number of active
+--     connections.
+--   * limits.read_timeout: number = read operations timeout in seconds.
+--   * limits.write_timeout: number = write operations timeout in
+--     seconds.
+--   * tls.required: boolean = whether HTTPS is required.
+--   * tls.protocol: string = TLS protocol of the SSL context, e.g. TLSv1_2.
+--   * tls.certificate_path: string = path to the TLS certificate file.
+--   * tls.private_key_path: string = path to the TLS private key file.
+--
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.main = main
+
+  if not app.config.middleware then
+    error('no middleware package registered')
+  end
 end
 
 return M

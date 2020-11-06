@@ -12,3 +12,4 @@
 * Graceful shutdown with per-package hooks (semi-done with finalizers)
 * A better way to check for package dependencies (e.g. checking for 'database' would not work if the config was under 'web.pkg.database').
 * Test App composition, for both web and worker contexts
+* Lua 5.4 and postgresql 13 (Fedora 33?)
