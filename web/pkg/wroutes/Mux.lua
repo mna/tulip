@@ -1,9 +1,31 @@
+local fn = require 'fn'
+local handler = require 'web.handler'
 local tcheck = require 'tcheck'
+
+local function match(routes, s)
+  local _, _, _, route = fn.any(function(_, route)
+    return string.find(s, route.pattern)
+  end, ipairs(routes))
+
+  if route then
+    return route, table.pack(string.match(s, route.pattern))
+  end
+end
 
 local Mux = {__name = 'web.pkg.wroutes.Mux'}
 Mux.__index = Mux
 
 function Mux:handle(msg)
+  local queue = msg.queue
+  local route, pathargs = match(self.routes, queue)
+
+  if route then
+    msg.pathargs = pathargs
+    handler.chain_wmiddleware(route.middleware, msg)
+    return
+  end
+  local nf = self.routes.not_found
+  if nf then nf(msg) end
 end
 
 -- Creates a new multiplexer that dispatches using the provided
@@ -28,9 +50,6 @@ end
 function Mux.new(routes)
   tcheck('table', routes)
 
-  local o = {routes = routes}
-  setmetatable(o, Mux)
-
   for i, route in ipairs(routes) do
     if (route.pattern or '') == '' then
       error(string.format('pattern missing at wroutes[%d]', i))
@@ -38,7 +57,9 @@ function Mux.new(routes)
       error(string.format('handler missing at wroutes[%d]', i))
     end
   end
-  return o
+
+  local o = {routes = routes}
+  return setmetatable(o, Mux)
 end
 
 return Mux
