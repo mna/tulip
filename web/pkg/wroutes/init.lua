@@ -38,7 +38,7 @@ function M.activate(app)
       table.insert(mws, route.handler)
     end
     app:resolve_wmiddleware(mws)
-    route.middleware = mws
+    route.wmiddleware = mws
   end
   local mw = app:lookup_wmiddleware('web.pkg.wroutes')
   mw.mux = Mux.new(cfg)

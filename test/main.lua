@@ -11,6 +11,7 @@ TestReadme = require 'test.readme'
 TestRoutes = require 'test.routes'
 TestSendgrid = require 'test.sendgrid'
 TestToken = require 'test.token'
+TestWroutes = require 'test.wroutes'
 TestXstring = require 'test.xstring'
 TestXtable = require 'test.xtable'
 

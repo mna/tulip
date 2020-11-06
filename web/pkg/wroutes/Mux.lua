@@ -21,7 +21,7 @@ function Mux:handle(msg)
 
   if route then
     msg.pathargs = pathargs
-    handler.chain_wmiddleware(route.middleware, msg)
+    handler.chain_wmiddleware(route.wmiddleware, msg)
     return
   end
   local nf = self.routes.not_found
@@ -53,7 +53,7 @@ function Mux.new(routes)
   for i, route in ipairs(routes) do
     if (route.pattern or '') == '' then
       error(string.format('pattern missing at wroutes[%d]', i))
-    elseif (not route.middleware) or (#route.middleware == 0) then
+    elseif (not route.wmiddleware) or (#route.wmiddleware == 0) then
       error(string.format('handler missing at wroutes[%d]', i))
     end
   end
