@@ -25,8 +25,7 @@ local function make_main(cfg)
           if errh then
             if not errh(t, err) then return end
           else
-            -- log error (or error handler?) and treat as #msgs == 0?
-            app:log('e', {})
+            app:log('e', {pkg = 'worker', queue = q, error = err})
             if t.errcount >= MAX_ERRORS then
               error(err)
             end
@@ -45,7 +44,6 @@ local function make_main(cfg)
           for _, msg in ipairs(msgs) do
             sema:acquire()
             cq:wrap(function()
-              -- TODO: bootstrap handler chain...
               msg.app = app
               app(msg)
               sema:release()
@@ -63,7 +61,7 @@ local M = {}
 -- messages from the message queue (which may include messages
 -- scheduled with cron).
 --
--- Requires: database and mqueue packages
+-- Requires: database, mqueue and wmiddleware packages
 -- Config:
 --   * idle_sleep: number = seconds to sleep when there are no
 --     messages to process. The first time no messages are available,
@@ -102,6 +100,9 @@ function M.register(cfg, app)
   end
   if not app.config.mqueue then
     error('no message queue registered')
+  end
+  if not app.config.wmiddleware then
+    error('no wmiddleware package registered')
   end
   app.main = make_main(cfg)
 end

@@ -3,8 +3,6 @@ local tcheck = require 'tcheck'
 local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
--- TODO: a way to close the pool, releasing all connections
-
 local function try_from_pool(pool, idle_to, life_to)
   if (not pool) or #pool == 0 then return end
 
