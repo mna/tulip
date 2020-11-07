@@ -104,8 +104,8 @@ end
 function App:encode(t, mime)
   if self.encoders then
     for _, enc in pairs(self.encoders) do
-      local s = enc(t, mime)
-      if s then return s end
+      local s, err = enc(t, mime)
+      if s or err then return s, err end
     end
   end
   error(string.format('no encoder registered for MIME type %q', mime))
@@ -117,8 +117,8 @@ end
 function App:decode(s, mime)
   if self.decoders then
     for _, dec in pairs(self.decoders) do
-      local t = dec(s, mime)
-      if t ~= nil then return t end
+      local t, err = dec(s, mime)
+      if t ~= nil or err then return t, err end
     end
   end
   error(string.format('no decoder registered for MIME type %q', mime))
