@@ -1,9 +1,60 @@
+local cqueues = require 'cqueues'
 local headers = require 'http.headers'
 local posix = require 'posix'
 local xtable = require 'web.xtable'
 
+local CHUNK_SIZE = 2^20 -- chunks of 1MB when writing from a file
+
 local Response = {__name = 'web.pkg.server.Response'}
 Response.__index = Response
+
+-- Writes the headers. This function should not be called directly,
+-- it exists for extensibility (e.g. gzip middleware) to intercept
+-- writing headers before the write actually happens but after
+-- Response:write has set all expected values. It should return
+-- true on success, nil and an error message on error (it must not
+-- throw).
+--
+-- * hdrs: the http headers instance to write
+-- * eos: flag indicating if this is the end of the stream
+-- * deadline: an absolute deadline time value from which a timeout will
+--   be computed.
+function Response:_write_headers(hdrs, eos, deadline)
+  return self.stream:write_headers(hdrs, eos,
+    deadline and (deadline - cqueues.monotime()))
+end
+
+-- Writes the body. This function should not be called directly,
+-- it exists for extensibility (e.g. gzip middleware) to intercept
+-- writing the raw body bytes as called from Response:write.
+-- It should return the number of bytes written on success, nil
+-- and an error message on error (it must not throw).
+--
+-- * f: function that returns two values on each call, the string
+--   to write and a flag that indicates if this is the last chunk.
+--   In case of errors it must return nil, err.
+-- * deadline: an absolute deadline time value from which a timeout will
+--   be computed for each written chunk.
+function Response:_write_body(f, deadline)
+  local stm = self.stream
+  local n = 0
+
+  while true do
+    local s, eos = f()
+    if not s then
+      return nil, eos -- here, eos is an error
+    end
+    n = n + #s
+    local ok, err = stm:write_chunk(s, eos,
+      deadline and (deadline - cqueues.monotime()))
+    if not ok then
+      return nil, err
+    end
+    if eos then
+      return n
+    end
+  end
+end
 
 -- high-level API to write a response, should not be mixed
 -- with calls to the low-level stream object.
@@ -104,8 +155,10 @@ function Response:write(opts)
   end
 
   if len then hdrs:upsert('content-length', tostring(len)) end
+
+  local deadline = timeout and (cqueues.monotime() + timeout)
   do
-    local ok, err = stm:write_headers(hdrs, ishead or not hasbody, timeout)
+    local ok, err = self:_write_headers(hdrs, ishead or not hasbody, deadline)
     if not ok then
       if closefile then bodyfile:close() end
       -- assume that maybe something got written to the socket, or
@@ -119,40 +172,42 @@ function Response:write(opts)
   end
 
   -- write the body
+  local chunkfn
   if bodystr then
-    local ok, err = stm:write_body_from_string(bodystr, timeout)
-    if not ok then
-      return nil, err, true
-    end
-    self.bytes_written = len
-  else
-    if io.type(bodyfile) == 'file' then
-      -- write from the file handle
-      -- TODO: how to get bytes writen in this case?
-      local ok, err = stm:write_body_from_file(bodyfile, timeout)
-      if closefile then bodyfile:close() end
-      if not ok then
-        return nil, err, true
-      end
-    else
-      -- write in chunks
-      for s in bodyfile() do
-        local ok, err = stm:write_chunk(s, false, timeout)
-        if not ok then
-          return nil, err, true
+    chunkfn = function() return bodystr, true end
+  elseif io.type(bodyfile) == 'file' then
+    chunkfn = function()
+      local s, err = bodyfile:read(CHUNK_SIZE)
+      if not s then
+        if err then
+          return nil, err
         end
-        self.bytes_written = self.bytes_written + #s
+        return '', true
       end
-
-      -- finish the stream
-      local ok, err = stm:write_chunk('', true, timeout)
-      if not ok then
-        return nil, err, true
+      return s
+    end
+  else
+    local it, inv, var = bodyfile()
+    local started = false
+    chunkfn = function()
+      if (not started) or (var ~= nil) then
+        started = true
+        var = it(inv, var)
       end
+      if var == nil then
+        return '', true
+      end
+      return var
     end
   end
 
-  return self.bytes_written
+  local n, err = self:_write_body(chunkfn, deadline)
+  if closefile then bodyfile:close() end
+  if not n then
+    return nil, err, true
+  end
+  self.bytes_written = n
+  return n
 end
 
 function Response.new(stm, write_timeout)
