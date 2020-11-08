@@ -1,4 +1,5 @@
 local headers = require 'http.headers'
+local posix = require 'posix'
 local xtable = require 'web.xtable'
 
 local Response = {__name = 'web.pkg.server.Response'}
@@ -22,6 +23,12 @@ Response.__index = Response
 --
 -- If the request method was HEAD, no body gets written, but
 -- it does get processed to compute the content-length.
+--
+-- Returns the number of body bytes written on success (which may be 0),
+-- or nil and an error message. A third return value indicates if some
+-- data (e.g. headers) was written before the failure, by returning true
+-- in that case (falsy otherwise).
+--
 function Response:write(opts)
   local stm = self.stream
   local hdrs = self.headers
@@ -47,14 +54,18 @@ function Response:write(opts)
       bodystr = opts.body
       len = #bodystr
     elseif typ == 'table' then
-      bodystr = self.app:encode(opts.body, hdrs:get('content-type'))
+      local s, err = self.app:encode(opts.body, hdrs:get('content-type'))
+      if not s then
+        return nil, err
+      end
+      bodystr = s
       len = #bodystr
     elseif typ == 'function' or io.type(opts.body) == 'file' then
       hdrs:upsert('transfer-encoding', 'chunked')
       hdrs:delete('content-length')
       bodyfile = opts.body
     else
-      error(string.format('invalid type for body: %s', typ))
+      return nil, string.format('invalid type for body: %s', typ)
     end
     hasbody = true
   elseif opts.path then
@@ -63,16 +74,25 @@ function Response:write(opts)
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
       local ctx = xtable.merge({}, self.app.locals, stm.request.locals, opts.context.locals)
-      bodystr = self.app:render(opts.path, ctx)
+      local s, err = self.app:render(opts.path, ctx)
+      if not s then
+        return nil, err
+      end
+      bodystr = s
       len = #bodystr
     else
-      bodyfile = io.open(opts.path)
-      if not bodyfile then
-        -- render a 404, file does not exist
-        hdrs:upsert(':status', '404')
-        bodystr = 'not found'
-        len = #bodystr
+      local f, err, code = io.open(opts.path)
+      if not f then
+        if code and code == posix.ENOENT then
+          -- render a 404, file does not exist
+          hdrs:upsert(':status', '404')
+          bodystr = 'not found'
+          len = #bodystr
+        else
+          return nil, err
+        end
       else
+        bodyfile = f
         hdrs:upsert('transfer-encoding', 'chunked')
         hdrs:delete('content-length')
         closefile = true
@@ -84,16 +104,26 @@ function Response:write(opts)
   end
 
   if len then hdrs:upsert('content-length', tostring(len)) end
-
-  -- TODO: if closefile, should close it, no asserts
-  assert(stm:write_headers(hdrs, ishead or not hasbody, timeout))
-  if ishead or not hasbody then
-    if closefile then bodyfile:close() end
-    return
+  do
+    local ok, err = stm:write_headers(hdrs, ishead or not hasbody, timeout)
+    if not ok then
+      if closefile then bodyfile:close() end
+      -- assume that maybe something got written to the socket, or
+      -- nothing can be written (e.g. client closed)
+      return nil, err, true
+    end
+    if ishead or not hasbody then
+      if closefile then bodyfile:close() end
+      return 0
+    end
   end
 
+  -- write the body
   if bodystr then
-    assert(stm:write_body_from_string(bodystr, timeout))
+    local ok, err = stm:write_body_from_string(bodystr, timeout)
+    if not ok then
+      return nil, err, true
+    end
     self.bytes_written = len
   else
     if io.type(bodyfile) == 'file' then
@@ -101,16 +131,28 @@ function Response:write(opts)
       -- TODO: how to get bytes writen in this case?
       local ok, err = stm:write_body_from_file(bodyfile, timeout)
       if closefile then bodyfile:close() end
-      assert(ok, err)
+      if not ok then
+        return nil, err, true
+      end
     else
       -- write in chunks
       for s in bodyfile() do
-        assert(stm:write_chunk(s, false, timeout))
+        local ok, err = stm:write_chunk(s, false, timeout)
+        if not ok then
+          return nil, err, true
+        end
         self.bytes_written = self.bytes_written + #s
       end
-      assert(stm:write_chunk('', true, timeout))
+
+      -- finish the stream
+      local ok, err = stm:write_chunk('', true, timeout)
+      if not ok then
+        return nil, err, true
+      end
     end
   end
+
+  return self.bytes_written
 end
 
 function Response.new(stm, write_timeout)
