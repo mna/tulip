@@ -26,7 +26,6 @@ local M = {}
 -- and is also added on the request.locals.request_id field.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-
   app:register_middleware('web.pkg.reqid', make_middleware(cfg))
 end
 
