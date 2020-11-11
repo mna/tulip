@@ -1,3 +1,4 @@
+local lu = require 'luaunit'
 local headers = require 'http.headers'
 
 -- Stream mocks a lua-http Stream object for tests.
@@ -8,77 +9,121 @@ function Stream:get_headers()
   return self._headers
 end
 
-function Stream:peername()
+function Stream.peername()
   return 'test', '127.0.0.1', 0
 end
 
-function Stream:localname()
+function Stream.localname()
   return 'test', '127.0.0.1', 0
 end
 
-function Stream:checktls()
+function Stream.checktls()
   return false
 end
 
-function Stream:write_headers()
+function Stream:write_headers(hdrs, eos, to)
+  if to and to < 0 then
+    return nil, 'timed out'
+  end
+
+  if self._written then
+    error('stream already written to')
+  end
+  self._written = {headers = hdrs:clone(), eos = eos}
   return true
 end
 
-function Stream:write_continue()
-end
+function Stream:write_chunk(s, eos, to)
+  if to and to < 0 then
+    return nil, 'timed out'
+  end
 
-function Stream:get_next_chunk()
-end
-
-function Stream:each_chunk()
-end
-
-function Stream:get_body_as_string()
-  return ''
-end
-
-function Stream:get_body_chars()
-  return ''
-end
-
-function Stream:get_body_until()
-  return ''
-end
-
-function Stream:save_body_to_file()
+  if not self._written then
+    error('stream headers were not written')
+  end
+  if self._written.eos then
+    error('stream is closed')
+  end
+  self._written.body = (self._written.body or '') .. s
+  self._written.eos = eos
   return true
 end
 
-function Stream:get_body_as_file()
-  return nil, 'not mocked'
+function Stream:assertWritten(hdrs, body, eos)
+  lu.assertIsTable(self._written)
+
+  local t = self._written
+  if hdrs then
+    for k, want in pairs(hdrs) do
+      local got = (t.headers:get(k)) or ''
+      lu.assertEquals(got, want)
+    end
+  end
+  if body then
+    lu.assertEquals(t.body or '', body)
+  end
+  if eos ~= nil then
+    lu.assertEquals(t.eos, eos)
+  end
 end
 
-function Stream:unget()
+function Stream:get_next_chunk(to)
+  -- read as chunks of 10
+  return self:get_body_chars(10, to)
 end
 
-function Stream:write_chunk()
-  return true
+function Stream:get_body_as_string(to)
+  if to and to < 0 then
+    return nil, 'timed out'
+  end
+
+  return self._body
 end
 
-function Stream:write_body_from_string()
-  return true
+function Stream:get_body_chars(n, to)
+  if to and to < 0 then
+    return nil, 'timed out'
+  end
+
+  local start = self._body_start or 1
+  local s = string.sub(self._body, start, start + n - 1)
+  self._body_start = start + n
+  if s == '' then return end
+  return s
 end
 
-function Stream:write_body_from_file()
-  return true
+-- only supports until newline
+function Stream:get_body_until(_, _, inc, to)
+  if to and to < 0 then
+    return nil, 'timed out'
+  end
+
+  local start = self._body_start or 1
+  local ix = string.find(self._body, '\n', start, true)
+  if not ix then
+    -- pattern not found, return everything or nil if the body is consumed
+    local s = string.sub(self._body, start)
+    if s == '' then return end
+    self._body_start = #self._body + 1
+    return s
+  else
+    local last = ix
+    if not inc then
+      last = last - 1
+    end
+    local s = string.sub(self._body, start, last)
+    self._body_start = ix + 1
+    return s
+  end
 end
 
-function Stream:shutdown()
-end
-
-function Stream.new(method, path)
+function Stream.new(method, path, body)
   local hdrs = headers.new()
   hdrs:append(':method', method)
   hdrs:append(':path', path)
 
-  local o = {_headers = hdrs}
-  setmetatable(o, Stream)
-  return o
+  local o = {_headers = hdrs, _body = body}
+  return setmetatable(o, Stream)
 end
 
 return Stream

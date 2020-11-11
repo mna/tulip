@@ -8,6 +8,7 @@ local NULL = cjson.null
 local M = {}
 
 function M.test_json()
+  -- TODO: this only tests the cjson module, not much value in this test
   local cases = {
     {input = nil, output = [[null]]},
     {input = true, output = [[true]]},

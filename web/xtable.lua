@@ -25,13 +25,15 @@ function M.merge(...)
   local dst = select(1, ...)
   for i = 2, n do
     local src = select(i, ...)
-    for k, v in pairs(src) do
-      local ok = true
-      if filter then
-        ok = filter(dst, src, k, v)
-      end
-      if ok then
-        dst[k] = v
+    if src then
+      for k, v in pairs(src) do
+        local ok = true
+        if filter then
+          ok = filter(dst, src, k, v)
+        end
+        if ok then
+          dst[k] = v
+        end
       end
     end
   end

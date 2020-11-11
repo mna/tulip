@@ -59,11 +59,11 @@ end
 -- high-level API to write a response, should not be mixed
 -- with calls to the low-level stream object.
 -- The opts table can have those fields:
--- * status (integer)
--- * content_type (string)
+-- * status (integer), defaults to 200.
+-- * content_type (string), defaults to 'text/plain' if there's a body.
 -- * body (string|table|function|file): if it is a table, gets
---   encoded as JSON or form-encoding, depending on content_type.
---   If there is no content-type or no known one, an error is raised.
+--   encoded based on the content_type and the registered encoders.
+--   If there is no content-type or no known one, an error is returned.
 --   If this is a function, it must return an iterator that
 --   returns string chunks to write. If it is a file object,
 --   behaves as path but does not close it when done sending.
@@ -124,7 +124,7 @@ function Response:write(opts)
       -- the path indicates a template to execute, which returns
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
-      local ctx = xtable.merge({}, self.app.locals, stm.request.locals, opts.context.locals)
+      local ctx = xtable.merge({}, {locals = self.app.locals}, {locals = stm.request.locals}, opts.context)
       local s, err = self.app:render(opts.path, ctx)
       if not s then
         return nil, err
