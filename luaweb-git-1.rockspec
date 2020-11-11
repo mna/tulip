@@ -17,6 +17,7 @@ dependencies = {
   "lpeg_patterns	0.5-0",
   "lua-cjson 2.1.0.6-1",
   "lua-resty-template 2.0-1",
+  "lua-zlib 1.2-1",
   "luabenchmark	0.10.0-1",
   "luacov	0.14.0-1",
   "luafn	0.1-1",

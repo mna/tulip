@@ -121,6 +121,7 @@ function M.test_database_pool()
     c4:close()
     lu.assertEquals(count_conns(), 2)
 
+    -- TODO: flaky test
     local c5 = app:db()
     lu.assertEquals(count_conns(), 1)
     local pid5 = pid(c5)

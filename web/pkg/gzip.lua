@@ -34,7 +34,7 @@ local function gzip_middleware(req, res, nxt)
   res.headers:append('vary', 'Accept-Encoding')
 
   -- if this request does not accept gzip, bypass
-  local ae = req.headers:get('accept-encoding')
+  local ae = req.headers:get('accept-encoding') or ''
   if not string.find(ae, 'gzip') then -- TODO: more robust check
     return nxt()
   end
