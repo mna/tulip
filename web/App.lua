@@ -14,7 +14,7 @@ local function register_packages(app, cfg)
     end
 
     if not ok then
-      error(string.format('package not found: %s', k))
+      error(string.format('package not found: %s: %s', k, pkg))
     end
 
     table.insert(pkgs, pkg)
