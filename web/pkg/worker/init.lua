@@ -23,7 +23,7 @@ local function make_main(cfg)
         if not msgs then
           t.errcount = t.errcount + 1
           if errh then
-            if not errh(t, err) then return end
+            if not errh(t, err) then return nil, err end
           else
             app:log('e', {pkg = 'worker', queue = q, error = err})
             if t.errcount >= MAX_ERRORS then
@@ -42,6 +42,7 @@ local function make_main(cfg)
         else
           sleep = nil
           for _, msg in ipairs(msgs) do
+            -- TODO: configure a semaphore timeout
             sema:acquire()
             cq:wrap(function()
               msg.app = app

@@ -97,7 +97,7 @@ local M = {}
 --   * connection_string: string = the connection string
 --   * migrations: array of tables = the migrations to run, each
 --     table being an array of migration steps (string or function,
---     as described in the Migrator) with a package field that
+--     as described in the Migrator) with a 'package' field that
 --     identifies for which package the migrations apply.
 --   * pool: table = if set, configures a connection pool so that
 --     calling App:db returns a pooled connection if available,
