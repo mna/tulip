@@ -12,6 +12,9 @@ local function make_token(cfg)
 
   return function(app, t, db, tok)
     tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, db, tok)
+    if lookup_types and not lookup_types[t.type] then
+      return nil, string.format('token type %q is invalid', t.type)
+    end
 
     local close = not db
     db = db or app:db()
@@ -21,10 +24,6 @@ local function make_token(cfg)
         return token.validate(t, db, tok)
       else
         -- generate a token
-        if lookup_types and not lookup_types[t.type] then
-          -- TODO: error or return nil, err?
-          error(string.format('token type %q is invalid', t.type))
-        end
         return token.generate(t, db)
       end
     end)
@@ -36,6 +35,18 @@ local M = {}
 -- The token package registers an App:token method that either
 -- generates a one-time secret token, or validates such a token.
 --
+-- If the generated token has once set, then when it is validated,
+-- its type and ref_id must match, and it must not be expired.
+-- If it does not have once set, then when validated only its
+-- type must match, and it must not be expired. The ref_id value
+-- is returned as second value when the token is valid (if the first
+-- returned value is true). This is because the not-once tokens
+-- are typically used to associate a token with an id (e.g. session
+-- tokens), while once tokens are used for extra validation so the
+-- ref_id must be provided and must be associated with that token
+-- (e.g. reset password, change email address tokens, where the
+-- relevant user ID is known).
+--
 -- Requires: a database package
 -- Config:
 --   * allowed_types: array of string = if set, only those types
@@ -46,6 +57,9 @@ local M = {}
 --     * t.type: string = the type of the token (e.g. resetpwd)
 --     * t.ref_id: number = the reference id of the token (e.g. user id)
 --     * t.max_age: number = number of seconds before token expires
+--     * t.once: boolean|nil = if true, generate a single-use token
+--       that is deleted when validated. Otherwise the token stays
+--       alive until expired (e.g. a session id token).
 --   > db: connection = optional database connection to use
 --   > tok: string = if provided, validates that token, otherwise
 --     generate a new token.

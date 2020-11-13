@@ -9,6 +9,7 @@ local MIGRATIONS = {
       CREATE TABLE "web_pkg_token_tokens" (
         "token"   CHAR(44) NOT NULL,
         "type"    VARCHAR(20) NOT NULL,
+        "once"    BOOLEAN NOT NULL,
         "ref_id"  INTEGER NOT NULL,
         "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
         "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -45,20 +46,23 @@ INSERT INTO
   "web_pkg_token_tokens" (
     "token",
     "type",
+    "once",
     "ref_id",
     "expiry"
   )
 VALUES
-  ($1, $2, $3, $4)
+  ($1, $2, $3, $4, $5)
 ON CONFLICT ("type", "ref_id") DO UPDATE SET
   "token" = $1,
-  "expiry" = $4
+  "once" = $3,
+  "expiry" = $5
 ]]
 
 local SQL_LOADTOKEN = [[
 SELECT
   "token",
   "type",
+  "once",
   "ref_id",
   "expiry"
 FROM
@@ -77,6 +81,7 @@ WHERE
 local function model(o)
   o.ref_id = tonumber(o.ref_id)
   o.expiry = tonumber(o.expiry)
+  o.once = o.once == 't'
   return o
 end
 
@@ -91,20 +96,23 @@ function M.validate(t, db, tok)
   local row = xpgsql.model(res, model)
   if not row then return false end -- invalid token
 
-  -- at this point, the token exists and is consumed (or leaked), so
-  -- delete it.
-  res, err = db:exec(SQL_DELETETOKEN, tok)
-  if not res then return nil, err end
+  -- at this point, if the token has once set, the token exists
+  -- and is consumed (or leaked), so delete it.
+  if row.once then
+    res, err = db:exec(SQL_DELETETOKEN, tok)
+    if not res then return nil, err end
+  end
 
-  if t.type == row.type and t.ref_id == row.ref_id and os.time() < row.expiry then
-    return true
+  if t.type == row.type and ((not row.once) or (t.ref_id == row.ref_id)) and os.time() < row.expiry then
+    return true, row.ref_id
   end
   return false
 end
 
 function M.generate(t, db)
   local tok = xio.b64encode(xio.random(TOKEN_LEN))
-  local ok, err = db:exec(SQL_CREATETOKEN, tok, t.type, t.ref_id, os.time() + t.max_age)
+  local ok, err = db:exec(SQL_CREATETOKEN,
+    tok, t.type, (t.once or false), t.ref_id, os.time() + t.max_age)
   if not ok then return nil, err end
   return tok
 end
