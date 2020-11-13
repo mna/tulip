@@ -36,6 +36,7 @@ Clone the project and install the required dependencies:
 
 * libpq-devel (Fedora package)
 * openssl-devel (Fedora package)
+* libargon2-devel (Fedora package)
 * postgresql-12.x (Fedora package, for the psql command)
 * direnv (Fedora package, to manage environment variables)
 * mkcert (create certificates for localhost, https://github.com/FiloSottile/mkcert)

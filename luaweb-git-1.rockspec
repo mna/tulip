@@ -4,6 +4,7 @@ build = {
 }
 dependencies = {
   "lua ~> 5.3",
+  "argon2 3.0.1-1",
   "base64 1.5-2",
   "basexx	0.4.1-1",
   "binaryheap	0.4-1",

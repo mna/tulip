@@ -1,4 +1,5 @@
 local tcheck = require 'tcheck'
+local Account = require 'web.pkg.account.Account'
 
 local M = {}
 
@@ -9,6 +10,15 @@ local M = {}
 --  * ...
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
+  app.account = Account.new(app)
+
+  if not app.config.database then
+    error('no database registered')
+  end
+  if not app.config.token then
+    error('no token registered')
+  end
+
   -- TODO: Account methods
   -- TODO: middleware:
   -- * signup POST handler
