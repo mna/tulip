@@ -4,7 +4,7 @@
 
 * User account/auth package (register, validate email, reset password, TOTP?, change/add email (similar to reset password)?)
 * Inter-package dependencies in DB migrations (maybe make Migrator a separate package)
-* Flash messages that persist across redirects
+* Flash messages that persist across redirects (probably requires i18n solution)
 * Cohesive and consistent error handling (throw vs nil+msg)
 
 ## up next

@@ -1,36 +1,39 @@
 return {
-  function (conn)
-    assert(conn:exec[[
-      CREATE TABLE "web_pkg_account_sessions" (
-        "token"   CHAR(44) NOT NULL,
-        "type"    VARCHAR(20) NOT NULL,
-        "ref_id"  INTEGER NOT NULL,
-        "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
-        "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-        PRIMARY KEY ("token"),
-        UNIQUE ("type", "ref_id")
-      )
-    ]])
-    assert(conn:exec[[
-      CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
-    ]])
-  end,
   [[
-    CREATE PROCEDURE "web_pkg_token_expire" ()
-    LANGUAGE SQL
-    AS $$
-      DELETE FROM
-        "web_pkg_token_tokens"
-      WHERE
-        "expiry" < EXTRACT(epoch FROM now())
-    $$;
+    CREATE TABLE "web_pkg_account_accounts" (
+      "id"       SERIAL NOT NULL,
+      -- see https://stackoverflow.com/a/574698/1094941
+      "email"    VARCHAR(254) NOT NULL,
+      "password" VARCHAR(200) NOT NULL,
+      "verified" TIMESTAMPTZ NULL,
+      "created"  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY ("id"),
+      UNIQUE ("email")
+    )
   ]],
-  -- schedule expiration of tokens every day at 1AM
-  function (conn)
-    assert(conn:query[[
-      SELECT
-        cron.schedule('web_pkg_token:expire', '0 1 * * *', 'CALL web_pkg_token_expire()')
-    ]])
-  end,
+  [[
+    CREATE TABLE "web_pkg_account_groups" (
+      "id"       SERIAL NOT NULL,
+      "name"     VARCHAR(20) NOT NULL,
+      "created"  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY ("id"),
+      UNIQUE ("name")
+    )
+  ]],
+  [[
+    CREATE TABLE "web_pkg_account_members" (
+      "id"         SERIAL NOT NULL,
+      "account_id" INTEGER NOT NULL,
+      "group_id"   INTEGER NOT NULL,
+      "created"    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY ("id"),
+      FOREIGN KEY ("account_id")
+        REFERENCES "web_pkg_account_accounts" ("id"),
+      FOREIGN KEY ("group_id")
+        REFERENCES "web_pkg_account_groups" ("id")
+    )
+  ]],
 }

@@ -4,20 +4,24 @@ local M = {}
 
 -- The account package...
 --
--- Requires: a database package, a cron package.
+-- Requires: database and token packages.
 -- Config:
 --  * ...
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-
-  -- TODO:
-  -- * App.account:create
-  -- * App.account:login
-  -- * App.account:logout
-  -- * App.account:delete
-  -- * App.account:verify_email
-  -- * App.account:reset_pwd (overload request and do reset)
-  -- * App.account:change_email (overload request and do change)
+  -- TODO: Account methods
+  -- TODO: middleware:
+  -- * signup POST handler
+  -- * login POST handler
+  -- * authorization middleware, renders either 403 if user is authenticated
+  --   but doesn't have required group membership, 401 if user is not
+  --   authenticated, or 302 Found and redirect to login page.
+  -- * logout handler
+  -- * delete POST handler
+  -- * change password POST handler
+  -- * verify email, change email, reset pwd handlers (likely 3 per type:
+  --   trigger the request - e.g. generate token and send email -, GET
+  --   the confirmation form, and handle the POST form)
 end
 
 return M
