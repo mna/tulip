@@ -27,6 +27,24 @@ WHERE
   "email" = $1
 ]]
 
+local SQL_DELETEUSER = [[
+DELETE FROM
+  "web_pkg_account_accounts"
+WHERE
+  "email" = $1
+]]
+
+local SQL_DELETEEMAILMEMBERS = [[
+DELETE
+  FROM
+    "web_pkg_account_members" AS m
+  USING
+    "web_pkg_account_accounts" AS a
+WHERE
+  m.account_id = a.id AND
+  a.email = $1
+]]
+
 local ARGON2_PARAMS = {
   t_cost = 3,
   m_cost = 2^16, -- 64KB
@@ -64,10 +82,9 @@ function Account:create(email, raw_pwd, db)
   end)
 end
 
--- Attempts a login for the specified email and raw_pwd. Returns the
+-- Validates credentials for the specified email and raw_pwd. Returns the
 -- authenticated account on success or nil and an error message.
--- TODO: what/where is the session id set on req, and cookie sent?
-function Account:login(email, raw_pwd, db)
+function Account:validate(email, raw_pwd, db)
   local acct = self:lookup_email(email, db)
   if not acct then
     return nil, 'no such account'
@@ -79,10 +96,18 @@ function Account:login(email, raw_pwd, db)
   return acct
 end
 
-function Account:logout()
-  -- TODO: only acts on the session, removes the cookie and locals
+-- Starts a web session by storing a session token in a cookie.
+function Account:start_session(acct, res)
+  -- TODO: only acts on the session, creates the cookie
 end
 
+-- Ends a web session by removing the session token cookie.
+function Account:end_session(res)
+  -- TODO: only acts on the session, removes the cookie
+end
+
+-- Returns the account instance corresponding to this email.
+-- On error, returns nil and an error message.
 function Account:lookup_email(email, db)
   email = string.lower(xstring.trim(email))
 
@@ -93,8 +118,20 @@ function Account:lookup_email(email, db)
   end)
 end
 
-function Account:delete()
+-- Deletes the account corresponding to this email.
+-- Returns true on success, or nil and an error message.
+function Account:delete(email, db)
+  email = string.lower(xstring.trim(email))
 
+  local close = not db
+  db = db or self.app:db()
+  return db:with(close, function()
+    return db:ensuretx(function()
+      assert(db:exec(SQL_DELETEEMAILMEMBERS, email))
+      assert(db:exec(SQL_DELETEUSER, email))
+      return true
+    end)
+  end)
 end
 
 function Account:verify_email()
