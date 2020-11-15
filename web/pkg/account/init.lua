@@ -86,6 +86,40 @@ local M = {}
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
+-- Middleware:
+--
+-- * web.pkg.account:signup
+--
+--   Handles the signup workflow (POST of a form). On success, redirects
+--   to the login URL (or should that be a subsequent "redirect" middleware?).
+--
+--   > email: string = form field with the email address
+--   > password: string = form field with the raw password
+--   > password2: string|nil = optional form field with the raw password again
+--
+-- * web.pkg.account:login
+--
+--   Handles the login workflow (POST of a form). On success, redirects
+--   to the target URL (or should that be a subsequent "redirect" middleware?).
+--
+--   > email: string = form field with the email address
+--   > password: string = form field with the raw password
+--   > rememberme: boolean = indicates if the session should be persisted
+--
+-- * web.pkg.account:logout
+--
+--   Handles the logout workflow. On success, redirects to the target
+--   URL (or should that be a subsequent "redirect" middleware?).
+--
+-- * web.pkg.account:init_vemail
+--
+--   Initiates the verify email workflow, typically after a successful
+--   signup middleware. It generates a single-use token and sends an email
+--   message to the account. Can also be set as middleware to a "resend
+--   verify email" endpoint.
+--
+--   > email: string = the email to which the token should be sent.
+--
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.account = Account.new(app)

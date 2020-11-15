@@ -3,6 +3,9 @@
 ## high-priority
 
 * User account/auth package (register, validate email, reset password, TOTP?, change/add email (similar to reset password)?)
+* General error handler mechanism for middleware, to avoid having to specify handlers for each package with middleware.
+  - Maybe based on raised errors? And a recover that has a mux based on the middleware name and other things?
+
 * Inter-package dependencies in DB migrations (maybe make Migrator a separate package)
 * Flash messages that persist across redirects (probably requires i18n solution)
 * Cohesive and consistent error handling (throw vs nil+msg)
