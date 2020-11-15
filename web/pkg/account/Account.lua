@@ -109,6 +109,8 @@ end
 -- Returns the account instance corresponding to this email.
 -- On error, returns nil and an error message.
 function Account:lookup_email(email, db)
+  -- TODO: return group membership too
+
   email = string.lower(xstring.trim(email))
 
   local close = not db
