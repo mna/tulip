@@ -141,7 +141,8 @@ function Account:verify_email()
 end
 
 function Account:change_pwd()
-
+  -- TODO: ideally a password change should reset any existing session
+  -- token, so that a login is required anew.
 end
 
 function Account:reset_pwd()
@@ -149,11 +150,8 @@ function Account:reset_pwd()
 end
 
 function Account:change_email()
-
-end
-
-function Account:membership()
-
+  -- TODO: ideally an email change should reset any existing session
+  -- token, so that a login is required anew.
 end
 
 function Account.new(app)

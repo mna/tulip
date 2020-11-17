@@ -8,11 +8,9 @@ local M = {}
 -- sessions created via a cookie, etc. It also supports the email
 -- verification, password reset and email change workflows.
 --
--- It registers two methods on the App instance and a number of
--- methods are also available on the Account instance
--- returned by App:create_account or App:account.
---
--- TODO: It also registers a number of middleware.
+-- It registers two methods on the App instance and a number of methods are
+-- also available on the Account instance returned by App:create_account or
+-- App:account. It also registers a number of middleware, described below.
 --
 -- Requires: database and token packages.
 -- Config:
@@ -86,6 +84,17 @@ local M = {}
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
+-- ok, err = Account:groups(add, rm, db)
+--
+--   Adds and/or removes the account from the groups.
+--
+--   > add: string|table|nil = the group(s) to add the account to.
+--   > rm: string|table|nil = the group(s) to remove the account from.
+--   > db: connection = database connection to use
+--
+--   < ok: boolean = true on success
+--   < err: string|nil = error message if ok is falsy
+--
 -- Middleware:
 --
 -- * web.pkg.account:signup
@@ -111,6 +120,14 @@ local M = {}
 --   Handles the logout workflow. On success, redirects to the target
 --   URL (or should that be a subsequent "redirect" middleware?).
 --
+-- * web.pkg.account:delete
+--
+--   Handles the delete account workflow (POST of a form). On success,
+--   the account is deleted.
+--
+--   > password: string = the raw password of the acount, must be validated
+--     to proceed with account deletion.
+--
 -- * web.pkg.account:init_vemail
 --
 --   Initiates the verify email workflow, typically after a successful
@@ -119,6 +136,69 @@ local M = {}
 --   verify email" endpoint.
 --
 --   > email: string = the email to which the token should be sent.
+--
+-- * web.pkg.account:vemail
+--
+--   Handles the verify email workflow. Checks that the token is valid
+--   and if so marks the email as verified.
+--
+--   > t: string = the token, stored in a query string parameter.
+--
+-- * web.pkg.account:setpwd
+--
+--   Handles the update password workflow (POST of a form). Must be
+--   logged-in (i.e. the Account must be stored in req.locals.account).
+--
+--   > old_password: string = the old (raw) password
+--   > new_password: string = the new (raw) password
+--   > new_password2: string|nil = optional confirmation of the new (raw) password
+--
+-- * web.pkg.account:init_resetpwd
+--
+--   Initiates the reset password workflow, typically from a request on the
+--   login form when the user forgets their password. It generates a single-use
+--   token and sends an email message to the account.
+--
+--   > email: string = the email to which the reset token should be sent.
+--
+-- * web.pkg.account:resetpwd
+--
+--   Handles the reset password workflow (POST of form). Checks the the
+--   token is valid and if so, updates the password to the new one.
+--
+--   > t: string = the token, usually stored in a hidden field in the GET
+--     of the form or set there via javascript (from the query string).
+--   > new_password: string = the new (raw) password
+--   > new_password2: string|nil = optional confirmation of the new (raw) password
+--
+-- * web.pkg.account:init_changeemail
+--
+--   Initiates the change email workflow. It generates a single-use
+--   token and sends an email message to the specified new email
+--   address.
+--
+--   > new_email: string = the new email to which the reset token
+--   should be sent.
+--
+-- * web.pkg.account:changeemail
+--
+--   Handles the change email workflow. Checks that the token is valid
+--   and if so updates the corresponding account's email address to
+--   the new one.
+--
+--   > t: string = the token, stored in a query string parameter.
+--
+-- * web.pkg.account:authz
+--   TODO: authorization middleware, renders either 403 if user is authenticated
+--   but doesn't have required group membership, 401 if user is not
+--   authenticated, or 302 Found and redirect to login page.
+--
+-- TODO: distinct package that requires account package? Probably not,
+-- as a tfa flag is required to be known by the account package so that
+-- a fully valid session is not created just after login.
+-- * web.pkg.account:init_setuptfa
+-- * web.pkg.account:setuptfa
+-- * web.pkg.account:tfa
 --
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
@@ -130,20 +210,6 @@ function M.register(cfg, app)
   if not app.config.token then
     error('no token registered')
   end
-
-  -- TODO: Account methods
-  -- TODO: middleware:
-  -- * signup POST handler
-  -- * login POST handler
-  -- * authorization middleware, renders either 403 if user is authenticated
-  --   but doesn't have required group membership, 401 if user is not
-  --   authenticated, or 302 Found and redirect to login page.
-  -- * logout handler
-  -- * delete POST handler
-  -- * change password POST handler
-  -- * verify email, change email, reset pwd handlers (likely 3 per type:
-  --   trigger the request - e.g. generate token and send email -, GET
-  --   the confirmation form, and handle the POST form)
 end
 
 return M
