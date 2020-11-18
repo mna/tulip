@@ -1,5 +1,6 @@
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
+local tsort = require 'resty.tsort'
 local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
@@ -88,7 +89,7 @@ local M = {}
 -- argument, that function is called with the connection, which is
 -- then released automatically when the function is done, regardless
 -- of whether an error was raised or not, and the call returns the
--- return values of the function or re-raise the error.
+-- return values of the function or nil and the error message.
 --
 -- It also runs the migrator, which runs when the app is
 -- started, executing all registered migrations from the config.
@@ -98,7 +99,9 @@ local M = {}
 --   * migrations: array of tables = the migrations to run, each
 --     table being an array of migration steps (string or function,
 --     as described in the Migrator) with a 'package' field that
---     identifies for which package the migrations apply.
+--     identifies for which package the migrations apply, and an
+--     optional 'after' field that identifies package names (array
+--     of strings) that must have their migrations run before this package.
 --   * pool: table = if set, configures a connection pool so that
 --     calling App:db returns a pooled connection if available,
 --     and calling conn:close returns it to the pool if possible.
@@ -116,6 +119,7 @@ function M.activate(app)
   local cfg = app.config.database
   cfg.migrations = cfg.migrations or {}
 
+  local graph = tsort.new()
   local migrations = {}
   for _, v in ipairs(cfg.migrations) do
     local ms = migrations[v.package] or {}
@@ -123,6 +127,7 @@ function M.activate(app)
       table.insert(ms, m)
     end
     migrations[v.package] = ms
+    graph:add(v.package, table.unpack(v.after or {}))
   end
 
   local mig = Migrator.new(cfg.connection_string)
@@ -130,10 +135,15 @@ function M.activate(app)
     mig:register(pkg, ms)
   end
 
+  local order = graph:sort()
+  if not order then
+    error('circular dependency in database migrations')
+  end
+
   app:log('i', {pkg = 'database', msg = 'migrations started'})
   assert(mig:run(function(pkg, i)
     app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
-  end))
+  end, order))
   app:log('i', {pkg = 'database', msg = 'migrations done'})
 end
 

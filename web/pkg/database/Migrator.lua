@@ -81,18 +81,25 @@ function Migrator:register(pkg, t)
 end
 
 -- Run executes the registered migrations in the order the packages
--- were registered. Each package's migrations are run in distinct
+-- were registered, unless order is provided (which must be a table
+-- of strings). Each package's migrations are run in distinct
 -- transactions, and it stops and returns at the first error.
 -- On success, returns true, otherwise returns nil and an error
 -- message. If cb is provided, it is called with two arguments for
 -- each applied migration - the package name and the migration index.
-function Migrator:run(cb)
+function Migrator:run(cb, order)
   local conn, err = xpgsql.connect(self.connection_string)
   if not conn then
     return nil, err
   end
 
-  for _, pkg in ipairs(self.order) do
+  order = order or self.order
+  if #order == 0 or order[1] ~= PACKAGE then
+    -- ensure the Migrator's migrations always come first
+    table.insert(order, 1, PACKAGE)
+  end
+
+  for _, pkg in ipairs(order) do
     -- get the current version of this package
     local latest, err = get_version(conn, pkg)
     if not latest then
