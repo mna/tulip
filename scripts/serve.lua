@@ -1,5 +1,6 @@
 #!/usr/bin/env -S llrocks run
 
+local cjson = require 'cjson'
 local handler = require 'web.handler'
 local xpgsql = require 'xpgsql'
 
@@ -32,7 +33,7 @@ local function list_jobs(req, res, nxt)
   res:write{
     status = 200,
     content_type = 'application/json',
-    body = rows,
+    body = setmetatable(rows, cjson.array_mt),
   }
   nxt()
 end
@@ -61,7 +62,7 @@ local function list_messages(req, res, nxt)
     res:write{
       status = 200,
       content_type = 'application/json',
-      body = rows,
+      body = setmetatable(rows, cjson.array_mt),
     }
   else
     res:write{
