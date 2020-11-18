@@ -1,6 +1,7 @@
 local fn = require 'fn'
 local handler = require 'web.handler'
 local tcheck = require 'tcheck'
+local xtable = require 'web.xtable'
 
 local function match(routes, path)
   local _, _, _, route = fn.any(function(_, route)
@@ -44,6 +45,9 @@ function Mux:handle(req, res)
   end
   if route then
     req.pathargs = pathargs
+    req.routeargs = xtable.merge(req.routeargs or {}, route, function(_, _, k)
+      return k ~= 'method' and k ~= 'pattern' and k ~= 'middleware' and k ~= 'handler'
+    end)
     handler.chain_middleware(route.middleware, req, res)
     return
   end
@@ -75,6 +79,9 @@ end
 -- * pattern (string): the Lua pattern that the path part of the request
 --   must match.
 -- * middleware (array): list of middleware functions to call.
+--
+-- Any other field of the matching route will be stored on the request
+-- under routeargs.
 --
 -- The table should not be modified after the call.
 --
