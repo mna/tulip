@@ -87,10 +87,16 @@ end
 -- On success, returns true, otherwise returns nil and an error
 -- message. If cb is provided, it is called with two arguments for
 -- each applied migration - the package name and the migration index.
-function Migrator:run(cb, order)
-  local conn, err = xpgsql.connect(self.connection_string)
+-- If conn is nil, a connection is made to get one that is closed
+-- on return.
+function Migrator:run(conn, cb, order)
+  local close = not conn
   if not conn then
-    return nil, err
+    local err
+    conn, err = xpgsql.connect(self.connection_string)
+    if not conn then
+      return nil, err
+    end
   end
 
   order = order or self.order
@@ -99,45 +105,40 @@ function Migrator:run(cb, order)
     table.insert(order, 1, PACKAGE)
   end
 
-  for _, pkg in ipairs(order) do
-    -- get the current version of this package
-    local latest, err = get_version(conn, pkg)
-    if not latest then
-      -- it is ok for get_version to fail if this migration is for the
-      -- migration package itself (version table does not exist yet).
-      if pkg == PACKAGE then
-        latest = 0
-      else
-        conn:close()
-        return nil, err
-      end
-    end
-
-    local migrations = self.packages[pkg]
-    if #migrations > latest then
-      local ok, errtx = conn:tx(function()
-        for i = latest + 1, #migrations do
-          if cb then cb(pkg, i) end
-
-          local mig = migrations[i]
-          if type(mig) == 'string' then
-            assert(conn:exec(mig))
-          else
-            mig(conn, i)
-          end
+  return conn:with(close, function()
+    for _, pkg in ipairs(order) do
+      -- get the current version of this package
+      local latest, err = get_version(conn, pkg)
+      if not latest then
+        -- it is ok for get_version to fail if this migration is for the
+        -- migration package itself (version table does not exist yet).
+        if pkg == PACKAGE then
+          latest = 0
+        else
+          error(err)
         end
-        set_version(conn, pkg, #migrations)
-        return true
-      end)
-      if not ok then
-        conn:close()
-        return nil, errtx
+      end
+
+      local migrations = self.packages[pkg]
+      if #migrations > latest then
+        assert(conn:tx(function()
+          for i = latest + 1, #migrations do
+            if cb then cb(pkg, i) end
+
+            local mig = migrations[i]
+            if type(mig) == 'string' then
+              assert(conn:exec(mig))
+            else
+              mig(conn, i)
+            end
+          end
+          set_version(conn, pkg, #migrations)
+          return true
+        end))
       end
     end
-  end
-
-  conn:close()
-  return true
+    return true
+  end)
 end
 
 -- Creates a Migrator instance that will run against the database

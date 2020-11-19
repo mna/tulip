@@ -17,7 +17,7 @@ local function app_config()
   return {
     routes = {
       {method = 'GET', pattern = '^/a(.*)', handler = function(_, res) res:write{status = 201} end},
-      {method = 'GET', pattern = '^/b', handler = function(_, res) res:write{status = 202} end},
+      {method = 'GET', pattern = '^/b', handler = function(_, res) res:write{status = 202} end, groups = {'admin'}},
       {method = 'HEAD', pattern = '^/b', handler = function(_, res) res:write{status = 203} end},
       {method = 'POST', pattern = '^/c', handler = function(_, res) res:write{status = 204} end},
       {method = 'GET', pattern = '^/ab', handler = function(_, res) res:write{status = 205} end},
@@ -38,36 +38,43 @@ function M.test_mux()
     local req, res = build_args('GET', '/abcd')
     app(req, res)
     lu.assertEquals(req.pathargs, {'bcd', n=1})
+    lu.assertEquals(req.routeargs, {})
     lu.assertEquals(res.headers:get(':status'), '201')
 
     req, res = build_args('GET', '/bcd')
     app(req, res)
+    lu.assertEquals(req.routeargs, {groups = {'admin'}})
     lu.assertEquals(res.headers:get(':status'), '202')
 
     -- no such method
     req, res = build_args('GET', '/cd')
     app(req, res)
+    lu.assertNil(req.routeargs)
     lu.assertEquals(res.headers:get(':status'), '405')
     lu.assertEquals(res.methods, {'POST'})
 
     req, res = build_args('POST', '/cd')
     app(req, res)
+    lu.assertEquals(req.routeargs, {})
     lu.assertEquals(res.headers:get(':status'), '204')
 
     req, res = build_args('GET', '/d')
     app(req, res)
+    lu.assertNil(req.routeargs)
     lu.assertEquals(res.headers:get(':status'), '404')
     lu.assertTrue(res.explicit)
 
     -- HEAD via GET
     req, res = build_args('HEAD', '/az')
     app(req, res)
+    lu.assertEquals(req.routeargs, {})
     lu.assertEquals(req.pathargs, {'z', n=1})
     lu.assertEquals(res.headers:get(':status'), '201')
 
     -- explicit HEAD match
     req, res = build_args('HEAD', '/b')
     app(req, res)
+    lu.assertEquals(req.routeargs, {})
     lu.assertEquals(res.headers:get(':status'), '203')
   end
   app:run()

@@ -53,9 +53,7 @@ end
 
 function M.test_database_nopool()
   local app = App{
-    database = {
-      connection_string = '',
-    }
+    database = {connection_string = ''}
   }
 
   app.main = function()
@@ -90,7 +88,8 @@ function M.test_database_pool()
   }
 
   app.main = function()
-    lu.assertEquals(count_conns(), 0)
+    -- initial conn is created to run the migrations
+    lu.assertEquals(count_conns(), 1)
 
     local c1 = app:db()
     lu.assertEquals(count_conns(), 1)
@@ -148,6 +147,71 @@ function M.test_database_pool()
   end
   app:run()
   lu.assertEquals(count_conns(), 0)
+end
+
+function M.test_migrations_order()
+  local app = App{
+    log = {level = 'd'},
+    database = {
+      connection_string = '',
+      migrations = {
+        {package = 'a'; function() end},
+        {package = 'b', after = {'a'}; function() end},
+        {package = 'c', after = {'a', 'd'}; function() end},
+        {package = 'd', after = {'b'}; function() end},
+      },
+    }
+  }
+
+  -- drop the migration table to ensure all migrations are run
+  assert(app:db(function(conn)
+    assert(conn:exec[[
+      DROP TABLE IF EXISTS web_pkg_database_migrations
+    ]])
+    return true
+  end))
+
+  -- register a logger to record the order of packages
+  local order = {}
+  app:register_logger('test', function(t)
+    if t.migration then
+      local mig = string.match(t.migration, '^[^:]+')
+      table.insert(order, mig)
+    end
+  end)
+
+  app.main = function() end
+  app:run()
+
+  lu.assertEquals(order, {
+    'web.pkg.database', 'a', 'b', 'd', 'c',
+  })
+end
+
+function M.test_migrations_order_circular()
+  local app = App{
+    log = {level = 'd'},
+    database = {
+      connection_string = '',
+      migrations = {
+        {package = 'a'; function() end},
+        {package = 'b', after = {'a', 'd'}; function() end},
+        {package = 'c', after = {'b'}; function() end},
+        {package = 'd', after = {'c'}; function() end},
+      },
+    }
+  }
+
+  -- drop the migration table to ensure all migrations are run
+  assert(app:db(function(conn)
+    assert(conn:exec[[
+      DROP TABLE IF EXISTS web_pkg_database_migrations
+    ]])
+    return true
+  end))
+
+  app.main = function() end
+  lu.assertErrorMsgContains('circular dependency', app.run, app)
 end
 
 return M

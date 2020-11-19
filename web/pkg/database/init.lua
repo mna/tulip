@@ -127,7 +127,13 @@ function M.activate(app)
       table.insert(ms, m)
     end
     migrations[v.package] = ms
-    graph:add(v.package, table.unpack(v.after or {}))
+    if v.after then
+      for _, from in ipairs(v.after) do
+        graph:add(from, v.package)
+      end
+    else
+      graph:add(v.package)
+    end
   end
 
   local mig = Migrator.new(cfg.connection_string)
@@ -141,9 +147,11 @@ function M.activate(app)
   end
 
   app:log('i', {pkg = 'database', msg = 'migrations started'})
-  assert(mig:run(function(pkg, i)
-    app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
-  end, order))
+  assert(app:db(function(conn)
+    return assert(mig:run(conn, function(pkg, i)
+      app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
+    end, order))
+  end))
   app:log('i', {pkg = 'database', msg = 'migrations done'})
 end
 
