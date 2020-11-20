@@ -1,16 +1,28 @@
 local tcheck = require 'tcheck'
 local Account = require 'web.pkg.account.Account'
 
-local function make_create_account(cfg)
-  return function(app, email, raw_pwd, conn)
+local function create_account(app, email, raw_pwd, groups, conn)
+  tcheck({'*', 'string', 'string|nil', 'table|nil', 'table|nil'}, app, email, raw_pwd, groups, conn)
 
-  end
+  local close = not conn
+  conn = conn or app:db()
+  return conn:with(close, function()
+    return Account.new(email, raw_pwd, groups, conn)
+  end)
 end
 
-local function make_account(cfg)
-  return function(app, v, raw_pwd, conn)
+local function get_account(app, v, raw_pwd, conn)
+  local types = tcheck({'*', 'string|number', 'string|nil', 'table|nil'}, app, v, raw_pwd, conn)
 
-  end
+  local close = not conn
+  conn = conn or app:db()
+  return conn:with(close, function()
+    if types[2] == 'string' then
+      return Account.by_email(v, raw_pwd, conn)
+    else
+      return Account.by_id(v, raw_pwd, conn)
+    end
+  end)
 end
 
 local M = {}
@@ -30,7 +42,7 @@ local M = {}
 --
 -- Methods:
 --
--- acct, err = App:create_account(email, raw_pwd[, conn])
+-- acct, err = App:create_account(email, raw_pwd[, groups[, conn]])
 --
 --   Creates a new Account.
 --
@@ -96,7 +108,7 @@ local M = {}
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
--- ok, err = Account:groups(add, rm, conn)
+-- ok, err = Account:change_groups(add, rm, conn)
 --
 --   Adds and/or removes the account from the groups.
 --
@@ -209,8 +221,8 @@ local M = {}
 --
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-  app.create_account = make_create_account(cfg)
-  app.account = make_account(cfg)
+  app.create_account = create_account
+  app.account = get_account
 
   if not app.config.database then
     error('no database registered')
