@@ -154,7 +154,15 @@ function Account:change_email()
   -- token, so that a login is required anew.
 end
 
-function Account.new(app)
+function Account.by_email(email, raw_pwd, conn)
+
+end
+
+function Account.by_id(id, raw_pwd, conn)
+
+end
+
+function Account.new(email, raw_pwd, conn)
   return setmetatable({app = app}, Account)
 end
 

@@ -1,6 +1,18 @@
 local tcheck = require 'tcheck'
 local Account = require 'web.pkg.account.Account'
 
+local function make_create_account(cfg)
+  return function(app, email, raw_pwd, conn)
+
+  end
+end
+
+local function make_account(cfg)
+  return function(app, v, raw_pwd, conn)
+
+  end
+end
+
 local M = {}
 
 -- The account package handles account creation and management, so
@@ -18,79 +30,79 @@ local M = {}
 --
 -- Methods:
 --
--- acct, err = App:create_account(email, raw_pwd[, db])
+-- acct, err = App:create_account(email, raw_pwd[, conn])
 --
 --   Creates a new Account.
 --
 --   > email: string = the email address
 --   > raw_pwd: string = the raw (unhashed) password
---   > db: connection|nil = optional database connection to use
+--   > conn: connection|nil = optional database connection to use
 --
 --   < acct: Account = the created Account instance
 --   < err: string|nil = error message if acct is nil
 --
--- acct, err = App:account(v[, db[, raw_pwd]])
+-- acct, err = App:account(v[, raw_pwd[, conn]])
 --
 --   Lookups an existing Account.
 --
 --   > v: string|number = either the email address or account id
---   > db: connection|nil = optional database connection to use
 --   > raw_pwd: string|nil = if provided, validates that it corresponds
 --     to the password of this account.
+--   > conn: connection|nil = optional database connection to use
 --
 --   < acct: Account = the corresponding Account instance, nil if
 --     raw_pwd is provided but doesn't match the account's password.
 --   < err: string|nil = error message if acct is nil
 --
--- ok, err = Account:delete(db)
+-- ok, err = Account:delete(conn)
 --
 --   Deletes the account.
 --
---   > db: connection = database connection to use
+--   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
--- ok, err = Account:verify_email(db)
+-- ok, err = Account:verify_email(conn)
 --
 --   Marks the account's email as verified. Note that this doesn't
 --   generate nor validates a random token, nor does it send an
 --   email for verification, it only sets the verified timestamp.
 --
---   > db: connection = database connection to use
+--   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
--- ok, err = Account:change_pwd(new_pwd, db)
+-- ok, err = Account:change_pwd(new_pwd, conn)
 --
 --   Updates the account's password to new_pwd.
 --
 --   > new_pwd: string = the new raw password
---   > db: connection = database connection to use
+--   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
--- ok, err = Account:change_email(new_email, db)
+-- ok, err = Account:change_email(new_email, conn)
 --
 --   Updates the account's email address to new_email, and marks
 --   it immediately as verified - as it should only be called once
 --   that email address has been verified.
 --
 --   > new_email: string = the new email address
---   > db: connection = database connection to use
+--   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
 --
--- ok, err = Account:groups(add, rm, db)
+-- ok, err = Account:groups(add, rm, conn)
 --
 --   Adds and/or removes the account from the groups.
 --
 --   > add: string|table|nil = the group(s) to add the account to.
 --   > rm: string|table|nil = the group(s) to remove the account from.
---   > db: connection = database connection to use
+--   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
 --   < err: string|nil = error message if ok is falsy
@@ -189,20 +201,16 @@ local M = {}
 --   > t: string = the token, stored in a query string parameter.
 --
 -- * web.pkg.account:authz
---   TODO: authorization middleware, renders either 403 if user is authenticated
---   but doesn't have required group membership, 401 if user is not
---   authenticated, or 302 Found and redirect to login page.
 --
--- TODO: distinct package that requires account package? Probably not,
--- as a tfa flag is required to be known by the account package so that
--- a fully valid session is not created just after login.
--- * web.pkg.account:init_setuptfa
--- * web.pkg.account:setuptfa
--- * web.pkg.account:tfa
+--   Handles authorization based on the routeargs of the request, renders
+--   either 403 if user is authenticated but doesn't have required group
+--   membership, 401 if user is not authenticated, or 302 Found and redirect to
+--   login page.
 --
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-  app.account = Account.new(app)
+  app.create_account = make_create_account(cfg)
+  app.account = make_account(cfg)
 
   if not app.config.database then
     error('no database registered')
