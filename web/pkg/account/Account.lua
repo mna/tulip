@@ -1,7 +1,9 @@
 local argon2 = require 'argon2'
+local tcheck = require 'tcheck'
 local xio = require 'web.xio'
 local xpgsql = require 'xpgsql'
 local xstring = require 'web.xstring'
+local xtable = require 'web.xtable'
 
 local SQL_CREATEUSER = [[
 INSERT INTO
@@ -28,6 +30,17 @@ VALUES
           "web_pkg_account_groups"
         WHERE
           "name" = $2))
+]]
+
+local SQL_RMUSERMEMBER = [[
+DELETE
+  "web_pkg_account_members" m
+FROM
+  "web_pkg_account_groups" g
+WHERE
+  m."account_id" = $1 AND
+  m."group_id" = g."id" AND
+  g."name" = $2
 ]]
 
 local SQL_LOADUSEREMAIL = [[
@@ -67,8 +80,37 @@ WHERE
   m."account_id" = $1
 ]]
 
+local SQL_VERIFYEMAIL = [[
+UPDATE
+  "web_pkg_account_accounts"
+SET
+  "verified" = CURRENT_TIMESTAMP
+WHERE
+  "id" = $1 AND
+  "verified" IS NULL
+]]
+
+local SQL_CHANGEPWD = [[
+UPDATE
+  "web_pkg_account_accounts"
+SET
+  "password" = $1
+WHERE
+  "id" = $2
+]]
+
+local SQL_CHANGEEMAIL = [[
+UPDATE
+  "web_pkg_account_accounts"
+SET
+  "email" = $1,
+  "verified" = CURRENT_TIMESTAMP
+WHERE
+  "id" = $2
+]]
+
 local SQL_DELETEUSER = [[
-DELETE FROM
+DELETE
   "web_pkg_account_accounts"
 WHERE
   "id" = $1
@@ -96,12 +138,16 @@ local function model(o)
   return o
 end
 
-local function create_account(email, raw_pwd, groups, conn)
+-- Returns the encrypted password or nil and an error message.
+local function hash_pwd(raw_pwd)
   local salt = xio.random(ARGON2_PARAMS.salt_len)
-  local enc_pwd = assert(
-    argon2.hash_encoded(raw_pwd, salt, ARGON2_PARAMS))
+  return argon2.hash_encoded(raw_pwd, salt, ARGON2_PARAMS)
+end
 
+local function create_account(email, raw_pwd, groups, conn)
+  local enc_pwd = assert(hash_pwd(raw_pwd))
   email = string.lower(xstring.trim(email))
+
   return conn:ensuretx(function()
     local res = assert(conn:query(SQL_CREATEUSER, email, enc_pwd))
     local id = tonumber(res[1][1])
@@ -132,9 +178,85 @@ Account.__index = Account
 -- Deletes this account.
 -- Returns true on success, or nil and an error message.
 function Account:delete(conn)
+  tcheck({'*', 'table'}, self, conn)
+
   return conn:ensuretx(function()
     assert(conn:exec(SQL_DELETEEMAILMEMBERS, self.id))
     assert(conn:exec(SQL_DELETEUSER, self.id))
+    return true
+  end)
+end
+
+-- Marks the account's email as verified. Note that this doesn't
+-- generate nor validates a random token, nor does it send an
+-- email for verification, it only sets the verified timestamp.
+-- Returns true on success, or nil and an error message.
+function Account:verify_email(conn)
+  tcheck({'*', 'table'}, self, conn)
+
+  return conn:with(false, function()
+    assert(conn:exec(SQL_VERIFYEMAIL, self.id))
+    self.verified = true
+    return true
+  end)
+end
+
+-- Updates the account's password to new_pwd. Returns true on
+-- success, or nil and an error message.
+function Account:change_pwd(new_pwd, conn)
+  tcheck({'*', 'string', 'table'}, self, new_pwd, conn)
+
+  return conn:with(false, function()
+    local enc_pwd = assert(hash_pwd(new_pwd))
+    assert(conn:exec(SQL_CHANGEPWD, enc_pwd, self.id))
+    self.password = enc_pwd
+    return true
+  end)
+end
+
+-- Updates the account's email address to new_email, and marks
+-- it immediately as verified - as it should only be called once
+-- that email address has been verified.
+-- Returns true on success, or nil and an error message.
+function Account:change_email(new_email, conn)
+  tcheck({'*', 'string', 'table'}, self, new_email, conn)
+
+  return conn:with(false, function()
+    new_email = string.lower(xstring.trim(new_email))
+    assert(conn:exec(SQL_CHANGEEMAIL, new_email, self.id))
+    self.email = new_email
+    return true
+  end)
+end
+
+-- Adds and/or removes the account from the groups. Group additions
+-- are processed before group removal, so if the same group is in both
+-- values, it will get removed.
+-- Returns true on success, or nil and an error message.
+function Account:change_groups(add, rm, conn)
+  local types = tcheck({'*', 'string|table|nil', 'string|table|nil', 'table'}, self, add, rm, conn)
+
+  return conn:ensuretx(function()
+    if add then
+      if types[2] == 'string' then
+        add = {add}
+      end
+      for _, g in ipairs(add) do
+        assert(conn:exec(SQL_ADDUSERMEMBER, self.id, g))
+      end
+    end
+
+    if rm then
+      if types[3] == 'string' then
+        rm = {rm}
+      end
+      for _, g in ipairs(rm) do
+        assert(conn:exec(SQL_RMUSERMEMBER, self.id, g))
+      end
+    end
+
+    self.groups = xtable.toarray(xtable.setdiff(
+      xtable.toset(self.groups, add), rm))
     return true
   end)
 end
@@ -148,6 +270,8 @@ end
 -- is provided, validates that passwords match and raise an error
 -- otherwise.
 function Account.by_email(email, raw_pwd, conn)
+  tcheck({'string', 'string', 'table'}, email, raw_pwd, conn)
+
   email = string.lower(xstring.trim(email))
   local acct = xpgsql.model(assert(
     conn:query(SQL_LOADUSEREMAIL, email)), model)
@@ -163,6 +287,8 @@ end
 -- is provided, validates that passwords match and raise an error
 -- otherwise.
 function Account.by_id(id, raw_pwd, conn)
+  tcheck({'number', 'string', 'table'}, id, raw_pwd, conn)
+
   local acct = xpgsql.model(assert(
     conn:query(SQL_LOADUSERID, id)), model)
 
@@ -177,6 +303,8 @@ end
 -- for spaces and lowercased, and the password is hashed with argon2.
 -- Returns the new account on success, or nil and an error message.
 function Account.new(email, raw_pwd, groups, conn)
+  tcheck({'string', 'string', 'table|nil', 'table'}, email, raw_pwd, groups, conn)
+
   local id = create_account(email, raw_pwd, groups, conn)
   return Account.by_id(id, nil, conn)
 end
