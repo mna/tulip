@@ -33,9 +33,9 @@ VALUES
 ]]
 
 local SQL_RMUSERMEMBER = [[
-DELETE
+DELETE FROM
   "web_pkg_account_members" m
-FROM
+USING
   "web_pkg_account_groups" g
 WHERE
   m."account_id" = $1 AND
@@ -110,14 +110,14 @@ WHERE
 ]]
 
 local SQL_DELETEUSER = [[
-DELETE
+DELETE FROM
   "web_pkg_account_accounts"
 WHERE
   "id" = $1
 ]]
 
 local SQL_DELETEEMAILMEMBERS = [[
-DELETE
+DELETE FROM
   "web_pkg_account_members"
 WHERE
   "account_id" = $1
@@ -134,7 +134,7 @@ local ARGON2_PARAMS = {
 
 local function model(o)
   o.id = tonumber(o.id)
-  o.verified = o.verified ~= nil
+  o.verified = (o.verified ~= nil) and (o.verified ~= '')
   return o
 end
 
@@ -148,7 +148,7 @@ local function create_account(email, raw_pwd, groups, conn)
   local enc_pwd = assert(hash_pwd(raw_pwd))
   email = string.lower(xstring.trim(email))
 
-  return conn:ensuretx(function()
+  return assert(conn:ensuretx(function()
     local res = assert(conn:query(SQL_CREATEUSER, email, enc_pwd))
     local id = tonumber(res[1][1])
 
@@ -158,11 +158,11 @@ local function create_account(email, raw_pwd, groups, conn)
       end
     end
     return id
-  end)
+  end))
 end
 
 local function load_groups(acct, conn)
-  local groups = xpgsql.model(assert(
+  local groups = xpgsql.models(assert(
     conn:query(SQL_LOADUSERMEMBERS, acct.id)))
 
   local ar = {}
@@ -225,6 +225,7 @@ function Account:change_email(new_email, conn)
     new_email = string.lower(xstring.trim(new_email))
     assert(conn:exec(SQL_CHANGEEMAIL, new_email, self.id))
     self.email = new_email
+    self.verified = true
     return true
   end)
 end
@@ -255,8 +256,8 @@ function Account:change_groups(add, rm, conn)
       end
     end
 
-    self.groups = xtable.toarray(xtable.setdiff(
-      xtable.toset(self.groups, add), rm))
+    local set = xtable.toset(self.groups, add)
+    self.groups = xtable.toarray(xtable.setdiff(set, xtable.toset(rm)))
     return true
   end)
 end
@@ -270,33 +271,39 @@ end
 -- is provided, validates that passwords match and raise an error
 -- otherwise.
 function Account.by_email(email, raw_pwd, conn)
-  tcheck({'string', 'string', 'table'}, email, raw_pwd, conn)
+  tcheck({'string', 'string|nil', 'table'}, email, raw_pwd, conn)
 
   email = string.lower(xstring.trim(email))
   local acct = xpgsql.model(assert(
     conn:query(SQL_LOADUSEREMAIL, email)), model)
+  if not acct then
+    error('account does not exist')
+  end
 
   if raw_pwd then
-    assert(argon2.verify(acct.password, raw_pwd))
+    assert(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
   end
   load_groups(acct, conn)
-  return acct
+  return setmetatable(acct, Account)
 end
 
 -- Returns the account instance corresponding to id. If raw_pwd
 -- is provided, validates that passwords match and raise an error
 -- otherwise.
 function Account.by_id(id, raw_pwd, conn)
-  tcheck({'number', 'string', 'table'}, id, raw_pwd, conn)
+  tcheck({'number', 'string|nil', 'table'}, id, raw_pwd, conn)
 
   local acct = xpgsql.model(assert(
     conn:query(SQL_LOADUSERID, id)), model)
+  if not acct then
+    error('account does not exist')
+  end
 
   if raw_pwd then
-    assert(argon2.verify(acct.password, raw_pwd))
+    assert(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
   end
   load_groups(acct, conn)
-  return acct
+  return setmetatable(acct, Account)
 end
 
 -- Create an account with email and raw_pwd. The email is trimmed

@@ -188,6 +188,43 @@ function M.test_migrations_order()
   })
 end
 
+function M.test_migrations_minimal()
+  local app = App{
+    log = {level = 'd'},
+    database = {
+      connection_string = '',
+      migrations = {
+        {package = 'a'; function() end},
+        {package = 'b', after = {'a'}; function() end},
+      },
+    }
+  }
+
+  -- drop the migration table to ensure all migrations are run
+  assert(app:db(function(conn)
+    assert(conn:exec[[
+      DROP TABLE IF EXISTS web_pkg_database_migrations
+    ]])
+    return true
+  end))
+
+  -- register a logger to record the order of packages
+  local order = {}
+  app:register_logger('test', function(t)
+    if t.migration then
+      local mig = string.match(t.migration, '^[^:]+')
+      table.insert(order, mig)
+    end
+  end)
+
+  app.main = function() end
+  app:run()
+
+  lu.assertEquals(order, {
+    'web.pkg.database', 'a', 'b',
+  })
+end
+
 function M.test_migrations_order_circular()
   local app = App{
     log = {level = 'd'},

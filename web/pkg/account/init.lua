@@ -1,3 +1,4 @@
+local migrations = require 'web.pkg.account.migrations'
 local tcheck = require 'tcheck'
 local Account = require 'web.pkg.account.Account'
 
@@ -36,7 +37,7 @@ local M = {}
 -- also available on the Account instance returned by App:create_account or
 -- App:account. It also registers a number of middleware, described below.
 --
--- Requires: database and token packages.
+-- Requires: database package.
 -- Config:
 --  * ...
 --
@@ -224,12 +225,15 @@ function M.register(cfg, app)
   app.create_account = create_account
   app.account = get_account
 
-  if not app.config.database then
+  local db = app.config.database
+  if not db then
     error('no database registered')
   end
-  if not app.config.token then
-    error('no token registered')
-  end
+  db.migrations = db.migrations or {}
+  table.insert(db.migrations, {
+    package = 'web.pkg.account';
+    table.unpack(migrations)
+  })
 end
 
 return M
