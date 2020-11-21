@@ -55,4 +55,30 @@ function M.test_merge_many_filtered()
   lu.assertEquals(v, t1)
 end
 
+function M.test_toset()
+  lu.assertNil(xtable.toset())
+  lu.assertEquals(xtable.toset{'a', 'b', 'a', 'c'}, {a=2, b=1, c=1})
+  lu.assertEquals(xtable.toset({'a'}, {'b'}, nil, {'a'}), {a=2, b=1})
+end
+
+function M.test_toarray()
+  lu.assertNil(xtable.toarray())
+  lu.assertItemsEquals(xtable.toarray{a=2, b=1, c=1}, {'a', 'b', 'c'})
+  lu.assertItemsEquals(xtable.toarray({a=2}, {b=1}, nil, {a=3}), {'a', 'b', 'a'})
+end
+
+function M.test_setunion()
+  lu.assertNil(xtable.setunion())
+  lu.assertEquals(xtable.setunion({a=1}), {a=1})
+  lu.assertEquals(xtable.setunion({a=1}, {b=2, c=3}, nil, {a=4}), {a=2, b=1, c=1})
+end
+
+function M.test_setdiff()
+  lu.assertNil(xtable.setdiff())
+  lu.assertEquals(xtable.setdiff(nil, {a=1}), {})
+  lu.assertEquals(xtable.setdiff({}, {a=1}), {})
+  lu.assertEquals(xtable.setdiff({a=1, b=2}, {a=1}), {b=true})
+  lu.assertEquals(xtable.setdiff({a=1, b=2, c=3}, {a=1}, nil, {c=1}), {b=true})
+end
+
 return M
