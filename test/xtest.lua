@@ -1,3 +1,4 @@
+local cqueues = require 'cqueues'
 local fn = require 'fn'
 local process = require 'process'
 local stdlib = require 'posix.stdlib'
@@ -41,7 +42,7 @@ function M.newdb(connstr, ...)
   end
 
   local conn = assert(xpgsql.connect(connstr))
-  local dbname = 'testweb' .. tostring(os.time())
+  local dbname = 'testweb' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
 
   local olddb = os.getenv('PGDATABASE')
   local olduser = os.getenv('PGUSER')
@@ -126,20 +127,22 @@ function M.withserver(f, modname, fname, ...)
   -- read until we get the port number
   local port
   local MAX_WAIT = 10
-  local start = os.time()
-  while not port and (os.difftime(os.time(), start) < MAX_WAIT) do
-    local s, err, again = child:stdout()
-    if not again and (s or err) ~= nil then
-      assert(s, err)
-      for ln in string.gmatch(s, '([^\n]+)') do
-        port = tonumber(ln)
-        if port then break end
+  do
+    local start = os.time()
+    while not port and (os.difftime(os.time(), start) < MAX_WAIT) do
+      local s, err, again = child:stdout()
+      if not again and (s or err) ~= nil then
+        assert(s, err)
+        for ln in string.gmatch(s, '([^\n]+)') do
+          port = tonumber(ln)
+          if port then break end
+        end
+      else
+        -- check if there's something in stderr
+        s = child:stderr()
+        if s then error('error in server process: ' .. s) end
+        process.sleep(1)
       end
-    else
-      -- check if there's something in stderr
-      s = child:stderr()
-      if s then error('error in server process: ' .. s) end
-      process.sleep(1)
     end
   end
   assert(port, 'could not read port number from the server process')
