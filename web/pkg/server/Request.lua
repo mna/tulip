@@ -62,6 +62,7 @@ end
 -- can be used in middleware/handlers. Note that this fully reads the
 -- body, so if Request:read_body wasn't called yet, it will be called.
 function Request:decode_body(force_ct)
+  -- TODO: return nil, err on error... So the idiom cannot be used?
   local body = self.raw_body or self:read_body('a')
   local decoded = self.app:decode(body, force_ct or self.headers:get('content-type'))
   self.decoded_body = decoded
