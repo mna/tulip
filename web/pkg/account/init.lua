@@ -124,8 +124,8 @@ local M = {}
 --
 -- * web.pkg.account:signup
 --
---   Handles the signup workflow (POST of a form). On success, redirects
---   to the login URL (or should that be a subsequent "redirect" middleware?).
+--   Handles the signup workflow (POST of a form). On success,
+--   the created account is stored in req.locals.account.
 --
 --   > email: string = form field with the email address
 --   > password: string = form field with the raw password
@@ -133,17 +133,26 @@ local M = {}
 --
 -- * web.pkg.account:login
 --
---   Handles the login workflow (POST of a form). On success, redirects
---   to the target URL (or should that be a subsequent "redirect" middleware?).
+--   Handles the login workflow (POST of a form). On success,
+--   the logged-in account is stored under req.locals.account and
+--   a session is initiated, with its id stored under req.locals.session_id
+--   and a session cookie stored in the response's headers.
 --
 --   > email: string = form field with the email address
 --   > password: string = form field with the raw password
 --   > rememberme: boolean = indicates if the session should be persisted
 --
+-- * web.pkg.account:check_session
+--
+--   Decodes the request's session cookie if present and valid, and sets
+--   the req.locals.session_id and req.locals.account fields. Note that
+--   it does not deny access if invalid or absent, use the authz middleware
+--   to that effect.
+--
 -- * web.pkg.account:logout
 --
---   Handles the logout workflow. On success, redirects to the target
---   URL (or should that be a subsequent "redirect" middleware?).
+--   Handles the logout workflow, which deletes the session cookie and token
+--   and unsets the req.locals.session_id and req.locals.account fields.
 --
 -- * web.pkg.account:delete
 --

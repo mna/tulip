@@ -60,6 +60,7 @@ local M = {}
 --     * t.once: boolean|nil = if true, generate a single-use token
 --       that is deleted when validated. Otherwise the token stays
 --       alive until expired (e.g. a session id token).
+--       TODO: should support deleting before expiration, e.g. logout.
 --   > db: connection = optional database connection to use
 --   > tok: string = if provided, validates that token, otherwise
 --     generate a new token.
