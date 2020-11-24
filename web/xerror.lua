@@ -20,7 +20,7 @@ function Error:__tostring()
       table.insert(parts, '')
     end
   end
-  return table.concat(parts, ': ') .. self.message
+  return table.concat(parts, ': ') .. (self.message or '<error>')
 end
 
 function Error.new(msg, code)

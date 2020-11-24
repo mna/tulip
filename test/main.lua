@@ -16,6 +16,7 @@ TestSendgrid = require 'test.sendgrid'
 TestServer = require 'test.server'
 TestToken = require 'test.token'
 TestWroutes = require 'test.wroutes'
+TestXerror = require 'test.xerror'
 TestXstring = require 'test.xstring'
 TestXtable = require 'test.xtable'
 
