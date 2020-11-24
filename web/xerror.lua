@@ -10,7 +10,17 @@ local Error = {__name = 'web.xerror.Error'}
 Error.__index = Error
 
 function Error:__tostring()
-  return self.message
+  local parts = {}
+  if self.labels then
+    for i = #self.labels, 1, -1 do
+      table.insert(parts, self.labels[i])
+    end
+    if #parts > 0 then
+      -- so that a final ': ' is added after the last label
+      table.insert(parts, '')
+    end
+  end
+  return table.concat(parts, ': ') .. self.message
 end
 
 function Error.new(msg, code)
@@ -77,7 +87,7 @@ end
 M.io = M.converter('EIO', 'errno')
 
 -- Returns true if err is of any of the specified codes, false
--- otherwise.
+-- otherwise. Codes can be patterns.
 function M.is(err, ...)
   if metatable_name(err) ~= Error.__name then
     return false
@@ -86,14 +96,57 @@ function M.is(err, ...)
   local n = select('#', ...)
   for i = 1, n do
     local ecode = select(i, ...)
-    if ecode == err.code then
+    if string.find(err.code, ecode) then
       return true
     end
   end
   return false
 end
 
--- TODO: M.issqlstate, converter that adds a context to errors,
--- converter that adds an actual error message (e.g. for xpgsql.model)
+-- Returns true if err is an ESQL error with the sql_state field
+-- set to any of the specified codes, false otherwise. Codes can
+-- be patterns.
+function M.is_sql_state(err, ...)
+  if metatable_name(err) ~= Error.__name or err.code ~= 'ESQL' then
+    return false
+  end
+
+  local n = select('#', ...)
+  for i = 1, n do
+    local state = select(i, ...)
+    if string.find(err.sql_state, state) then
+      return true
+    end
+  end
+  return false
+end
+
+-- Adds context to the error. The label is a stack, so the last added
+-- label is the first printed in the error message, followed by the
+-- next, until the first that was added (labels are prepended to the
+-- error message like this: last-label: next-label: first-label: message).
+--
+-- The attrs argument is a table where each key-value pair is added to
+-- the error object if and only if it did not exist yet. This is because if
+-- an attribute is already set, it is assumed that the call that set it
+-- (which was closer to where the error originated) knew more about that
+-- field, so it is not overwritten. It can be used to set new attributes
+-- and default values (e.g. it can set the error message if there wasn't any).
+function M.ctx(err, label, attrs)
+  if metatable_name(err) ~= Error.__name then
+    return err
+  end
+
+  local labels = err.labels or {}
+  table.insert(labels, label)
+  err.labels = labels
+
+  for k, v in pairs(attrs) do
+    if err[k] == nil then
+      err[k] = v
+    end
+  end
+  return err
+end
 
 return M

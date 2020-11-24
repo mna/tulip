@@ -31,6 +31,7 @@ function Mw:read_masked_token_from_request(req)
   if (not encoded or encoded == '') and
     (req.headers:get('content-type') == 'application/x-www-form-urlencoded') then
     -- next the form input value
+    -- TODO: this can fail
     local form = req.decoded_body or req:decode_body()
     encoded = form[self.input_name]
   end
