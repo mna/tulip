@@ -102,7 +102,7 @@ dependencies = {
   "basexx	0.4.1-1",
   "binaryheap	0.4-1",
   "compat53	0.8-1",
-  "cqueues	20200726.53-0",
+  "cqueues 20200726.54-0",
   "cqueues-pgsql	0.1-0",
   "fifo	0.2-0",
   "http	0.3-0",

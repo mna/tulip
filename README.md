@@ -35,10 +35,11 @@ framework packs the following features:
 Clone the project and install the required dependencies:
 
 * libpq-devel (Fedora package)
-* openssl-devel (Fedora package)
+* openssl and openssl-devel (Fedora package)
 * libargon2-devel (Fedora package)
 * postgresql-12.x (Fedora package, for the psql command)
 * direnv (Fedora package, to manage environment variables)
+* zlib-devel (Fedora package)
 * mkcert (create certificates for localhost, https://github.com/FiloSottile/mkcert)
 * llrocks (locally-installed Lua modules, https://git.sr.ht/~mna/llrocks)
 * Docker and Docker Compose
