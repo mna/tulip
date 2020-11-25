@@ -1,5 +1,6 @@
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local function register_packages(app, cfg)
   local pkgs = {}
@@ -14,7 +15,7 @@ local function register_packages(app, cfg)
     end
 
     if not ok then
-      error(string.format('package not found: %s: %s', k, pkg))
+      xerror.throw('package not found: %s: %s', k, pkg)
     end
 
     table.insert(pkgs, pkg)
@@ -30,8 +31,7 @@ local function register_common(app, field, name, v)
     if string.match(field, '^_') then
       field = string.sub(field, 2)
     end
-    error(string.format(
-      '%s: %q is already registered', field, name))
+    xerror.throw('%s: %q is already registered', field, name)
   end
   coll[name] = v
   app[field] = coll
@@ -65,7 +65,7 @@ local function resolve_common(app, field, mws)
         if string.match(field, '^_') then
           field = string.sub(field, 2)
         end
-        error(string.format('no %s registered for %q', field, mw))
+        xerror.throw('no %s registered for %q', field, mw)
       end
       mws[i] = mwi
     elseif metatable_name(mw) == 'web.App' then
@@ -94,7 +94,7 @@ local FAIL_PLACEHOLDERS = {
 
 for k, v in pairs(FAIL_PLACEHOLDERS) do
   App[k] = function()
-    error(string.format('no %s package registered', v))
+    xerror.throw('no %s package registered', v)
   end
 end
 
@@ -108,7 +108,7 @@ function App:encode(t, mime)
       if s or err then return s, err end
     end
   end
-  error(string.format('no encoder registered for MIME type %q', mime))
+  xerror.throw('no encoder registered for MIME type %q', mime)
 end
 
 -- Decodes the string s encoded as the specified mime type, using
@@ -121,7 +121,7 @@ function App:decode(s, mime)
       if t ~= nil or err then return t, err end
     end
   end
-  error(string.format('no decoder registered for MIME type %q', mime))
+  xerror.throw('no decoder registered for MIME type %q', mime)
 end
 
 local LOGLEVELS = {
@@ -258,7 +258,7 @@ function App:run()
   self:activate(cq)
 
   if not self.main then
-    error('no main field registered by app')
+    xerror.throw('no main field registered by app')
   end
   local res = table.pack(self:main(cq))
   if self.finalizers then

@@ -149,4 +149,10 @@ function M.ctx(err, label, attrs)
   return err
 end
 
+-- Raises an error with msg, which can contain formatting verbs. Extra
+-- arguments are provided to string.format.
+function M.throw(msg, ...)
+  return error(string.format(msg, ...))
+end
+
 return M
