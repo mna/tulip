@@ -152,7 +152,22 @@ end
 -- Raises an error with msg, which can contain formatting verbs. Extra
 -- arguments are provided to string.format.
 function M.throw(msg, ...)
-  return error(string.format(msg, ...))
+  if type(msg) ~= 'string' then
+    local mt = getmetatable(msg)
+    if mt and not mt.__tostring then
+      error(msg)
+    end
+  end
+  error(string.format(tostring(msg), ...))
+end
+
+-- Raises an error if v is falsy, calling xerror.throw with the second
+-- value and any subsequent values to use in string.format of the message.
+function M.must(v, err, ...)
+  if v then
+    return v, err, ...
+  end
+  M.throw(err, ...)
 end
 
 return M

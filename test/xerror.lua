@@ -20,7 +20,7 @@ function M.test_io()
 end
 
 function M.test_db()
-  local conn = xpgsql.connect()
+  local conn = assert(xpgsql.connect())
 
   local ok, err = xerror.db(conn:query[[ SELECT 1 FROM does_not_exist ]])
   lu.assertNil(ok)
@@ -39,6 +39,27 @@ function M.test_no_msg()
 
   err = xerror.ctx(err, 'test', {message = 'oops'})
   lu.assertEquals(tostring(err), 'test: oops')
+end
+
+function M.test_throw()
+  lu.assertErrorMsgContains('nope', function() xerror.throw('nope') end)
+  lu.assertErrorMsgContains('xyz', function() xerror.throw('nope %s', 'xyz') end)
+end
+
+function M.test_must()
+  local f_ok = function() return 1, 2, 3 end
+  local f_err = function() return nil, 'nope' end
+  local f_err2 = function() return nil, 'nope %s', 'xyz' end
+  local f_err3 = function() return xerror.io(io.open('does-not-exist')) end
+
+  local v1, v2, v3 = xerror.must(f_ok())
+  lu.assertEquals(v1, 1)
+  lu.assertEquals(v2, 2)
+  lu.assertEquals(v3, 3)
+
+  lu.assertErrorMsgContains('nope', function() xerror.must(f_err()) end)
+  lu.assertErrorMsgContains('xyz', function() xerror.must(f_err2()) end)
+  lu.assertErrorMsgContains('does-not-exist', function() xerror.must(f_err3()) end)
 end
 
 return M
