@@ -1,4 +1,5 @@
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xpgsql = require 'xpgsql'
 
 local PACKAGE = 'web.pkg.database'
@@ -18,14 +19,14 @@ local Migrator = {__name = PACKAGE .. '.Migrator'}
 Migrator.__index = Migrator
 
 local function get_version(conn, pkg)
-  local res, err = conn:query([[
+  local res, err = xerror.db(conn:query([[
     SELECT
       "version"
     FROM
       "web_pkg_database_migrations"
     WHERE
       "package" = $1
-  ]], pkg)
+  ]], pkg))
 
   if res then
     if res:ntuples() > 0 then
@@ -38,7 +39,7 @@ local function get_version(conn, pkg)
 end
 
 local function set_version(conn, pkg, version)
-  assert(conn:exec([[
+  xerror.must(xerror.db(conn:exec([[
     INSERT INTO "web_pkg_database_migrations"
       ("package", "version")
     VALUES
@@ -47,7 +48,7 @@ local function set_version(conn, pkg, version)
       ("package")
     DO UPDATE SET
       "version" = $2
-  ]], pkg, version))
+  ]], pkg, version)))
   return true
 end
 
@@ -68,8 +69,7 @@ function Migrator:register(pkg, t)
   local order = self.order or {}
 
   if pkgs[pkg] then
-    error(string.format(
-      'package %q is already registered', pkg))
+    xerror.throw('package %q is already registered', pkg)
   end
   pkgs[pkg] = t
   table.insert(order, pkg)
@@ -93,7 +93,7 @@ function Migrator:run(conn, cb, order)
   local close = not conn
   if not conn then
     local err
-    conn, err = xpgsql.connect(self.connection_string)
+    conn, err = xerror.db(xpgsql.connect(self.connection_string))
     if not conn then
       return nil, err
     end
@@ -115,19 +115,19 @@ function Migrator:run(conn, cb, order)
         if pkg == PACKAGE then
           latest = 0
         else
-          error(err)
+          xerror.throw(err)
         end
       end
 
       local migrations = self.packages[pkg]
       if #migrations > latest then
-        assert(conn:tx(function()
+        xerror.must(conn:tx(function()
           for i = latest + 1, #migrations do
             if cb then cb(pkg, i) end
 
             local mig = migrations[i]
             if type(mig) == 'string' then
-              assert(conn:exec(mig))
+              xerror.must(xerror.db(conn:exec(mig)))
             else
               mig(conn, i)
             end

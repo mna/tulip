@@ -1,6 +1,7 @@
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 local tsort = require 'resty.tsort'
+local xerror = require 'web.xerror'
 local xpgsql = require 'xpgsql'
 local Migrator = require 'web.pkg.database.Migrator'
 
@@ -29,14 +30,13 @@ local function make_pooled_close(conn, pool, max_idle)
   conn._close = function(self)
     if not self._conn then return end
     pool.open = pool.open - 1
-    assert(pool.open >= 0, 'negative count for pool.open')
+    xerror.must(pool.open >= 0, 'negative count for pool.open')
     closefn(self)
   end
 
   return function(self)
     if #pool >= max_idle then
-      self:_close()
-      return
+      return self:_close()
     end
     self._idle = os.time()
     table.insert(pool, self)
@@ -66,11 +66,11 @@ local function make_db(cfg, app)
       -- try again in a second, before giving up
       cqueues.sleep(1)
       conn = try_from_pool(pool)
-      assert(conn, 'too many open connections')
+      xerror.must(conn, 'too many open connections')
     end
 
     if not conn then
-      conn = assert(xpgsql.connect(connstr))
+      conn = xerror.must(xpgsql.connect(connstr))
       if pool then
         conn.close = make_pooled_close(conn, pool, max_idle)
         conn._birth = os.time()
@@ -143,12 +143,12 @@ function M.activate(app)
 
   local order = graph:sort()
   if not order then
-    error('circular dependency in database migrations')
+    xerror.throw('circular dependency in database migrations')
   end
 
   app:log('i', {pkg = 'database', msg = 'migrations started'})
-  assert(app:db(function(conn)
-    return assert(mig:run(conn, function(pkg, i)
+  xerror.must(app:db(function(conn)
+    return xerror.must(mig:run(conn, function(pkg, i)
       app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
     end, order))
   end))
