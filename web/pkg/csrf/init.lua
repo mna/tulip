@@ -17,7 +17,6 @@ local M = {}
 -- that a cookie from one session cannot be used to forge one for a different session.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-
   app:register_middleware('web.pkg.csrf', Mw.new(cfg))
 end
 

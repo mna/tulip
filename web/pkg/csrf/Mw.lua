@@ -1,6 +1,7 @@
 local cookie = require 'http.cookie'
 local crypto = require 'web.pkg.csrf.crypto'
 local neturl = require 'net.url'
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 
 local TOKEN_LEN = 32
@@ -31,9 +32,10 @@ function Mw:read_masked_token_from_request(req)
   if (not encoded or encoded == '') and
     (req.headers:get('content-type') == 'application/x-www-form-urlencoded') then
     -- next the form input value
-    -- TODO: this can fail
-    local form = req.decoded_body or req:decode_body()
-    encoded = form[self.input_name]
+    local form = req:decode_body()
+    if form then
+      encoded = form[self.input_name]
+    end
   end
 
   -- TODO: eventually, should also check into multipart fields
@@ -163,7 +165,7 @@ function Mw:__call(req, res, nxt)
 end
 
 function Mw.new(cfg)
-  assert(cfg.auth_key, 'csrf: authentication key is required')
+  xerror.must(cfg.auth_key, 'csrf: authentication key is required')
 
   -- by default, set http-only and secure to true
   if cfg.http_only == nil then cfg.http_only = true end
@@ -183,8 +185,7 @@ function Mw.new(cfg)
     fail_handler = cfg.fail_handler or default_fail,
     trusted_origins = cfg.trusted_origins,
   }
-  setmetatable(o, Mw)
-  return o
+  return setmetatable(o, Mw)
 end
 
 return Mw

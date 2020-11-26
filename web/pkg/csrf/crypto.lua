@@ -1,8 +1,9 @@
 local hmac = require 'openssl.hmac'
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 
 local function xor_token(a, b)
-  assert(#a == #b, 'tokens to XOR must be of the same length')
+  xerror.must(#a == #b, 'tokens to XOR must be of the same length')
 
   local c = {}
   for i = 1, #a do
