@@ -99,8 +99,8 @@ for k, v in pairs(FAIL_PLACEHOLDERS) do
 end
 
 -- Encodes the table t to the specified mime type, using the
--- registered encoders. If no encoder supports this mime type,
--- returns nil, otherwise returns the encoded string.
+-- registered encoders. It panics if no encoder supports this mime type,
+-- otherwise returns the encoded string.
 function App:encode(t, mime)
   if self.encoders then
     for _, enc in pairs(self.encoders) do
@@ -112,8 +112,8 @@ function App:encode(t, mime)
 end
 
 -- Decodes the string s encoded as the specified mime type, using
--- the registered decoders. If no decoder supports this mime type,
--- returns nil, otherwise returns the decoded value.
+-- the registered decoders. It panics if no decoder supports this mime type,
+-- otherwise returns the decoded value.
 function App:decode(s, mime)
   if self.decoders then
     for _, dec in pairs(self.decoders) do
@@ -150,7 +150,8 @@ function App:log(lvl, t)
   end
 end
 
--- Register a middleware in the list of available middleware.
+-- Register a middleware in the list of available middleware. It panics if a
+-- middleware is already registered for that name.
 function App:register_middleware(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
   register_common(self, '_middleware', name, mw)
@@ -163,13 +164,14 @@ function App:lookup_middleware(name)
 end
 
 -- Resolve any middleware referenced by name with the actual instance registered
--- for that name. Raises an error if a middleware name is unknown.
+-- for that name. Raises on error.
 function App:resolve_middleware(mws)
   tcheck({'*', 'table'}, self, mws)
-  return resolve_common(self, '_middleware', mws)
+  resolve_common(self, '_middleware', mws)
 end
 
--- Register a wmiddleware in the list of available wmiddleware.
+-- Register a wmiddleware in the list of available wmiddleware. It panics if
+-- a wmiddleware is already registered for that name.
 function App:register_wmiddleware(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
   register_common(self, '_wmiddleware', name, mw)
@@ -182,13 +184,14 @@ function App:lookup_wmiddleware(name)
 end
 
 -- Resolve any wmiddleware referenced by name with the actual instance registered
--- for that name. Raises an error if a wmiddleware name is unknown.
+-- for that name. Raises on error.
 function App:resolve_wmiddleware(mws)
   tcheck({'*', 'table'}, self, mws)
-  return resolve_common(self, '_wmiddleware', mws)
+  resolve_common(self, '_wmiddleware', mws)
 end
 
--- Register an encoder in the list of encoders.
+-- Register an encoder in the list of encoders. It panics if an encoder
+-- is already registered for that name.
 function App:register_encoder(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
   register_common(self, 'encoders', name, mw)
@@ -200,7 +203,8 @@ function App:lookup_encoder(name)
   return lookup_common(self, 'encoders', name)
 end
 
--- Register a decoder in the list of decoders.
+-- Register a decoder in the list of decoders. It panics if a decoder is
+-- already registered for that name.
 function App:register_decoder(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
   register_common(self, 'decoders', name, mw)
@@ -212,7 +216,8 @@ function App:lookup_decoder(name)
   return lookup_common(self, 'decoders', name)
 end
 
--- Register a finalizer in the list of finalizers.
+-- Register a finalizer in the list of finalizers. It panics if a finalizer
+-- is already registered for that name.
 function App:register_finalizer(name, fz)
   tcheck({'*', 'string', 'table|function'}, self, name, fz)
   register_common(self, 'finalizers', name, fz)
@@ -224,7 +229,8 @@ function App:lookup_finalizer(name)
   return lookup_common(self, 'finalizers', name)
 end
 
--- Register a logger in the list of loggers.
+-- Register a logger in the list of loggers. It panics if a logger is
+-- already registered for that name.
 function App:register_logger(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
   register_common(self, 'loggers', name, mw)
@@ -236,6 +242,9 @@ function App:lookup_logger(name)
   return lookup_common(self, 'loggers', name)
 end
 
+-- Activates all packages registered by the app. Panics if activation
+-- fails (that is, the activate function of packages should throw on
+-- error).
 function App:activate(cq)
   tcheck({'web.App', 'userdata'}, self, cq)
 
@@ -248,11 +257,14 @@ function App:activate(cq)
       pkg.activate(self, cq)
     end
   end
+  return true
 end
 
 -- Runs the application, activating any registered package and
 -- calling App:main. It returns the value(s) returned by App:main
 -- and calls any registered finalizer before returning.
+-- It panics if activation fails (that is, the activate method
+-- of packages should throw an error if they fail to activate).
 function App:run()
   local cq = cqueues.new()
   self:activate(cq)

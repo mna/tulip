@@ -121,6 +121,23 @@ function M.is_sql_state(err, ...)
   return false
 end
 
+-- Returns true if err is an EIO error with the errno field
+-- set to any of the specified numbers, false otherwise.
+function M.is_errno(err, ...)
+  if metatable_name(err) ~= Error.__name or err.code ~= 'EIO' then
+    return false
+  end
+
+  local n = select('#', ...)
+  for i = 1, n do
+    local num = select(i, ...)
+    if err.errno == num then
+      return true
+    end
+  end
+  return false
+end
+
 -- Adds context to the error. The label is a stack, so the last added
 -- label is the first printed in the error message, followed by the
 -- next, until the first that was added (labels are prepended to the

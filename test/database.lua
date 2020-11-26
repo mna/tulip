@@ -107,12 +107,11 @@ function M.test_database_pool()
     -- only 2 remain open (max 2 idle)
     lu.assertEquals(count_conns(), 2)
 
-    -- sleep a bit, get and release one, should be from the pool
-    cqueues.sleep(1)
+    -- get one, should be from the pool
     local c4 = app:db()
     lu.assertEquals(count_conns(), 2)
 
-    -- sleep again a bit and get one, it should clear the oldest one
+    -- sleep a bit and get one, it should clear the oldest one
     -- that has been idle too long.
     cqueues.sleep(2)
     local pid4 = pid(c4)
@@ -120,9 +119,10 @@ function M.test_database_pool()
     c4:close()
     lu.assertEquals(count_conns(), 2)
 
-    -- TODO: flaky test
+    cqueues.sleep(1)
     local c5 = app:db()
     lu.assertEquals(count_conns(), 1)
+    -- it kept the same as pid4 (the other had been idle too long)
     local pid5 = pid(c5)
     lu.assertEquals(pid5, pid4)
     c5:close()
@@ -151,7 +151,7 @@ end
 
 function M.test_migrations_order()
   local app = App{
-    log = {level = 'd'},
+    log = {level = 'd', file = '/dev/null'},
     database = {
       connection_string = '',
       migrations = {
@@ -190,7 +190,7 @@ end
 
 function M.test_migrations_minimal()
   local app = App{
-    log = {level = 'd'},
+    log = {level = 'd', file = '/dev/null'},
     database = {
       connection_string = '',
       migrations = {
@@ -227,7 +227,7 @@ end
 
 function M.test_migrations_order_circular()
   local app = App{
-    log = {level = 'd'},
+    log = {level = 'd', file = '/dev/null'},
     database = {
       connection_string = '',
       migrations = {

@@ -1,6 +1,7 @@
 local cjson = require('cjson').new()
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local M = {}
 
@@ -9,7 +10,7 @@ local function stdout_logger(t)
 end
 
 local function make_file_logger(path)
-  local fd = assert(io.open(path, 'w+'))
+  local fd = xerror.must(io.open(path, 'w+'))
   return function(t)
     fd:write(cjson.encode(t) .. '\n')
     fd:flush()

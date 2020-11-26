@@ -1,4 +1,4 @@
--- from https://github.com/wahern/cqueues/issues/214
+-- adapted from https://github.com/wahern/cqueues/issues/214
 
 local condition = require 'cqueues.condition'
 
