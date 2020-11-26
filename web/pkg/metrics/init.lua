@@ -3,6 +3,7 @@ local cqueues = require 'cqueues'
 local errno = require 'cqueues.errno'
 local socket = require 'cqueues.socket'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 
 local function make_middleware(cfg)
@@ -79,7 +80,7 @@ local function make_metrics(cfg)
 
   return function(_, name, typ, val, t)
     if lookup_names and not lookup_names[name] then
-      return nil, string.format('name %q is invalid', name)
+      return nil, xerror.ctx(string.format('name %q is invalid', name), 'metrics', {code='EINVAL'})
     end
 
     val = val or 1
@@ -94,7 +95,7 @@ local function make_metrics(cfg)
     elseif typ == 'set' then
       type_code = 's'
     else
-      return nil, string.format('metric type %q is invalid', typ)
+      xerror.throw('metric type %q is invalid', typ)
     end
 
     local sample
@@ -127,7 +128,7 @@ local function make_metrics(cfg)
 
     local ok, ecode = sock:xwrite(pkt, 'n', to)
     if not ok then
-      return nil, errno.strerror(ecode), ecode
+      return xerror.io(nil, errno.strerror(ecode), ecode)
     end
     return true
   end

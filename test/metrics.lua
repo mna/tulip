@@ -42,12 +42,12 @@ function M.test_metrics()
       -- use an invalid metric name
       local ok, err = app:metrics('d', 'counter')
       lu.assertNil(ok)
-      lu.assertStrContains(err, '"d" is invalid')
+      lu.assertStrContains(tostring(err), '"d" is invalid')
 
       -- use an invalid metric type
-      ok, err = app:metrics('a', 'zzz')
-      lu.assertNil(ok)
-      lu.assertStrContains(err, '"zzz" is invalid')
+      lu.assertErrorMsgContains('"zzz" is invalid', function()
+        app:metrics('a', 'zzz')
+      end)
 
       local want = {}
       -- valid call, defaults to 1
