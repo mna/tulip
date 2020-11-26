@@ -74,7 +74,7 @@ function M.test_cron()
     -- schedule job d fails (invalid job)
     ok, err = app:schedule('d', nil, '* 4 * * *')
     lu.assertNil(ok)
-    lu.assertStrContains(err, 'is invalid')
+    lu.assertStrContains(tostring(err), 'is invalid')
 
     -- unschedule job b
     ok, err = app:schedule('b')

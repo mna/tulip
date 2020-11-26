@@ -1,5 +1,6 @@
 local cron = require 'web.pkg.cron.cron'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local function make_schedule(cfg)
@@ -16,7 +17,7 @@ local function make_schedule(cfg)
   return function(app, job, db, t)
     tcheck({'*', 'string', 'table|nil', 'string|table|nil'}, app, job, db, t)
     if lookup_jobs and not lookup_jobs[job] then
-      return nil, string.format('job %q is invalid', job)
+      return nil, xerror.ctx(string.format('job %q is invalid', job), 'schedule', {code='EINVAL'})
     end
 
     local close = not db
@@ -77,10 +78,10 @@ function M.register(cfg, app)
   app.schedule = make_schedule(cfg)
 
   if not app.config.database then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
   if not app.config.mqueue then
-    error('no message queue registered')
+    xerror.throw('no message queue registered')
   end
 end
 
@@ -90,7 +91,7 @@ function M.activate(app)
   local cfg = app.config.cron
   cfg.jobs = cfg.jobs or {}
   for job, t in pairs(cfg.jobs) do
-    assert(app:schedule(job, nil, t))
+    xerror.must(app:schedule(job, nil, t))
   end
 end
 
