@@ -65,9 +65,8 @@ local function make_wmiddleware(cfg)
 end
 
 local function make_metrics(cfg)
-  -- ok to assert here, this is called during the register phase.
-  local sock = auxlib.assert(socket.connect(
-    cfg.host, cfg.port, socket.AF_INET, socket.SOCK_DGRAM))
+  local sock = xerror.must(xerror.io(auxlib.fileresult(socket.connect(
+    cfg.host, cfg.port, socket.AF_INET, socket.SOCK_DGRAM))))
   local to = cfg.write_timeout
 
   local lookup_names

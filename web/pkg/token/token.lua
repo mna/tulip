@@ -6,7 +6,7 @@ local TOKEN_LEN = 32
 
 local MIGRATIONS = {
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE TABLE "web_pkg_token_tokens" (
         "token"   CHAR(44) NOT NULL,
         "type"    VARCHAR(20) NOT NULL,
@@ -18,10 +18,10 @@ local MIGRATIONS = {
         PRIMARY KEY ("token"),
         UNIQUE ("type", "ref_id")
       )
-    ]])
-    assert(conn:exec[[
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
-    ]])
+    ]]))
   end,
   [[
     CREATE PROCEDURE "web_pkg_token_expire" ()
@@ -35,10 +35,10 @@ local MIGRATIONS = {
   ]],
   -- schedule expiration of tokens every day at 1AM
   function (conn)
-    assert(conn:query[[
+    xerror.must(xerror.db(conn:query[[
       SELECT
         cron.schedule('web_pkg_token:expire', '0 1 * * *', 'CALL web_pkg_token_expire()')
-    ]])
+    ]]))
   end,
 }
 

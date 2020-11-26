@@ -1,7 +1,9 @@
+local xerror = require 'web.xerror'
+
 return {
   -- messages are initially enqueued in the pending table
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_pending" (
         "id"              SERIAL NOT NULL,
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" >= 0),
@@ -14,15 +16,15 @@ return {
 
         PRIMARY KEY ("id")
       )
-    ]])
-    assert(conn:exec[[
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_mqueue_pending" ("queue", "first_created");
-    ]])
+    ]]))
   end,
 
   -- upon dequeuing, they are moved to the active table during processing
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_active" (
         "id"              INTEGER NOT NULL CHECK ("id" > 0),
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" > 0),
@@ -36,16 +38,16 @@ return {
 
         PRIMARY KEY ("id")
       )
-    ]])
-    assert(conn:exec[[
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_mqueue_active" ("expiry");
-    ]])
+    ]]))
   end,
 
   -- after max attempts, they are moved to the dead table for manual
   -- review and processing.
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE TABLE "web_pkg_mqueue_dead" (
         "id"              INTEGER NOT NULL CHECK ("id" > 0),
         "attempts"        SMALLINT NOT NULL CHECK ("attempts" > 0),
@@ -58,19 +60,19 @@ return {
 
         PRIMARY KEY ("id")
       )
-    ]])
-    assert(conn:exec[[
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_mqueue_dead" ("queue", "first_created");
-    ]])
-    assert(conn:exec[[
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_mqueue_dead" ("created");
-    ]])
+    ]]))
   end,
 
   -- a scheduled job moves the messages between active and a) back to
   -- pending or b) dead.
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE PROCEDURE "web_pkg_mqueue_expire" ()
       AS $$
       BEGIN
@@ -134,18 +136,18 @@ return {
         COMMIT;
       END;
       $$ LANGUAGE plpgsql;
-    ]])
+    ]]))
 
     -- run the proc every 2 minutes
-    assert(conn:query[[
+    xerror.must(xerror.db(conn:query[[
       SELECT
         cron.schedule('web_pkg_mqueue:expire', '*/2 * * * *', 'CALL web_pkg_mqueue_expire()')
-    ]])
+    ]]))
   end,
 
   -- a scheduled job removes the dead messages after a while.
   function (conn)
-    assert(conn:exec[[
+    xerror.must(xerror.db(conn:exec[[
       CREATE PROCEDURE "web_pkg_mqueue_gc" ()
       LANGUAGE SQL
       AS $$
@@ -154,13 +156,13 @@ return {
         WHERE
           "created" < (current_timestamp - INTERVAL '1 month')
       $$;
-    ]])
+    ]]))
 
     -- run the proc every day
-    assert(conn:query[[
+    xerror.must(xerror.db(conn:query[[
       SELECT
         cron.schedule('web_pkg_mqueue:gc', '0 2 * * *', 'CALL web_pkg_mqueue_gc()')
-    ]])
+    ]]))
   end,
 
   -- a function to enqueue a message
