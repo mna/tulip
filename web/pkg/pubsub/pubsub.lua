@@ -1,5 +1,6 @@
 local cjson = require('cjson.safe').new()
 local cqueues = require 'cqueues'
+local xerror = require 'web.xerror'
 
 local SQL_PUBLISH = [[
   SELECT
@@ -23,9 +24,7 @@ function Notification.new(n)
     channel = n:relname(),
     payload = cjson.decode(n:extra()),
   }
-  setmetatable(o, Notification)
-
-  return o
+  return setmetatable(o, Notification)
 end
 
 local function on_error(state, errcount, err)
@@ -105,9 +104,9 @@ function M.default_err_handler(conn, count, _, getconn)
   return (getconn())
 end
 
-function M.publish(chan, db, msg)
-  local payload = assert(cjson.encode(msg))
-  assert(db:query(SQL_PUBLISH, chan, payload))
+function M.publish(chan, conn, msg)
+  local payload = xerror.must(cjson.encode(msg))
+  xerror.must(xerror.db(conn:query(SQL_PUBLISH, chan, payload)))
   return true
 end
 
@@ -132,11 +131,11 @@ function M.subscribe(chan, f, state, cq)
 
       -- must start the coroutine that listens to notifications
       cq = cq or cqueues.running()
-      assert(cq, 'not running inside a cqueue coroutine')
+      xerror.must(cq, 'not running inside a cqueue coroutine')
       cq:wrap(make_notifier(state))
     end
 
-    local ok, err = conn:exec(string.format(SQL_SUBSCRIBE, chan))
+    local ok, err = xerror.db(conn:exec(string.format(SQL_SUBSCRIBE, chan)))
     if not ok then
       return nil, err
     end

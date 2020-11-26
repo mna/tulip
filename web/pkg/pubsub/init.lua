@@ -1,6 +1,7 @@
 local fn = require 'fn'
 local pubsub = require 'web.pkg.pubsub.pubsub'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local function make_pubsub(cfg)
   local lookup_chans
@@ -19,7 +20,7 @@ local function make_pubsub(cfg)
   return function(app, chan, fdb, msg, cq)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
     if lookup_chans and not lookup_chans[chan] then
-      return nil, string.format('channel %q is invalid', chan)
+      return nil, xerror.ctx(string.format('channel %q is invalid', chan), 'pubsub', {code='EINVAL'})
     end
 
     if not state.connect then
@@ -90,7 +91,7 @@ function M.register(cfg, app)
   app.pubsub = make_pubsub(cfg)
 
   if not app.config.database then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
 end
 
@@ -101,7 +102,7 @@ function M.activate(app, cq)
   cfg.listeners = cfg.listeners or {}
   for chan, fns in pairs(cfg.listeners) do
     for _, f in ipairs(fns) do
-      assert(app:pubsub(chan, f, nil, cq))
+      xerror.must(app:pubsub(chan, f, nil, cq))
     end
   end
 end

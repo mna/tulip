@@ -60,7 +60,7 @@ function M.test_pubsub_ok()
     ok, err = app:pubsub('c', nil, {x=6})
     lu.assertNotNil(err)
     lu.assertNil(ok)
-    lu.assertStrContains(err, 'channel "c" is invalid')
+    lu.assertStrContains(tostring(err), 'channel "c" is invalid')
 
     -- register another handler for channel 'b'
     ok, err = app:pubsub('b', function(n)
@@ -102,7 +102,7 @@ function M.SKIP_test_pubsub_err()
         current_pid = tonumber(res[1][1])
         return conn
       end,
-      error_handler = function(conn, count, err, getconn)
+      error_handler = function(conn, count, _, getconn)
         lu.assertEquals(count, next_count)
         next_count = next_count + 1
 

@@ -1,5 +1,6 @@
 local mqueue = require 'web.pkg.mqueue.mqueue'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local function make_mqueue(cfg)
@@ -16,7 +17,7 @@ local function make_mqueue(cfg)
   return function(app, t, db, msg)
     tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
     if lookup_queues and not lookup_queues[t.queue] then
-      return nil, string.format('queue %q is invalid', t.queue)
+      return nil, xerror.ctx(string.format('queue %q is invalid', t.queue), 'mqueue', {code='EINVAL'})
     end
 
     local close = not db
@@ -73,7 +74,7 @@ function M.register(cfg, app)
 
   local db = app.config.database
   if not db then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {

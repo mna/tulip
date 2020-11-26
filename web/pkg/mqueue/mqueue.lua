@@ -1,6 +1,7 @@
 local cjson = require('cjson.safe').new()
 local fn = require 'fn'
 local migrations = require 'web.pkg.mqueue.migrations'
+local xerror = require 'web.xerror'
 local xpgsql = require 'xpgsql'
 local xstring = require 'web.xstring'
 
@@ -66,7 +67,7 @@ local Message = {__name = 'web.pkg.mqueue.Message'}
 Message.__index = Message
 
 function Message:done(conn)
-  return conn:exec(SQL_DELETEACTIVE, self.id)
+  return xerror.db(conn:exec(SQL_DELETEACTIVE, self.id))
 end
 
 local function model(o)
@@ -89,27 +90,21 @@ local M = {
   migrations = migrations,
 }
 
-function M.enqueue(t, db, msg)
-  local payload, e1 = cjson.encode(msg)
-  if not payload then
-    return nil, e1
-  end
+function M.enqueue(t, conn, msg)
+  local payload = xerror.must(cjson.encode(msg))
 
-  local ok, e2 = db:query(SQL_CREATEPENDING,
+  xerror.must(xerror.db(conn:query(SQL_CREATEPENDING,
     t.queue,
     t.max_attempts,
     t.max_age,
-    payload)
-  if not ok then
-    return nil, e2
-  end
+    payload)))
   return true
 end
 
-function M.dequeue(t, db)
-  return db:ensuretx(function(c)
-    local rows = xpgsql.models(assert(
-      c:query(SQL_SELECTPENDING, t.queue, t.max_receive)
+function M.dequeue(t, conn)
+  return conn:ensuretx(function(c)
+    local rows = xpgsql.models(xerror.must(
+      xerror.db(c:query(SQL_SELECTPENDING, t.queue, t.max_receive))
     ), model)
 
     local ids = fn.reduce(function(cumul, _, row)
@@ -118,9 +113,9 @@ function M.dequeue(t, db)
     end, {}, ipairs(rows))
     if #ids > 0 then
       local stmt = string.format(SQL_COPYACTIVE, c:format_array(ids))
-      assert(c:exec(stmt))
+      xerror.must(xerror.db((c:exec(stmt))))
       stmt = string.format(SQL_DELETEPENDING, c:format_array(ids))
-      assert(c:exec(stmt))
+      xerror.must(xerror.db((c:exec(stmt))))
     end
     return rows
   end)
