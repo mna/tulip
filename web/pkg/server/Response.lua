@@ -1,6 +1,7 @@
 local cqueues = require 'cqueues'
 local headers = require 'http.headers'
 local posix = require 'posix'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local CHUNK_SIZE = 2^20 -- chunks of 1MB when writing from a file
@@ -20,8 +21,8 @@ Response.__index = Response
 -- * deadline: an absolute deadline time value from which a timeout will
 --   be computed.
 function Response:_write_headers(hdrs, eos, deadline)
-  return self.stream:write_headers(hdrs, eos,
-    deadline and (deadline - cqueues.monotime()))
+  return xerror.io(self.stream:write_headers(hdrs, eos,
+    deadline and (deadline - cqueues.monotime())))
 end
 
 -- Writes the body. This function should not be called directly,
@@ -45,8 +46,8 @@ function Response:_write_body(f, deadline)
       return nil, eos -- here, eos is an error
     end
     n = n + #s
-    local ok, err = stm:write_chunk(s, eos,
-      deadline and (deadline - cqueues.monotime()))
+    local ok, err = xerror.io(stm:write_chunk(s, eos,
+      deadline and (deadline - cqueues.monotime())))
     if not ok then
       return nil, err
     end
@@ -116,7 +117,7 @@ function Response:write(opts)
       hdrs:delete('content-length')
       bodyfile = opts.body
     else
-      return nil, string.format('invalid type for body: %s', typ)
+      xerror.throw('invalid type for body: %s', typ)
     end
     hasbody = true
   elseif opts.path then
@@ -140,7 +141,7 @@ function Response:write(opts)
           bodystr = 'not found'
           len = #bodystr
         else
-          return nil, err
+          return xerror.io(nil, err, code)
         end
       else
         bodyfile = f
@@ -177,10 +178,11 @@ function Response:write(opts)
     chunkfn = function() return bodystr, true end
   elseif io.type(bodyfile) == 'file' then
     chunkfn = function()
-      local s, err = bodyfile:read(CHUNK_SIZE)
+      -- file:read returns nil on EOF (but no error)
+      local s, err, errno = bodyfile:read(CHUNK_SIZE)
       if not s then
         if err then
-          return nil, err
+          return xerror.io(nil, err, errno)
         end
         return '', true
       end

@@ -1,6 +1,7 @@
 local fn = require 'fn'
 local handler = require 'web.handler'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local function match(routes, path)
@@ -112,11 +113,11 @@ function Mux.new(routes)
   -- index by method
   o.bymethod = fn.reduce(function(c, i, route)
     if (route.method or '') == '' then
-      error(string.format('method missing at routes[%d]', i))
+      xerror.throw('method missing at routes[%d]', i)
     elseif (route.pattern or '') == '' then
-      error(string.format('pattern missing at routes[%d]', i))
+      xerror.throw('pattern missing at routes[%d]', i)
     elseif (not route.middleware) or (#route.middleware == 0) then
-      error(string.format('handler missing at routes[%d]', i))
+      xerror.throw('handler missing at routes[%d]', i)
     end
 
     local t = c[route.method] or {}

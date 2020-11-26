@@ -2,6 +2,7 @@ local cqueues = require 'cqueues'
 local cookie = require 'http.cookie'
 local neturl = require 'net.url'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local Request = {__name = 'web.pkg.server.Request'}
 Request.__index = Request
@@ -11,7 +12,7 @@ Request.__index = Request
 -- until the end). Throws an error if the body is already consumed.
 function Request:body()
   if self.raw_body then
-    error('request body already consumed')
+    xerror.throw('request body already consumed')
   end
 
   local to = self.read_timeout
@@ -28,43 +29,61 @@ end
 -- * if mode is "l", read and return the next line, skipping eol
 -- * if mode is "L", same as "l" but does not skip eol
 --
--- On error, returns nil and an error message. Throws if the mode
--- is invalid or if the body is already consumed.
+-- On error, returns nil and an error message. If mode is "a" and
+-- the raw_body field is set, returns it.
 function Request:read_body(mode)
   local types = tcheck({'*', 'string|number'}, self, mode)
 
   if self.raw_body then
-    error('request body already consumed')
+    if mode == 'a' then
+      return self.raw_body
+    end
+    xerror.throw('request body already consumed')
   end
 
   local stm = self.stream
   if types[2] == 'number' then
-    return stm:get_body_chars(mode, self.read_timeout)
+    return xerror.io(stm:get_body_chars(mode, self.read_timeout))
   elseif mode == 'a' then
-    local body = stm:get_body_as_string(self.read_timeout)
+    local body, err = xerror.io(stm:get_body_as_string(self.read_timeout))
+    if not body then
+      return nil, err
+    end
     self.raw_body = body
     return body
   elseif mode == 'l' then
-    return stm:get_body_until('\n', true, false, self.read_timeout)
+    return xerror.io(stm:get_body_until('\n', true, false, self.read_timeout))
   elseif mode == 'L' then
-    return stm:get_body_until('\n', true, true, self.read_timeout)
+    return xerror.io(stm:get_body_until('\n', true, true, self.read_timeout))
   else
-    error(string.format('invalid format character %q', mode))
+    xerror.throw('invalid format character %q', mode)
   end
 end
 
 -- Decodes the body using the request's content-type or (if provided)
 -- force_ct to determine the decoder to use, and returns the resulting
--- table. Also sets self.decoded_body field for future use, so the idiom:
+-- table. Also sets self.decoded_body field for future use, and returns
+-- it if already set.
 --
---   local body = req.decoded_body or req:decode_body()
+-- Note that this fully reads the body, so if Request:read_body wasn't
+-- called yet, it will be called.
 --
--- can be used in middleware/handlers. Note that this fully reads the
--- body, so if Request:read_body wasn't called yet, it will be called.
+-- Returns nil, error on error.
 function Request:decode_body(force_ct)
-  -- TODO: return nil, err on error... So the idiom cannot be used?
-  local body = self.raw_body or self:read_body('a')
-  local decoded = self.app:decode(body, force_ct or self.headers:get('content-type'))
+  if self.decoded_body then
+    return self.decoded_body
+  end
+
+  local body, err = self:read_body('a')
+  if not body then
+    return nil, err
+  end
+
+  local decoded; decoded, err = self.app:decode(body, force_ct or self.headers:get('content-type'))
+  if not decoded then
+    return nil, err
+  end
+
   self.decoded_body = decoded
   return decoded
 end

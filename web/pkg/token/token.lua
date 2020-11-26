@@ -1,3 +1,4 @@
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 local xpgsql = require 'xpgsql'
 
@@ -89,9 +90,9 @@ local M = {
   migrations = MIGRATIONS,
 }
 
-function M.validate(t, db, tok)
-  local res, err = db:query(SQL_LOADTOKEN, tok)
-  if not res then return nil, err end
+function M.validate(t, conn, tok)
+  local res, err = xerror.db(conn:query(SQL_LOADTOKEN, tok))
+  if not res then return nil, xerror.ctx(err, 'validate') end
 
   local row = xpgsql.model(res, model)
   if not row then return false end -- invalid token
@@ -99,8 +100,8 @@ function M.validate(t, db, tok)
   -- at this point, if the token has once set, the token exists
   -- and is consumed (or leaked), so delete it.
   if row.once then
-    res, err = db:exec(SQL_DELETETOKEN, tok)
-    if not res then return nil, err end
+    res, err = xerror.db(conn:exec(SQL_DELETETOKEN, tok))
+    if not res then return nil, xerror.ctx(err, 'validate') end
   end
 
   if t.type == row.type and ((not row.once) or (t.ref_id == row.ref_id)) and os.time() < row.expiry then
@@ -109,11 +110,11 @@ function M.validate(t, db, tok)
   return false
 end
 
-function M.generate(t, db)
+function M.generate(t, conn)
   local tok = xio.b64encode(xio.random(TOKEN_LEN))
-  local ok, err = db:exec(SQL_CREATETOKEN,
-    tok, t.type, (t.once or false), t.ref_id, os.time() + t.max_age)
-  if not ok then return nil, err end
+  local ok, err = xerror.db(conn:exec(SQL_CREATETOKEN,
+    tok, t.type, (t.once or false), t.ref_id, os.time() + t.max_age))
+  if not ok then return nil, xerror.ctx(err, 'generate') end
   return tok
 end
 

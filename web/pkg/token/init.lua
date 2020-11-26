@@ -1,5 +1,6 @@
 local tcheck = require 'tcheck'
 local token = require 'web.pkg.token.token'
+local xerror = require 'web.xerror'
 
 local function make_token(cfg)
   local lookup_types
@@ -13,7 +14,7 @@ local function make_token(cfg)
   return function(app, t, db, tok)
     tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, db, tok)
     if lookup_types and not lookup_types[t.type] then
-      return nil, string.format('token type %q is invalid', t.type)
+      return nil, xerror.ctx(string.format('token type %q is invalid', t.type), 'token', {code='EINVAL'})
     end
 
     local close = not db
@@ -75,7 +76,7 @@ function M.register(cfg, app)
 
   local db = app.config.database
   if not db then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {

@@ -1,6 +1,7 @@
 local fn = require 'fn'
 local handler = require 'web.handler'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local function match(routes, s)
   local _, _, _, route = fn.any(function(_, route)
@@ -52,9 +53,9 @@ function Mux.new(routes)
 
   for i, route in ipairs(routes) do
     if (route.pattern or '') == '' then
-      error(string.format('pattern missing at wroutes[%d]', i))
+      xerror.throw('pattern missing at wroutes[%d]', i)
     elseif (not route.wmiddleware) or (#route.wmiddleware == 0) then
-      error(string.format('handler missing at wroutes[%d]', i))
+      xerror.throw('handler missing at wroutes[%d]', i)
     end
   end
 

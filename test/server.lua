@@ -192,14 +192,14 @@ function M.test_response()
 
   -- write a boolean, invalid type
   res = newres('GET', '/')
-  local ok, err, wrote = res:write{body = true}
-  lu.assertNil(ok)
-  lu.assertStrContains(err, 'invalid type')
-  lu.assertNil(wrote)
+  lu.assertErrorMsgContains('invalid type', function()
+    res:write{body = true}
+  end)
 
   -- write a file
   res = newres('GET', '/')
-  n = res:write{path = 'test/testdata/file.txt'}
+  local err; n, err = res:write{path = 'test/testdata/file.txt'}
+  lu.assertNil(err)
   lu.assertEquals(n, 4)
   res.stream:assertWritten({
     [':status'] = '200',
@@ -210,7 +210,8 @@ function M.test_response()
 
   -- write a non-existing file
   res = newres('GET', '/')
-  n = res:write{path = 'test/testdata/nosuchfile'}
+  n, err = res:write{path = 'test/testdata/nosuchfile'}
+  lu.assertNil(err)
   lu.assertEquals(n, 9)
   res.stream:assertWritten({
     [':status'] = '404',
@@ -223,7 +224,8 @@ function M.test_response()
   local fd = io.open('test/testdata/file.txt')
   lu.assertNotNil(fd)
   res = newres('GET', '/')
-  n = res:write{body = fd}
+  n, err = res:write{body = fd}
+  lu.assertNil(err)
   lu.assertEquals(n, 4)
   res.stream:assertWritten({
     [':status'] = '200',
@@ -236,7 +238,8 @@ function M.test_response()
 
   -- write a template
   res = newres('GET', '/')
-  n = res:write{path = 'template.txt', context = {message = 'hello'}}
+  n, err = res:write{path = 'template.txt', context = {message = 'hello'}}
+  lu.assertNil(err)
   lu.assertEquals(n, 6)
   res.stream:assertWritten({
     [':status'] = '200',

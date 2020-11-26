@@ -1,5 +1,6 @@
 local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local Semaphore = require 'web.Semaphore'
 
 local MAX_ERRORS = 5
@@ -10,7 +11,7 @@ local function make_main(cfg)
   local batch = cfg.dequeue_batch or 1
   local queues = cfg.queues or {}
   local errh = cfg.error_handler
-  assert(#queues > 0, 'no queue specified')
+  xerror.must(#queues > 0, 'no queue specified')
 
   return function(app, cq)
     local sleep
@@ -27,7 +28,7 @@ local function make_main(cfg)
           else
             app:log('e', {pkg = 'worker', queue = q, error = err})
             if t.errcount >= MAX_ERRORS then
-              error(err)
+              xerror.throw(err)
             end
           end
         else
@@ -97,13 +98,13 @@ function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
   if not app.config.database then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
   if not app.config.mqueue then
-    error('no message queue registered')
+    xerror.throw('no message queue registered')
   end
   if not app.config.wmiddleware then
-    error('no wmiddleware package registered')
+    xerror.throw('no wmiddleware package registered')
   end
   app.main = make_main(cfg)
 end

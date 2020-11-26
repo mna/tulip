@@ -11,14 +11,17 @@ Error.__index = Error
 
 function Error:__tostring()
   local parts = {}
+  if self.code then
+    table.insert(parts, string.format('[%s]', self.code))
+  end
   if self.labels then
     for i = #self.labels, 1, -1 do
       table.insert(parts, self.labels[i])
     end
-    if #parts > 0 then
-      -- so that a final ': ' is added after the last label
-      table.insert(parts, '')
-    end
+  end
+  if #parts > 0 then
+    -- so that a final ': ' is added after the last label
+    table.insert(parts, '')
   end
   return table.concat(parts, ': ') .. (self.message or '<error>')
 end
@@ -151,7 +154,7 @@ end
 -- and default values (e.g. it can set the error message if there wasn't any).
 function M.ctx(err, label, attrs)
   if metatable_name(err) ~= Error.__name then
-    return err
+    err = Error.new(err)
   end
 
   local labels = err.labels or {}

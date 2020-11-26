@@ -3,6 +3,7 @@ local pkey = require 'openssl.pkey'
 local server = require 'http.server'
 local tcheck = require 'tcheck'
 local x509 = require 'openssl.x509'
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 local Request = require 'web.pkg.server.Request'
 local Response = require 'web.pkg.server.Response'
@@ -41,16 +42,16 @@ local function main(app, cq)
       opts.tls = true
     end
     local ctx = context.new(cfg.tls.protocol, true)
-    local pk = pkey.new(assert(xio.read_file(cfg.tls.private_key_path)))
-    assert(ctx:setPrivateKey(pk))
-    local cert = x509.new(assert(xio.read_file(cfg.tls.certificate_path)))
-    assert(ctx:setCertificate(cert))
+    local pk = pkey.new(xerror.must(xio.read_file(cfg.tls.private_key_path)))
+    xerror.must(ctx:setPrivateKey(pk))
+    local cert = x509.new(xerror.must(xio.read_file(cfg.tls.certificate_path)))
+    xerror.must(ctx:setCertificate(cert))
     opts.ctx = ctx
   end
 
-  local srv = assert(server.listen(opts))
-  assert(srv:listen(limits.connection_timeout))
-  local _, ip, port = assert(srv:localname())
+  local srv = xerror.must(server.listen(opts))
+  xerror.must(srv:listen(limits.connection_timeout))
+  local _, ip, port = xerror.must(srv:localname())
   app:log('i', {pkg = 'server', ip = ip, port = port, msg = 'listening'})
 
   app.server = srv
@@ -95,7 +96,7 @@ function M.register(cfg, app)
   app.main = main
 
   if not app.config.middleware then
-    error('no middleware package registered')
+    xerror.throw('no middleware package registered')
   end
 end
 
