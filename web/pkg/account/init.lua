@@ -1,5 +1,6 @@
 local migrations = require 'web.pkg.account.migrations'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local Account = require 'web.pkg.account.Account'
 
 local function create_account(app, email, raw_pwd, groups, conn)
@@ -236,7 +237,7 @@ function M.register(cfg, app)
 
   local db = app.config.database
   if not db then
-    error('no database registered')
+    xerror.throw('no database registered')
   end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {

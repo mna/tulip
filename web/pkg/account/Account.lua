@@ -1,5 +1,6 @@
 local argon2 = require 'argon2'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 local xio = require 'web.xio'
 local xpgsql = require 'xpgsql'
 local xstring = require 'web.xstring'
@@ -145,16 +146,16 @@ local function hash_pwd(raw_pwd)
 end
 
 local function create_account(email, raw_pwd, groups, conn)
-  local enc_pwd = assert(hash_pwd(raw_pwd))
+  local enc_pwd = xerror.must(hash_pwd(raw_pwd))
   email = string.lower(xstring.trim(email))
 
-  return assert(conn:ensuretx(function()
-    local res = assert(conn:query(SQL_CREATEUSER, email, enc_pwd))
+  return xerror.must(conn:ensuretx(function()
+    local res = xerror.must(xerror.db(conn:query(SQL_CREATEUSER, email, enc_pwd)))
     local id = tonumber(res[1][1])
 
     if groups then
       for _, g in ipairs(groups) do
-        assert(conn:exec(SQL_ADDUSERMEMBER, id, g))
+        xerror.must(xerror.db(conn:exec(SQL_ADDUSERMEMBER, id, g)))
       end
     end
     return id
@@ -162,8 +163,8 @@ local function create_account(email, raw_pwd, groups, conn)
 end
 
 local function load_groups(acct, conn)
-  local groups = xpgsql.models(assert(
-    conn:query(SQL_LOADUSERMEMBERS, acct.id)))
+  local groups = xpgsql.models(xerror.must(xerror.db(
+    conn:query(SQL_LOADUSERMEMBERS, acct.id))))
 
   local ar = {}
   for _, g in ipairs(groups) do
@@ -181,8 +182,8 @@ function Account:delete(conn)
   tcheck({'*', 'table'}, self, conn)
 
   return conn:ensuretx(function()
-    assert(conn:exec(SQL_DELETEEMAILMEMBERS, self.id))
-    assert(conn:exec(SQL_DELETEUSER, self.id))
+    xerror.must(xerror.db(conn:exec(SQL_DELETEEMAILMEMBERS, self.id)))
+    xerror.must(xerror.db(conn:exec(SQL_DELETEUSER, self.id)))
     return true
   end)
 end
@@ -195,7 +196,7 @@ function Account:verify_email(conn)
   tcheck({'*', 'table'}, self, conn)
 
   return conn:with(false, function()
-    assert(conn:exec(SQL_VERIFYEMAIL, self.id))
+    xerror.must(xerror.db(conn:exec(SQL_VERIFYEMAIL, self.id)))
     self.verified = true
     return true
   end)
@@ -207,8 +208,8 @@ function Account:change_pwd(new_pwd, conn)
   tcheck({'*', 'string', 'table'}, self, new_pwd, conn)
 
   return conn:with(false, function()
-    local enc_pwd = assert(hash_pwd(new_pwd))
-    assert(conn:exec(SQL_CHANGEPWD, enc_pwd, self.id))
+    local enc_pwd = xerror.must(hash_pwd(new_pwd))
+    xerror.must(xerror.db(conn:exec(SQL_CHANGEPWD, enc_pwd, self.id)))
     self.password = enc_pwd
     return true
   end)
@@ -223,7 +224,7 @@ function Account:change_email(new_email, conn)
 
   return conn:with(false, function()
     new_email = string.lower(xstring.trim(new_email))
-    assert(conn:exec(SQL_CHANGEEMAIL, new_email, self.id))
+    xerror.must(xerror.db(conn:exec(SQL_CHANGEEMAIL, new_email, self.id)))
     self.email = new_email
     self.verified = true
     return true
@@ -243,7 +244,7 @@ function Account:change_groups(add, rm, conn)
         add = {add}
       end
       for _, g in ipairs(add) do
-        assert(conn:exec(SQL_ADDUSERMEMBER, self.id, g))
+        xerror.must(xerror.db(conn:exec(SQL_ADDUSERMEMBER, self.id, g)))
       end
     end
 
@@ -252,7 +253,7 @@ function Account:change_groups(add, rm, conn)
         rm = {rm}
       end
       for _, g in ipairs(rm) do
-        assert(conn:exec(SQL_RMUSERMEMBER, self.id, g))
+        xerror.must(xerror.db(conn:exec(SQL_RMUSERMEMBER, self.id, g)))
       end
     end
 
@@ -262,11 +263,6 @@ function Account:change_groups(add, rm, conn)
   end)
 end
 
--- TODO: ideally a password change should reset any existing session
--- token, so that a login is required anew.
--- TODO: ideally an email change should reset any existing session
--- token, so that a login is required anew.
-
 -- Returns the account instance corresponding to email. If raw_pwd
 -- is provided, validates that passwords match and raise an error
 -- otherwise.
@@ -274,14 +270,14 @@ function Account.by_email(email, raw_pwd, conn)
   tcheck({'string', 'string|nil', 'table'}, email, raw_pwd, conn)
 
   email = string.lower(xstring.trim(email))
-  local acct = xpgsql.model(assert(
-    conn:query(SQL_LOADUSEREMAIL, email)), model)
+  local acct = xpgsql.model(xerror.must(xerror.db(
+    conn:query(SQL_LOADUSEREMAIL, email))), model)
   if not acct then
-    error('account does not exist')
+    xerror.throw('account does not exist')
   end
 
   if raw_pwd then
-    assert(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
+    xerror.must(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
   end
   load_groups(acct, conn)
   return setmetatable(acct, Account)
@@ -293,14 +289,14 @@ end
 function Account.by_id(id, raw_pwd, conn)
   tcheck({'number', 'string|nil', 'table'}, id, raw_pwd, conn)
 
-  local acct = xpgsql.model(assert(
-    conn:query(SQL_LOADUSERID, id)), model)
+  local acct = xpgsql.model(xerror.must(xerror.db(
+    conn:query(SQL_LOADUSERID, id))), model)
   if not acct then
-    error('account does not exist')
+    xerror.throw('account does not exist')
   end
 
   if raw_pwd then
-    assert(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
+    xerror.must(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
   end
   load_groups(acct, conn)
   return setmetatable(acct, Account)
