@@ -1,5 +1,5 @@
 local cookie = require 'http.cookie'
-local crypto = require 'web.pkg.csrf.crypto'
+local crypto = require 'web.crypto'
 local neturl = require 'net.url'
 local xerror = require 'web.xerror'
 local xio = require 'web.xio'
@@ -47,16 +47,17 @@ function Mw:read_raw_token_from_cookie(req)
   local ck = req.cookies[self.cookie_name]
   if not ck or ck == '' then return end
   if #ck > MAX_COOKIE_LEN then return end
-  return crypto.decode(self.auth_key,
+  local b64 = crypto.decode(self.auth_key,
     self.max_age,
     ck,
     self.cookie_name,
     req.locals.session_id or '-')
+  return b64 and xio.b64decode(b64)
 end
 
 function Mw:save_raw_token_in_cookie(raw_tok, req, res)
   local encoded = crypto.encode(self.auth_key,
-    raw_tok,
+    xio.b64encode(raw_tok),
     self.cookie_name,
     req.locals.session_id or '-')
   if #encoded > MAX_COOKIE_LEN then return end

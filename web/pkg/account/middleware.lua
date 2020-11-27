@@ -42,7 +42,7 @@ function M.signup(req, res, nxt, errh)
   nxt()
 end
 
-function M.login(req, res, nxt, errh, failh)
+function M.login(req, res, nxt, errh, failh, cfg)
   local app = req.app
   local body, err = req:decode_body()
   if not body then
@@ -61,10 +61,20 @@ function M.login(req, res, nxt, errh, failh)
       return errh(req, res, nxt, err)
     end
   end
+  req.locals.account = acct
+
+  local tok; tok, err = app:token{
+    type = 'session',
+    ref_id = acct.id,
+    max_age = cfg.session_ttl,
+  }
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+  req.locals.session_id = tok
 
   -- TODO: generate a token and store it securely (signed) in a
   -- cookie. Reuse the csrf cookie logic for that.
-  req.locals.account = acct
 
   nxt()
 end

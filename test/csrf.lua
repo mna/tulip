@@ -1,4 +1,4 @@
-local crypto = require 'web.pkg.csrf.crypto'
+local crypto = require 'web.crypto'
 local handler = require 'web.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
@@ -182,13 +182,13 @@ function M.test_csrf_over_http()
 
     -- should be able to properly decode the cookie value
     local cfg = M.config_http().csrf
-    local raw = crypto.decode(cfg.auth_key,
+    local b64 = crypto.decode(cfg.auth_key,
       cfg.max_age,
       ck,
       'csrf',
       '-')
-    lu.assertNotNil(raw)
-    lu.assertEquals(#raw, 32)
+    lu.assertNotNil(b64)
+    lu.assertEquals(#b64, 44)
 
     -- making a POST request should fail without sending the token
     req.headers:upsert(':method', 'POST')
@@ -214,8 +214,8 @@ function M.test_csrf_over_http()
     lu.assertNotNil(hdrs and res)
 
     body = res:get_body_as_string(TO)
-    lu.assertStrContains(body, 'Forbidden')
     lu.assertEquals(hdrs:get(':status'), '403')
+    lu.assertStrContains(body, 'Forbidden')
 
     -- making another GET request returns a different token due to the mask
     req.headers:upsert(':method', 'GET')

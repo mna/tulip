@@ -13,15 +13,14 @@ local function xor_token(a, b)
   return string.char(table.unpack(c))
 end
 
-local function verify_mac(hkey, v, mac)
-  local h = hmac.new(hkey, 'sha256')
-  local mac2 = h:final(v)
-  return mac == mac2
-end
-
 local function create_mac(hkey, v)
   local h = hmac.new(hkey, 'sha256')
   return h:final(v)
+end
+
+local function verify_mac(hkey, v, mac)
+  local mac2 = create_mac(hkey, v)
+  return mac == mac2
 end
 
 local M = {}
@@ -36,18 +35,21 @@ function M.mask_token(raw_tok)
   return xor_token(mask_tok, raw_tok) .. mask_tok
 end
 
--- Returns the unmasked token by splitting masked into the mask and
+-- Returns the unmasked token by splitting masked_tok into the mask and
 -- the xor'ed version, and then xor'ing again to get the raw version
 -- of the token.
 function M.unmask_token(masked_tok, len)
   if #masked_tok ~= 2 * len then return end
+
   local xord = string.sub(masked_tok, 1, len)
   local mask = string.sub(masked_tok, len + 1)
   return xor_token(mask, xord)
 end
 
--- Decodes v from base64, validates the hmac authentication and
--- returns the raw token on success, nil on error.
+-- Decodes v, validating the hmac authentication and
+-- returns the token on success, nil on error. Note that the
+-- returned token is base64-encoded (assuming it was when
+-- encode was called, which it should).
 function M.decode(hkey, max_age, v, ...)
   -- decode from base64
   local decoded = xio.b64decode(v)
@@ -73,21 +75,20 @@ function M.decode(hkey, max_age, v, ...)
   local t2 = os.time()
   if max_age > 0 and (t2 - t1) > max_age then return end
 
-  -- the value itself is base64-encoded, so that the pipe separator
+  -- the returned value itself is base64-encoded, so that the pipe separator
   -- is safe (cannot appear in the value).
-  return xio.b64decode(parts[2])
+  return parts[2]
 end
 
--- Encodes v to base64, creates the hmac authentication and
--- returns the encoded token.
+-- Encodes v with an hmac authentication created using hkey and
+-- returns the encoded token. Note that v should already be
+-- base64-encoded.
 function M.encode(hkey, v, ...)
-  local encoded = xio.b64encode(v)
-
   -- create MAC with the extra values, then the date and the encoded
   -- value.
   local mac_vals = {...}
   table.insert(mac_vals, tostring(os.time()))
-  table.insert(mac_vals, encoded)
+  table.insert(mac_vals, v)
   local mac = create_mac(hkey, table.concat(mac_vals, '|'))
 
   local cooked_vals = {mac_vals[#mac_vals-1], mac_vals[#mac_vals], mac}
