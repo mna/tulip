@@ -8,16 +8,18 @@ local function make_schedule(cfg)
   local def_max_att = cfg.default_max_attempts or 1
   local lookup_jobs
   if cfg.allowed_jobs then
-    lookup_jobs = {}
-    for _, j in ipairs(cfg.allowed_jobs) do
-      lookup_jobs[j] = true
-    end
+    lookup_jobs = xtable.toset(cfg.allowed_jobs)
   end
 
   return function(app, job, db, t)
     tcheck({'*', 'string', 'table|nil', 'string|table|nil'}, app, job, db, t)
-    if lookup_jobs and not lookup_jobs[job] then
-      return nil, xerror.ctx(string.format('job %q is invalid', job), 'schedule', {code='EINVAL'})
+
+    if lookup_jobs then
+      local ok, err = xerror.inval(lookup_jobs[job],
+        'job is invalid', 'job', job)
+      if not ok then
+        return nil, err
+      end
     end
 
     local close = not db

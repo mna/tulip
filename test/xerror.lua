@@ -9,12 +9,12 @@ function M.test_io()
   lu.assertNil(ok)
   lu.assertTrue(xerror.is(err, 'EIO'))
   lu.assertFalse(xerror.is_sql_state(err, '.'))
-  lu.assertEquals(tostring(err), '[EIO]: does-not-exist: No such file or directory')
+  lu.assertEquals(tostring(err), '[EIO]: does-not-exist: No such file or directory; errno = 2')
 
   err = xerror.ctx(err, 'test', {op = 'open', message = 'yy'})
-  lu.assertEquals(tostring(err), '[EIO]: test: does-not-exist: No such file or directory')
+  lu.assertStrContains(tostring(err), '[EIO]: test: does-not-exist: No such file or directory')
   err = xerror.ctx(err, 'again', {op = 'close', message = 'zz'})
-  lu.assertEquals(tostring(err), '[EIO]: again: test: does-not-exist: No such file or directory')
+  lu.assertStrContains(tostring(err), '[EIO]: again: test: does-not-exist: No such file or directory')
 
   lu.assertEquals(err.op, 'open')
 end

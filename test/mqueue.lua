@@ -172,4 +172,32 @@ function M.test_mqueue()
   app:run()
 end
 
+function M.test_mqueue_allowed()
+  local app = App{
+    database = {connection_string = ''},
+    mqueue = {
+      allowed_queues = {'a', 'b'},
+      default_max_age = 1,
+      default_max_attempts = 2,
+    },
+  }
+
+  app.main = function()
+    -- enqueue to a valid queue
+    local v, err = app:mqueue({
+      queue = 'a',
+    }, nil, {x='a'})
+    lu.assertNil(err)
+    lu.assertTrue(v)
+
+    -- enqueue to an invalid queue
+    v, err = app:mqueue({
+      queue = 'c',
+    }, nil, {x='a'})
+    lu.assertNil(v)
+    lu.assertStrContains(tostring(err), 'queue is invalid')
+  end
+  app:run()
+end
+
 return M

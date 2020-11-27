@@ -8,16 +8,18 @@ local function make_mqueue(cfg)
   local def_max_att = cfg.default_max_attempts
   local lookup_queues
   if cfg.allowed_queues then
-    lookup_queues = {}
-    for _, q in ipairs(cfg.allowed_queues) do
-      lookup_queues[q] = true
-    end
+    lookup_queues = xtable.toset(cfg.allowed_queues)
   end
 
   return function(app, t, db, msg)
     tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
-    if lookup_queues and not lookup_queues[t.queue] then
-      return nil, xerror.ctx(string.format('queue %q is invalid', t.queue), 'mqueue', {code='EINVAL'})
+
+    if lookup_queues then
+      local ok, err = xerror.inval(lookup_queues[t.queue],
+        'queue is invalid', 'queue', t.queue)
+      if not ok then
+        return nil, err
+      end
     end
 
     local close = not db

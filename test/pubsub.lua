@@ -60,7 +60,7 @@ function M.test_pubsub_ok()
     ok, err = app:pubsub('c', nil, {x=6})
     lu.assertNotNil(err)
     lu.assertNil(ok)
-    lu.assertStrContains(tostring(err), 'channel "c" is invalid')
+    lu.assertStrContains(tostring(err), 'channel is invalid')
 
     -- register another handler for channel 'b'
     ok, err = app:pubsub('b', function(n)

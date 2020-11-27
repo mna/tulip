@@ -2,14 +2,12 @@ local fn = require 'fn'
 local pubsub = require 'web.pkg.pubsub.pubsub'
 local tcheck = require 'tcheck'
 local xerror = require 'web.xerror'
+local xtable = require 'web.xtable'
 
 local function make_pubsub(cfg)
   local lookup_chans
   if cfg.allowed_channels then
-    lookup_chans = {}
-    for _, chan in ipairs(cfg.allowed_channels) do
-      lookup_chans[chan] = true
-    end
+    lookup_chans = xtable.toset(cfg.allowed_channels)
   end
 
   local state = {
@@ -19,8 +17,13 @@ local function make_pubsub(cfg)
 
   return function(app, chan, fdb, msg, cq)
     tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
-    if lookup_chans and not lookup_chans[chan] then
-      return nil, xerror.ctx(string.format('channel %q is invalid', chan), 'pubsub', {code='EINVAL'})
+
+    if lookup_chans then
+      local ok, err = xerror.inval(lookup_chans[chan],
+        'channel is invalid', 'channel', chan)
+      if not ok then
+        return nil, err
+      end
     end
 
     if not state.connect then

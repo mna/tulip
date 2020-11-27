@@ -1,20 +1,23 @@
 local tcheck = require 'tcheck'
 local token = require 'web.pkg.token.token'
 local xerror = require 'web.xerror'
+local xtable = require 'web.xtable'
 
 local function make_token(cfg)
   local lookup_types
   if cfg.allowed_types then
-    lookup_types = {}
-    for _, typ in ipairs(cfg.allowed_types) do
-      lookup_types[typ] = true
-    end
+    lookup_types = xtable.toset(cfg.allowed_types)
   end
 
   return function(app, t, db, tok)
     tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, db, tok)
-    if lookup_types and not lookup_types[t.type] then
-      return nil, xerror.ctx(string.format('token type %q is invalid', t.type), 'token', {code='EINVAL'})
+
+    if lookup_types then
+      local ok, err = xerror.inval(lookup_types[t.type],
+        'token type is invalid', 'type', t.type)
+      if not ok then
+        return nil, err
+      end
     end
 
     local close = not db

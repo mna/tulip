@@ -1,4 +1,5 @@
 local fn = require 'fn'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local M = {}
@@ -8,16 +9,20 @@ local M = {}
 -- * session cookie name
 -- * session remember-me and token duration (TTL)
 
-function M.signup(req, _, nxt)
+function M.signup(req, res, nxt, errh)
   local app = req.app
-  -- TODO: decode_body can error
-  local body = req.decoded_body or req:decode_body()
+  local body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
 
   local email = body.email
   local pwd, pwd2 = body.password, body.password2
   local groups = body.groups
-  if pwd2 and pwd ~= pwd2 then
-    -- error
+  local ok; ok, err = xerror.inval((pwd2 or pwd) == pwd,
+    'passwords do not match', 'password')
+  if not ok then
+    return errh(req, res, nxt, err)
   end
   local gnames
   if groups then
@@ -27,19 +32,21 @@ function M.signup(req, _, nxt)
     end, {}, string.gmatch(groups, '[^,%s]+'))
   end
 
-  local acct, err = app:create_account(email, pwd, gnames)
+  local acct; acct, err = app:create_account(email, pwd, gnames)
   if not acct then
-    -- error
+    return errh(req, res, nxt, err)
   end
   req.locals.account = acct
 
   nxt()
 end
 
-function M.login(req, res, nxt)
+function M.login(req, res, nxt, errh)
   local app = req.app
-  -- TODO: decode_body can error
-  local body = req.decoded_body or req:decode_body()
+  local body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
 
   local email = body.email
   local pwd = body.password or '' -- ensure a pwd validation is always done

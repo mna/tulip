@@ -5,6 +5,7 @@ local socket = require 'cqueues.socket'
 local tcheck = require 'tcheck'
 local xerror = require 'web.xerror'
 local xio = require 'web.xio'
+local xtable = require 'web.xtable'
 
 local function make_middleware(cfg)
   local mw = cfg.middleware
@@ -71,15 +72,16 @@ local function make_metrics(cfg)
 
   local lookup_names
   if cfg.allowed_metrics then
-    lookup_names = {}
-    for _, m in ipairs(cfg.allowed_metrics) do
-      lookup_names[m] = true
-    end
+    lookup_names = xtable.toset(cfg.allowed_metrics)
   end
 
   return function(_, name, typ, val, t)
-    if lookup_names and not lookup_names[name] then
-      return nil, xerror.ctx(string.format('name %q is invalid', name), 'metrics', {code='EINVAL'})
+    if lookup_names then
+      local ok, err = xerror.inval(lookup_names[name],
+        'name is invalid', 'name', name)
+      if not ok then
+        return nil, err
+      end
     end
 
     val = val or 1

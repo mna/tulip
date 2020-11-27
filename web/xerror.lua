@@ -1,3 +1,5 @@
+local fn = require 'fn'
+
 -- Returns the __name of the metatable of o, or nil if none.
 local function metatable_name(o)
   if type(o) == 'table' then
@@ -23,7 +25,29 @@ function Error:__tostring()
     -- so that a final ': ' is added after the last label
     table.insert(parts, '')
   end
-  return table.concat(parts, ': ') .. (self.message or '<error>')
+
+  -- add any other fields as part of the attributes
+  local filter = fn.filter(function(k, v)
+    local typ = type(v)
+    return (typ == 'string' or typ == 'number' or typ == 'boolean') and
+      type(k) == 'string' and
+      k ~= 'code' and k ~= 'message' and (not string.find(k, '^_'))
+  end)
+  local map = fn.map(function(k, v)
+    return string.format('%s = %s', k, tostring(v))
+  end)
+  local pipe = fn.pipe(filter, map)
+  local attrs = fn.reduce(function(cumul, s)
+    table.insert(cumul, s)
+    return cumul
+  end, {}, pipe(pairs(self)))
+
+  local s = table.concat(parts, ': ') .. (self.message or '<error>')
+  if #attrs > 0 then
+    s = s .. '; ' .. table.concat(attrs, '; ')
+  end
+
+  return s
 end
 
 function Error.new(msg, code)
@@ -88,6 +112,10 @@ end
 -- Create an EIO converter for IO calls such as read/write to file
 -- and sockets.
 M.io = M.converter('EIO', 'errno')
+
+-- Create an EINVAL converter for field validation errors, where extra
+-- values are the field name and value.
+M.inval = M.converter('EINVAL', 'field', 'value')
 
 -- Returns true if err is of any of the specified codes, false
 -- otherwise. Codes can be patterns.
