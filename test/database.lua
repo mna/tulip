@@ -14,7 +14,8 @@ local function count_conns()
         pg_stat_activity
       WHERE
         datname = current_database() AND
-        pid != pg_backend_pid()
+        pid != pg_backend_pid() AND
+        application_name = ''
     ]])
     return tonumber(res[1][1])
   end))
@@ -115,6 +116,7 @@ function M.test_database_pool()
     -- that has been idle too long.
     cqueues.sleep(2)
     local pid4 = pid(c4)
+    local c4birth = c4._birth
     lu.assertTrue(pid4 > 0)
     c4:close()
     lu.assertEquals(count_conns(), 2)
@@ -123,13 +125,19 @@ function M.test_database_pool()
     local c5 = app:db()
     lu.assertEquals(count_conns(), 1)
     -- it kept the same as pid4 (the other had been idle too long)
+    -- unless c4 has been alive to long itself :( need to check some
+    -- internals to protect against this flaky failure.
     local pid5 = pid(c5)
-    lu.assertEquals(pid5, pid4)
+    local alive = os.difftime(os.time(), c4birth)
+    if alive > app.config.database.pool.life_timeout then
+      lu.assertNotEquals(pid5, pid4)
+    else
+      lu.assertEquals(pid5, pid4)
+    end
     c5:close()
 
-    -- at this point the only connection is at least 3 seconds old,
-    -- sleep again a bit to exceed its lifetime timeout
-    cqueues.sleep(2)
+    -- exceed its lifetime timeout
+    c5._birth = os.time() - app.config.database.pool.life_timeout - 1
     local c6 = app:db()
     lu.assertEquals(count_conns(), 1)
     local pid6 = pid(c6)

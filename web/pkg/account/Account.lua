@@ -273,11 +273,11 @@ function Account.by_email(email, raw_pwd, conn)
   local acct = xpgsql.model(xerror.must(xerror.db(
     conn:query(SQL_LOADUSEREMAIL, email))), model)
   if not acct then
-    xerror.throw('account does not exist')
+    xerror.must(xerror.inval(nil, 'account does not exist'))
   end
 
   if raw_pwd then
-    xerror.must(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
+    xerror.must(xerror.inval(argon2.verify(acct.password, raw_pwd), 'invalid credentials'))
   end
   load_groups(acct, conn)
   return setmetatable(acct, Account)
@@ -292,11 +292,11 @@ function Account.by_id(id, raw_pwd, conn)
   local acct = xpgsql.model(xerror.must(xerror.db(
     conn:query(SQL_LOADUSERID, id))), model)
   if not acct then
-    xerror.throw('account does not exist')
+    xerror.must(xerror.inval(nil, 'account does not exist'))
   end
 
   if raw_pwd then
-    xerror.must(argon2.verify(acct.password, raw_pwd), 'invalid credentials')
+    xerror.must(xerror.inval(argon2.verify(acct.password, raw_pwd), 'invalid credentials'))
   end
   load_groups(acct, conn)
   return setmetatable(acct, Account)

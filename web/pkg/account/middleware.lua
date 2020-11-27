@@ -6,6 +6,7 @@ local M = {}
 
 -- TODO: potential configuration options:
 -- * error handlers for each middleware
+-- * login fail handler
 -- * session cookie name
 -- * session remember-me and token duration (TTL)
 
@@ -41,7 +42,7 @@ function M.signup(req, res, nxt, errh)
   nxt()
 end
 
-function M.login(req, res, nxt, errh)
+function M.login(req, res, nxt, errh, failh)
   local app = req.app
   local body, err = req:decode_body()
   if not body then
@@ -52,11 +53,13 @@ function M.login(req, res, nxt, errh)
   local pwd = body.password or '' -- ensure a pwd validation is always done
   local persist = (body.rememberme and body.rememberme ~= '')
 
-  local acct, err = app:account(email, pwd)
+  local acct; acct, err = app:account(email, pwd)
   if not acct then
-    -- error/invalid
-    -- TODO: how to determine which type of error it was? Use some
-    -- error object with a kind/code or something.
+    if xerror.is(err, 'EINVAL') then
+      return failh(req, res, nxt, err)
+    else
+      return errh(req, res, nxt, err)
+    end
   end
 
   -- TODO: generate a token and store it securely (signed) in a

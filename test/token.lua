@@ -163,7 +163,7 @@ function M.test_token()
     tok, err = app:token({
       type = 'ssn',
       ref_id = 4,
-      max_age = 1,
+      max_age = 2,
     })
     lu.assertNil(err)
     lu.assertTrue(tok and #tok == 44)
@@ -183,7 +183,7 @@ function M.test_token()
     lu.assertEquals(id, 4)
 
     -- let it expire
-    process.sleep(1)
+    process.sleep(2)
 
     -- not valid anymore
     ok, id = app:token({
