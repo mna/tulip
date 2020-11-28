@@ -1,5 +1,5 @@
-local cookie = require 'http.cookie'
 local crypto = require 'web.crypto'
+local handler = require 'web.handler'
 local neturl = require 'net.url'
 local xerror = require 'web.xerror'
 local xio = require 'web.xio'
@@ -62,22 +62,16 @@ function Mw:save_raw_token_in_cookie(raw_tok, req, res)
     req.locals.session_id or '-')
   if #encoded > MAX_COOKIE_LEN then return end
 
-  local expiry = self.max_age
-  if expiry then expiry = os.time() + expiry end
-
-  local same_site = self.same_site
-  -- lua-http does not support same-site none.
-  if same_site and same_site == 'none' then same_site = nil end
-
-  local ck = cookie.bake(self.cookie_name,
-    encoded,
-    expiry,
-    self.domain,
-    self.path,
-    self.secure,
-    self.http_only,
-    same_site)
-  res.headers:append('set-cookie', ck)
+  handler.set_cookie(res, {
+    name = self.cookie_name,
+    value = encoded,
+    ttl = self.max_age,
+    domain = self.domain,
+    path = self.path,
+    insecure = not self.secure,
+    allowjs = not self.http_only,
+    same_site = self.same_site,
+  })
   return true
 end
 

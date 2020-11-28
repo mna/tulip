@@ -96,11 +96,12 @@ function M.validate(t, conn, tok)
 
   -- at this point, if the token has once set, the token exists
   -- and is consumed (or leaked), so delete it.
-  if row.once then
+  if row.once or t.delete then
     xerror.must(xerror.db(conn:exec(SQL_DELETETOKEN, tok)))
   end
 
-  if t.type == row.type and ((not row.once) or (t.ref_id == row.ref_id)) and os.time() < row.expiry then
+  if t.type == row.type and ((not row.once) or (t.ref_id == row.ref_id))
+      and os.time() < row.expiry then
     return true, row.ref_id
   end
   xerror.must(xerror.inval(nil, 'invalid token'))

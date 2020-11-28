@@ -1,4 +1,6 @@
+local cookie = require 'http.cookie'
 local extmime = require 'web.handler.extmime'
+local xtable = require 'web.xtable'
 
 local M = {
   EXTMIME = extmime,
@@ -98,6 +100,45 @@ function M.extra_middleware(f, ...)
   return function(req, res, nxt)
     f(req, res, nxt, table.unpack(xs, 1, xs.n))
   end
+end
+
+-- Writes a cookie to the response. The cfg table may have the following
+-- fields:
+--
+-- * name: string = name of the cookie
+-- * value: string = value of the cookie, set to '' if missing
+-- * ttl: number = time-to-live, do not set for a browser-session cookie,
+--   set to negative to delete the cookie.
+-- * domain: string = domain of the cookie
+-- * path: string = path of the cookie
+-- * insecure: boolean = allow sending cookie on http (defaults to
+--   false, which is Secure)
+-- * allowjs: boolean = if true, cookie can be accessed via javascript
+--   (defaults to false, which is HttpOnly).
+-- * same_site: string = set same-site constraint, can be 'strict',
+--   'lax' or 'none'. Defaults to the browser's default behaviour (lax).
+function M.set_cookie(res, cfg)
+  cfg = xtable.merge({
+    value = '',
+  }, cfg)
+
+  cfg.secure = (not cfg.insecure)
+  cfg.http_only = (not cfg.allowjs)
+  if cfg.same_site and cfg.same_site == 'none' then
+    cfg.same_site = nil
+  end
+  if cfg.ttl then
+    cfg.expiry = (cfg.ttl >= 0 and (os.time() + cfg.ttl) or 0)
+  end
+  local ck = cookie.bake(cfg.name,
+    cfg.value,
+    cfg.expiry,
+    cfg.domain,
+    cfg.path,
+    cfg.secure,
+    cfg.http_only,
+    cfg.same_site)
+  res.headers:append('set-cookie', ck)
 end
 
 return M

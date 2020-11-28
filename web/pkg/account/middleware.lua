@@ -1,6 +1,6 @@
-local cookie = require 'http.cookie'
 local crypto = require 'web.crypto'
 local fn = require 'fn'
+local handler = require 'web.handler'
 local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
@@ -12,22 +12,16 @@ local function save_b64_token_in_cookie(b64_tok, cfg, res)
     cfg.cookie_name)
   if #encoded > MAX_COOKIE_LEN then return end
 
-  local expiry = cfg.max_age
-  if expiry then expiry = os.time() + expiry end
-
-  local same_site = cfg.same_site
-  -- lua-http does not support same-site none.
-  if same_site and same_site == 'none' then same_site = nil end
-
-  local ck = cookie.bake(cfg.cookie_name,
-    encoded,
-    expiry,
-    cfg.domain,
-    cfg.path,
-    cfg.secure,
-    cfg.http_only,
-    same_site)
-  res.headers:append('set-cookie', ck)
+  handler.set_cookie(res, {
+    name = cfg.cookie_name,
+    value = encoded,
+    ttl = cfg.max_age,
+    domain = cfg.domain,
+    path = cfg.path,
+    insecure = not cfg.secure,
+    allowjs = not cfg.http_only,
+    same_site = cfg.same_site,
+  })
   return true
 end
 
@@ -122,33 +116,71 @@ function M.login(req, res, nxt, errh, failh, cfg)
   nxt()
 end
 
-function M.check_session(req, res, nxt, cfg)
+function M.check_session(req, res, nxt, errh, cfg)
   local app = req.app
+
   local ck = req.cookies[cfg.cookie_name]
   if ck then
     local tok = read_b64_token_from_cookie(ck, cfg)
+
     if tok then
-      local ok, err = app:token({
-          type = 'session',
-        })
+      local ok, id_or_err = app:token({
+        type = 'session',
+      }, nil, tok)
+
+      if ok then
+        local acct, err = app:account(id_or_err)
+        if not acct then
+          return errh(req, res, nxt, err)
+        end
+        req.locals.session_id = tok
+        req.locals.account = acct
+      else
+        -- getting the token failed - if this is a DB failure, treat as
+        -- an error, otherwise if session is now invalid, continue as
+        -- if it wasn't there.
+        if not xerror.is(id_or_err, 'EINVAL') then
+          return errh(req, res, nxt, id_or_err)
+        end
+      end
     end
-    -- TODO: validate that the session id (token) is still valid, get its account id.
-    -- TODO: load the account corresponding to the token's ref_id
-    -- req.locals.session_id = <token>
-    -- req.locals.account = acct
   end
 
   nxt()
 end
 
-function M.logout(req, res, nxt)
-  local ck = req.cookies['ssn']
+function M.logout(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  local ck = req.cookies[cfg.cookie_name]
   if ck then
-    -- TODO: delete the session's token
-    -- TODO: delete cookie on the response
+    local tok = read_b64_token_from_cookie(ck, cfg)
+
+    if tok then
+      -- delete the token
+      local ok, err = app:token({
+        type = 'session',
+        delete = true,
+      }, nil, tok)
+      if (not ok) and (not xerror.is(err, 'EINVAL')) then
+        return errh(req, res, nxt, err)
+      end
+    end
+
+    -- delete the cookie
+    handler.set_cookie(res, {
+      name = cfg.cookie_name,
+      ttl = -1,
+      domain = cfg.domain,
+      path = cfg.path,
+      insecure = not cfg.secure,
+      allowjs = not cfg.http_only,
+      same_site = cfg.same_site,
+    })
   end
   req.locals.session_id = nil
   req.locals.account = nil
+
   nxt()
 end
 
