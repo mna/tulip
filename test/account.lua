@@ -67,7 +67,7 @@ function M.test_account_methods()
     -- create a duplicate account
     local acct; acct, err = app:create_account('u1@A.b', 'pwd')
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'duplicate key')
+    lu.assertStrContains(tostring(err), 'duplicate key')
 
     -- lookup by email
     acct, err = app:account('u1@a.b')
@@ -77,7 +77,7 @@ function M.test_account_methods()
     -- lookup by id with invalid password
     acct, err = app:account(acct2.id, 'not pwd')
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'invalid credentials')
+    lu.assertStrContains(tostring(err), 'invalid credentials')
 
     -- lookup by id with valid password
     acct, err = app:account(acct2.id, 'pwd')
@@ -87,7 +87,7 @@ function M.test_account_methods()
     -- create account with invalid group
     acct, err = app:create_account('U3@a.b', 'pwd', {'a', 'd'})
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'null value')
+    lu.assertStrContains(tostring(err), 'null value')
 
     -- add account a and c, remove b and d
     local conn = app:db()
@@ -99,7 +99,7 @@ function M.test_account_methods()
     -- add account d
     ok, err = acct2:change_groups('d', nil, conn)
     lu.assertNil(ok)
-    lu.assertStrContains(err, 'null value')
+    lu.assertStrContains(tostring(err), 'null value')
     lu.assertItemsEquals(acct2.groups, {'a', 'c'})
 
     -- change email
@@ -116,7 +116,7 @@ function M.test_account_methods()
     -- validate with old password fails
     acct, err = app:account('U3@b.c', 'pwd')
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'invalid credentials')
+    lu.assertStrContains(tostring(err), 'invalid credentials')
 
     -- with new password works
     acct, err = app:account('U3@b.c', 'pwd2')
@@ -137,11 +137,11 @@ function M.test_account_methods()
     -- cannot look it up anymore
     acct, err = app:account(acct2.id)
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'does not exist')
+    lu.assertStrContains(tostring(err), 'does not exist')
 
     acct, err = app:account('u2@b.c')
     lu.assertNil(acct)
-    lu.assertStrContains(err, 'does not exist')
+    lu.assertStrContains(tostring(err), 'does not exist')
 
     conn:close()
   end

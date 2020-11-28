@@ -71,7 +71,8 @@ local M = {}
 --   < v: bool|string|nil = if tok is provided, returns a boolean
 --     that indicates if the token is valid, otherwise returns a
 --     string that is the base64-encoded generated token. Is
---     nil on error.
+--     nil on error or invalid token. If it returns true, returns the
+--     associated ref_id as second value.
 --   < err: string|nil = error message if v is nil.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)

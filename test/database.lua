@@ -15,7 +15,7 @@ local function count_conns()
       WHERE
         datname = current_database() AND
         pid != pg_backend_pid() AND
-        application_name = ''
+        application_name = 'test'
     ]])
     return tonumber(res[1][1])
   end))
@@ -54,7 +54,7 @@ end
 
 function M.test_database_nopool()
   local app = App{
-    database = {connection_string = ''}
+    database = {connection_string = 'application_name=test'}
   }
 
   app.main = function()
@@ -78,7 +78,7 @@ end
 function M.test_database_pool()
   local app = App{
     database = {
-      connection_string = '',
+      connection_string = 'application_name=test',
       pool = {
         max_idle = 2,
         max_open = 3,
@@ -161,7 +161,7 @@ function M.test_migrations_order()
   local app = App{
     log = {level = 'd', file = '/dev/null'},
     database = {
-      connection_string = '',
+      connection_string = 'application_name=test',
       migrations = {
         {package = 'a'; function() end},
         {package = 'b', after = {'a'}; function() end},
@@ -200,7 +200,7 @@ function M.test_migrations_minimal()
   local app = App{
     log = {level = 'd', file = '/dev/null'},
     database = {
-      connection_string = '',
+      connection_string = 'application_name=test',
       migrations = {
         {package = 'a'; function() end},
         {package = 'b', after = {'a'}; function() end},
@@ -237,7 +237,7 @@ function M.test_migrations_order_circular()
   local app = App{
     log = {level = 'd', file = '/dev/null'},
     database = {
-      connection_string = '',
+      connection_string = 'application_name=test',
       migrations = {
         {package = 'a'; function() end},
         {package = 'b', after = {'a', 'd'}; function() end},

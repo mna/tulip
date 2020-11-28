@@ -1,7 +1,8 @@
 local lu = require 'luaunit'
 local process = require 'process'
-local xtest = require 'test.xtest'
+local xerror = require 'web.xerror'
 local xpgsql = require 'xpgsql'
+local xtest = require 'test.xtest'
 local App = require 'web.App'
 
 local M = {}
@@ -55,8 +56,8 @@ function M.test_token()
       type = 'test',
       ref_id = 1,
     }, nil, tok)
-    lu.assertNil(err)
-    lu.assertFalse(ok)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(err, 'EINVAL'))
 
     -- generate a new one with a short validity
     tok, err = app:token({
@@ -76,8 +77,8 @@ function M.test_token()
       type = 'test',
       ref_id = 1,
     }, nil, tok)
-    lu.assertNil(err)
-    lu.assertFalse(ok)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(err, 'EINVAL'))
 
     -- at this point the table should be empty (both tokens
     -- consumed and deleted)
@@ -140,16 +141,16 @@ function M.test_token()
       type = 'nottest',
       ref_id = 0,
     }, nil, tok)
-    lu.assertNil(err)
-    lu.assertFalse(ok)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(err, 'EINVAL'))
 
     -- token has been consumed, so does not work anymore
     ok, err = app:token({
       type = 'test',
       ref_id = 3,
     }, nil, tok)
-    lu.assertNil(err)
-    lu.assertFalse(ok)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(err, 'EINVAL'))
 
     -- at this point the table should be empty
     conn = xpgsql.connect()
@@ -189,8 +190,8 @@ function M.test_token()
     ok, id = app:token({
       type = 'ssn',
     }, nil, tok)
-    lu.assertFalse(ok)
-    lu.assertNil(id)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(id, 'EINVAL'))
   end
   app:run()
 end

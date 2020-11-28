@@ -200,9 +200,10 @@ end
 -- Raises an error with msg, which can contain formatting verbs. Extra
 -- arguments are provided to string.format.
 function M.throw(msg, ...)
+  local n = select('#', ...)
   if type(msg) ~= 'string' then
     local mt = getmetatable(msg)
-    if mt and not mt.__tostring then
+    if n == 0 or not mt or not mt.__tostring then
       error(msg)
     end
   end
