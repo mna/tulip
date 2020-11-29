@@ -42,7 +42,7 @@ local M = {}
 -- * session cookie name
 -- * session remember-me and token duration (TTL)
 
-function M.signup(req, res, nxt, errh)
+function M.signup(req, res, nxt, errh, failh)
   local app = req.app
   local body, err = req:decode_body()
   if not body then
@@ -55,7 +55,7 @@ function M.signup(req, res, nxt, errh)
   local ok; ok, err = xerror.inval((pwd2 or pwd) == pwd,
     'passwords do not match', 'password')
   if not ok then
-    return errh(req, res, nxt, err)
+    return failh(req, res, nxt, err)
   end
   local gnames
   if groups then
@@ -200,8 +200,8 @@ function M.delete(req, res, nxt, errh, failh, cfg)
 
   local ok; ok, err = app:db(function(conn)
     -- validate the password
-    xerror.must(xerror.db(app:account(acct.id, pwd, conn)))
-    xerror.must(xerror.db(acct:delete(conn)))
+    xerror.must(app:account(acct.id, pwd, conn))
+    xerror.must(acct:delete(conn))
     return true
   end)
   if not ok then
@@ -231,30 +231,39 @@ function M.delete(req, res, nxt, errh, failh, cfg)
   nxt()
 end
 
-function M.setpwd(req, _, nxt)
+function M.setpwd(req, res, nxt, errh, failh)
   local app = req.app
-  local acct = req.locals.account
+
+  local acct, err = xerror.inval(req.locals.account, 'no current account')
   if not acct then
-    -- error
+    return errh(req, res, nxt, err)
   end
 
-  -- TODO: decode_body can error
-  local body = req.decoded_body or req:decode_body()
+  local body; body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
 
   local oldpwd = body.old_password or ''
   local newpwd, newpwd2 = body.new_password, body.new_password2
-  if newpwd2 and newpwd ~= newpwd2 then
-    -- error
+  local ok; ok, err = xerror.inval((newpwd2 or newpwd) == newpwd,
+    'passwords do not match', 'password')
+  if not ok then
+    return failh(req, res, nxt, err)
   end
 
   -- validate old (current) password before changing
-  local ok, err = app:db(function(conn)
-    assert(app:account(acct.id, oldpwd, conn))
-    assert(acct:change_pwd(newpwd, conn))
+  ok, err = app:db(function(conn)
+    xerror.must(app:account(acct.id, oldpwd, conn))
+    xerror.must(acct:change_pwd(newpwd, conn))
     return true
   end)
   if not ok then
-    -- error
+    if xerror.is(err, 'EINVAL') then
+      return failh(req, res, nxt, err)
+    else
+      return errh(req, res, nxt, err)
+    end
   end
 
   nxt()
