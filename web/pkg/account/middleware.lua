@@ -231,6 +231,25 @@ function M.delete(req, res, nxt, errh, failh, cfg)
   nxt()
 end
 
+function M.init_vemail(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  local acct, err = xerror.inval(req.locals.account, 'no current account')
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  local tok; tok, err = app:token({
+    type = 'vemail',
+    ref_id = acct.id,
+    max_age = cfg.max_age,
+    once = true,
+  })
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+end
+
 function M.setpwd(req, res, nxt, errh, failh)
   local app = req.app
 
@@ -283,6 +302,10 @@ function M.authz(req, res, nxt, denyh)
       -- * means allow anyone authenticated
       return nxt()
     end
+    if acct and acct.verified and allowset['@'] then
+      -- @ means allow anyone authenticated and verified
+      return nxt()
+    end
 
     local acctset = xtable.toset(acct and acct.groups)
     local allowinter = xtable.setinter(allowset, acctset)
@@ -299,6 +322,10 @@ function M.authz(req, res, nxt, denyh)
     end
     if acct and denyset['*'] then
       -- deny access to anyone authenticated
+      return denyh(req, res, nxt)
+    end
+    if acct and acct.verified and denyset['@'] then
+      -- deny access to anyone authenticated and verified
       return denyh(req, res, nxt)
     end
     local denyinter = xtable.setinter(denyset, acctset)

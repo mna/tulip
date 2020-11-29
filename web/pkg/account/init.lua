@@ -170,8 +170,6 @@ local M = {}
 --   message to the account. Can also be set as middleware to a "resend
 --   verify email" endpoint.
 --
---   > email: string = the email to which the token should be sent.
---
 -- * web.pkg.account:vemail
 --
 --   Handles the verify email workflow. Checks that the token is valid
@@ -228,7 +226,11 @@ local M = {}
 --   Handles authorization based on the routeargs of the request, renders
 --   either 403 if user is authenticated but doesn't have required group
 --   membership, 401 if user is not authenticated, or 302 Found and redirect to
---   login page.
+--   login page. Supports the following pseudo-groups:
+--
+--   - '?': authorize/deny anyone, authenticated or not
+--   - '*': authorize/deny any authenticated user
+--   - '@': authorize/deny any verified authenticated user
 --
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
