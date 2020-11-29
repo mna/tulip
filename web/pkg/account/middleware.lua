@@ -269,18 +269,43 @@ function M.setpwd(req, res, nxt, errh, failh)
   nxt()
 end
 
-function M.authz(req, res, nxt)
+function M.authz(req, res, nxt, denyh)
   local routeargs = req.routeargs
   if routeargs.allow or routeargs.deny then
-    local acct = req.locals.account
-    local acctset = xtable.toset(acct and acct.groups)
     local allowset = xtable.toset(routeargs.allow)
+    if allowset['?'] then
+      -- ? means allow everyone, authenticated or not
+      return nxt()
+    end
 
-    -- TODO: if is in allowset, or allow * and acct exists, or allow ?
-    -- then allow access.
+    local acct = req.locals.account
+    if acct and allowset['*'] then
+      -- * means allow anyone authenticated
+      return nxt()
+    end
 
-    -- TODO: if not allowed by allowset, check if denied by denyset,
-    -- otherwise allow access.
+    local acctset = xtable.toset(acct and acct.groups)
+    local allowinter = xtable.setinter(allowset, acctset)
+    if next(allowinter) then
+      -- account has one allowed group, so it is allowed
+      return nxt()
+    end
+
+    -- not allowed by allowset, check if denied by denyset.
+    local denyset = xtable.toset(routeargs.deny)
+    if denyset['?'] then
+      -- deny access to everyone, authenticated or not
+      return denyh(req, res, nxt)
+    end
+    if acct and denyset['*'] then
+      -- deny access to anyone authenticated
+      return denyh(req, res, nxt)
+    end
+    local denyinter = xtable.setinter(denyset, acctset)
+    if next(denyinter) then
+      -- account has one denied group, so deny access
+      return denyh(req, res, nxt)
+    end
   end
   nxt()
 end

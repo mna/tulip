@@ -123,4 +123,19 @@ function M.setdiff(...)
   return dst
 end
 
+-- Returns the intersection of all sets, i.e. a set with only keys found
+-- in all sets. The values are set to the number of sets.
+function M.setinter(...)
+  local n = select('#', ...)
+  if n == 0 then return end
+
+  local set = M.setunion(...)
+  for k, v in pairs(set) do
+    if v < n then
+      set[k] = nil
+    end
+  end
+  return set
+end
+
 return M

@@ -81,4 +81,12 @@ function M.test_setdiff()
   lu.assertEquals(xtable.setdiff({a=1, b=2, c=3}, {a=1}, nil, {c=1}), {b=true})
 end
 
+function M.test_setinter()
+  lu.assertNil(xtable.setinter())
+  lu.assertEquals(xtable.setinter(nil, {a=1}), {})
+  lu.assertEquals(xtable.setinter({}, {a=1}), {})
+  lu.assertEquals(xtable.setinter({a=1, b=2}, {a=1}), {a=2})
+  lu.assertEquals(xtable.setinter({a=1, b=2, c=3}, {a=1, b=2, d=4}, {a=1, b=2, c=3}), {a=3, b=3})
+end
+
 return M
