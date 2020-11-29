@@ -184,27 +184,47 @@ function M.logout(req, res, nxt, errh, cfg)
   nxt()
 end
 
-function M.delete(req, res, nxt)
+function M.delete(req, res, nxt, errh, failh, cfg)
   local app = req.app
-  local acct = req.locals.account
+
+  local acct, err = xerror.inval(req.locals.account, 'no current account')
   if not acct then
-    -- error
+    return errh(req, res, nxt, err)
   end
 
-  -- TODO: decode_body can error
-  local body = req.decoded_body or req:decode_body()
+  local body; body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
   local pwd = body.password or ''
 
-  local ok, err = app:db(function(conn)
-    assert(app:account(acct.id, pwd, conn))
-    assert(acct:delete(conn))
+  local ok; ok, err = app:db(function(conn)
+    -- validate the password
+    xerror.must(xerror.db(app:account(acct.id, pwd, conn)))
+    xerror.must(xerror.db(acct:delete(conn)))
     return true
   end)
   if not ok then
-    -- error
+    if xerror.is(err, 'EINVAL') then
+      -- password failed/account invalid
+      return failh(req, res, nxt, err)
+    else
+      return errh(req, res, nxt, err)
+    end
   end
 
-  -- TODO: clear session cookie and token
+  -- clear session cookie and token
+  if req.cookies[cfg.cookie_name] then
+    handler.set_cookie(res, {
+      name = cfg.cookie_name,
+      ttl = -1,
+      domain = cfg.domain,
+      path = cfg.path,
+      insecure = not cfg.secure,
+      allowjs = not cfg.http_only,
+      same_site = cfg.same_site,
+    })
+  end
   req.locals.session_id = nil
   req.locals.account = nil
 
