@@ -239,15 +239,79 @@ function M.init_vemail(req, res, nxt, errh, cfg)
     return errh(req, res, nxt, err)
   end
 
+  -- generate a new base64-encoded token
   local tok; tok, err = app:token({
     type = 'vemail',
     ref_id = acct.id,
-    max_age = cfg.max_age,
+    max_age = cfg.token_max_age,
     once = true,
   })
   if not tok then
     return errh(req, res, nxt, err)
   end
+
+  -- hmac-encode it
+  local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
+  local ok; ok, err = app:mqueue({
+    max_attempts = cfg.max_attempts,
+    max_age = cfg.queue_max_age,
+    queue = cfg.queue,
+  }, nil, {
+    email = acct.email,
+    encoded_token = encoded,
+  })
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  nxt()
+end
+
+-- TODO: single errh and function decides behaviour based on EINVAL?
+
+function M.vemail(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  local enc_tok, err = xerror.inval(req.url.query and req.url.query.t, 'no token')
+  if not enc_tok then
+    return errh(req, res, nxt, err)
+  end
+  local email; email, err = xerror.inval(req.url.query and req.url.query.email, 'no email')
+  if not email then
+    return errh(req, res, nxt, err)
+  end
+
+  -- hmac-decode the token
+  local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
+    cfg.token_max_age, enc_tok, email), 'invalid token')
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- load the corresponding account
+  local acct; acct, err = app:account(email)
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  -- validate the token
+  local ok; ok, err = app:token({
+    type = 'vemail',
+    ref_id = acct.id,
+  }, nil, tok)
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- all good, mark the email as verified
+  ok, err = app:db(function(conn)
+    return xerror.must(acct:verify_email(conn))
+  end)
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  nxt()
 end
 
 function M.setpwd(req, res, nxt, errh, failh)

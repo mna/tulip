@@ -165,10 +165,10 @@ local M = {}
 --
 -- * web.pkg.account:init_vemail
 --
---   Initiates the verify email workflow, typically after a successful
---   signup middleware. It generates a single-use token and sends an email
---   message to the account. Can also be set as middleware to a "resend
---   verify email" endpoint.
+--   Initiates the verify email workflow, typically after a successful signup
+--   middleware. It generates a single-use token and enqueues a job to send
+--   an email message to the account. Can also be set as middleware to a
+--   "resend verify email" endpoint.
 --
 -- * web.pkg.account:vemail
 --
@@ -176,6 +176,7 @@ local M = {}
 --   and if so marks the email as verified.
 --
 --   > t: string = the token, stored in a query string parameter.
+--   > e: string = the email to verify, stored in a query string parameter.
 --
 -- * web.pkg.account:setpwd
 --
