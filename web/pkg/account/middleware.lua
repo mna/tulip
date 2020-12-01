@@ -276,7 +276,7 @@ function M.vemail(req, res, nxt, errh, cfg)
   if not enc_tok then
     return errh(req, res, nxt, err)
   end
-  local email; email, err = xerror.inval(req.url.query and req.url.query.email, 'no email')
+  local email; email, err = xerror.inval(req.url.query and req.url.query.e, 'no email')
   if not email then
     return errh(req, res, nxt, err)
   end
@@ -347,6 +347,211 @@ function M.setpwd(req, res, nxt, errh, failh)
     else
       return errh(req, res, nxt, err)
     end
+  end
+
+  nxt()
+end
+
+-- TODO: best practice if account does not exist is to fail silently,
+-- do not tell the user.
+function M.init_resetpwd(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  -- get the email of the account from the form
+  local body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
+
+  local email = body.email
+  local acct; acct, err = app:account(email)
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  -- generate a new base64-encoded token
+  local tok; tok, err = app:token({
+    type = 'resetpwd',
+    ref_id = acct.id,
+    max_age = cfg.token_max_age,
+    once = true,
+  })
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- hmac-encode it
+  local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
+  local ok; ok, err = app:mqueue({
+    max_attempts = cfg.max_attempts,
+    max_age = cfg.queue_max_age,
+    queue = cfg.queue,
+  }, nil, {
+    -- TODO: merge some static part of the message in the cfg
+    email = acct.email,
+    encoded_token = encoded,
+  })
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  nxt()
+end
+
+function M.resetpwd(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  -- decode the form body to get the new password
+  local body, err = app:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
+
+  local newpwd, newpwd2 = body.new_password, body.new_password2
+  local ok; ok, err = xerror.inval((newpwd2 or newpwd) == newpwd,
+    'passwords do not match', 'password')
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- get the encoded token and email address
+  local enc_tok; enc_tok, err = xerror.inval(req.url.query and req.url.query.t or body.t, 'no token')
+  if not enc_tok then
+    return errh(req, res, nxt, err)
+  end
+  local email; email, err = xerror.inval(req.url.query and req.url.query.e or body.e, 'no email')
+  if not email then
+    return errh(req, res, nxt, err)
+  end
+
+  -- hmac-decode the token
+  local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
+    cfg.token_max_age, enc_tok, email), 'invalid token')
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- load the corresponding account
+  local acct; acct, err = app:account(email)
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  -- validate the token
+  ok, err = app:token({
+    type = 'resetpwd',
+    ref_id = acct.id,
+  }, nil, tok)
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- all good, change password
+  ok, err = app:db(function(conn)
+    return xerror.must(acct:change_pwd(newpwd, conn))
+  end)
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  nxt()
+end
+
+function M.init_changeemail(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  local acct, err = xerror.inval(req.locals.account, 'no current account')
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  -- get the new email
+  local body; body, err = req:decode_body()
+  if not body then
+    return errh(req, res, nxt, err)
+  end
+
+  local new_email = body.new_email
+  local exist = app:account(new_email)
+  if exist then
+    return errh(req, res, nxt,
+      xerror.inval(nil, 'an account for that email already exists'))
+  end
+
+  -- generate a new base64-encoded token
+  local tok; tok, err = app:token({
+    type = 'changeemail',
+    ref_id = acct.id,
+    max_age = cfg.token_max_age,
+    once = true,
+  })
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- hmac-encode it
+  local encoded = crypto.encode(cfg.auth_key, tok, acct.email, new_email)
+  local ok; ok, err = app:mqueue({
+    max_attempts = cfg.max_attempts,
+    max_age = cfg.queue_max_age,
+    queue = cfg.queue,
+  }, nil, {
+    -- TODO: merge some static part of the message in the cfg
+    old_email = acct.email,
+    new_email = new_email,
+    encoded_token = encoded,
+  })
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  nxt()
+end
+
+function M.changeemail(req, res, nxt, errh, cfg)
+  local app = req.app
+
+  local enc_tok, err = xerror.inval(req.url.query and req.url.query.t, 'no token')
+  if not enc_tok then
+    return errh(req, res, nxt, err)
+  end
+  local old_email; old_email, err = xerror.inval(req.url.query and req.url.query.oe, 'no old email')
+  if not old_email then
+    return errh(req, res, nxt, err)
+  end
+  local new_email; new_email, err = xerror.inval(req.url.query and req.url.query.ne, 'no new email')
+  if not new_email then
+    return errh(req, res, nxt, err)
+  end
+
+  -- hmac-decode the token
+  local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
+    cfg.token_max_age, enc_tok, old_email, new_email), 'invalid token')
+  if not tok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- load the corresponding account
+  local acct; acct, err = app:account(old_email)
+  if not acct then
+    return errh(req, res, nxt, err)
+  end
+
+  -- validate the token
+  local ok; ok, err = app:token({
+    type = 'changeemail',
+    ref_id = acct.id,
+  }, nil, tok)
+  if not ok then
+    return errh(req, res, nxt, err)
+  end
+
+  -- all good, change the email for that account
+  ok, err = app:db(function(conn)
+    return xerror.must(acct:change_email(new_email, conn))
+  end)
+  if not ok then
+    return errh(req, res, nxt, err)
   end
 
   nxt()

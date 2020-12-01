@@ -38,7 +38,9 @@ local M = {}
 -- also available on the Account instance returned by App:create_account or
 -- App:account. It also registers a number of middleware, described below.
 --
--- Requires: database package.
+-- Requires: database, token and mqueue packages (and a body decoder, typically
+-- urlenc).
+--
 -- Config:
 --  * ...
 --
@@ -200,8 +202,9 @@ local M = {}
 --   Handles the reset password workflow (POST of form). Checks the the
 --   token is valid and if so, updates the password to the new one.
 --
---   > t: string = the token, usually stored in a hidden field in the GET
---     of the form or set there via javascript (from the query string).
+--   > t: string = the token, either as query string or in a form field
+--   > e: string = the email used to reset the password, either as query
+--     string or in a form field
 --   > new_password: string = the new (raw) password
 --   > new_password2: string|nil = optional confirmation of the new (raw) password
 --
@@ -221,6 +224,8 @@ local M = {}
 --   the new one.
 --
 --   > t: string = the token, stored in a query string parameter.
+--   > oe: string = the old email, as query string
+--   > ne: string = the new email, as query string
 --
 -- * web.pkg.account:authz
 --
