@@ -23,7 +23,7 @@ dependencies = {
   "lua-zlib 1.2-1",
   "luabenchmark	0.10.0-1",
   "luacov	0.14.0-2",
-  "luafn	0.1-1",
+  "luafn	0.2-1",
   "luaossl	20200709-0",
   "luapgsql	1.6.1-1",
   "luaposix	35.0-1",

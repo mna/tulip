@@ -94,14 +94,6 @@ function M.chain_wmiddleware(mws, msg, last, i)
   end)
 end
 
--- Returns a middleware function that calls f with (req, res, nxt, ...).
-function M.extra_middleware(f, ...)
-  local xs = table.pack(...)
-  return function(req, res, nxt)
-    f(req, res, nxt, table.unpack(xs, 1, xs.n))
-  end
-end
-
 -- Writes a cookie to the response. The cfg table may have the following
 -- fields:
 --
