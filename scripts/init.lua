@@ -65,6 +65,12 @@ if sh.test[[-s run/secrets/csrf_key]] then
 else
   genpwd('csrf_key')
 end
+io.write('>>> account auth key\n')
+if sh.test[[-s run/secrets/account_key]] then
+  io.write('<<< account key already generated, skipping\n')
+else
+  genpwd('account_key')
+end
 
 io.write('>>> environment variables\n')
 if sh.test[[-s ./.envrc]] then

@@ -109,6 +109,86 @@ function M.config()
 
     database = {
       connection_string = '',
+      pool = {
+        max_idle = 2,
+        max_open = 10,
+        idle_timeout = 300,
+      },
+    },
+
+    account = {
+      auth_key = os.getenv('LUAWEB_ACCOUNTKEY'),
+
+      session = {
+        token_type = 'session',
+        token_max_age = 30 * 24 * 3600,
+        cookie_name = 'ssn',
+        cookie_max_age = 30 * 24 * 3600, -- if rememberme is checked
+        domain = '',
+        path = '',
+        secure = true,
+        http_only = false,
+        same_site = 'lax',
+      },
+
+      verify_email = {
+        token_type = 'vemail',
+        token_max_age = 2 * 24 * 3600,
+        queue_name = 'sendemail',
+        queue_max_age = 30,
+        max_attempts = 3,
+        payload = {template = 'x'}, -- gets merged with the email and encoded_token payload
+      },
+
+      reset_password = {
+        token_type = 'resetpwd',
+        token_max_age = 2 * 24 * 3600,
+        queue_name = 'sendemail',
+        queue_max_age = 30,
+        max_attempts = 3,
+        payload = {template = 'y'}, -- gets merged with the email and encoded_token payload
+      },
+
+      change_email = {
+        token_type = 'changeemail',
+        token_max_age = 2 * 24 * 3600,
+        queue_name = 'sendemail',
+        queue_max_age = 30,
+        max_attempts = 3,
+        payload = {template = 'z'}, -- gets merged with the email and encoded_token payload
+      },
+
+      error_handlers = {
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        signup = nil,
+        -- by default, 401 Unauthorized if EINVAL, or throws the error
+        login = nil,
+        -- by default, throws the error (EINVAL means not authenticated
+        -- and does not call the error handler)
+        check_session = nil,
+        -- by default, throws the error (EINVAL means token was expired,
+        -- does not call the error handler)
+        logout = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        delete = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        init_vemail = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        vemail = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        setpwd = nil,
+        -- by default, 200 OK if EINVAL (to prevent leaking existing email
+        -- addresses) or throws the error
+        init_resetpwd = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        resetpwd = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        init_changeemail = nil,
+        -- by default, 400 Bad Request if EINVAL or throws the error
+        changeemail = nil,
+        -- by default, 403 Forbidden (cannot receive other types of errors)
+        authz = nil,
+      },
     },
 
     routes = {
@@ -180,17 +260,22 @@ function M.config()
         startup = '10 * * * *',
       },
     },
+
     token = {},
+
     mqueue = {},
+
     pubsub = {
       listeners = {
         a = {function(n) print('>>> ', n.channel, n.payload) end},
       },
     },
+
     sendgrid = {
       from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
       api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),
     },
+
     metrics = {
       host = '127.0.0.1',
       port = 8125,

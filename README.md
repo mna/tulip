@@ -81,6 +81,7 @@ file managed by `direnv` should contain:
 * `PGUSER`: init-generated
 * `PGDATABASE`: init-generated
 * `LUAWEB_CSRFKEY`: init-generated
+* `LUAWEB_ACCOUNTKEY`: init-generated
 * `LUAWEB_SENDGRIDKEY`: set to a valid Sendgrid API key
 * `LUAWEB_TEST_FROMEMAIL`: set to a valid email address for tests
 * `LUAWEB_TEST_TOEMAIL`: set to a valid email address for tests
