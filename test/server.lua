@@ -218,7 +218,7 @@ function M.test_response()
     ['content-type'] = 'text/plain',
     ['content-length'] = '9',
     ['transfer-encoding'] = '',
-  }, 'not found', true)
+  }, 'Not Found', true)
 
   -- write a file handle
   local fd = io.open('test/testdata/file.txt')

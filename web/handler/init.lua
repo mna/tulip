@@ -1,10 +1,12 @@
 local cookie = require 'http.cookie'
 local extmime = require 'web.handler.extmime'
+local httpstatus = require 'web.handler.httpstatus'
 local xtable = require 'web.xtable'
 
 local M = {
   EXTMIME = extmime,
   DEFAULTMIME = 'application/octet-stream',
+  HTTPSTATUS = httpstatus,
 }
 
 -- Returns a handler that just calls Response:write with t.

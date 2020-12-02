@@ -4,6 +4,9 @@ local xpgsql = require 'xpgsql'
 
 local TOKEN_LEN = 32
 
+-- TODO use a partial index so that type+ref_id are unique only if once is true
+-- https://www.postgresql.org/docs/current/indexes-partial.html
+
 local MIGRATIONS = {
   function (conn)
     xerror.must(xerror.db(conn:exec[[

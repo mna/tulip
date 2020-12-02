@@ -1,4 +1,5 @@
 local cqueues = require 'cqueues'
+local handler = require 'web.handler'
 local headers = require 'http.headers'
 local posix = require 'posix'
 local xerror = require 'web.xerror'
@@ -138,7 +139,7 @@ function Response:write(opts)
         if code and code == posix.ENOENT then
           -- render a 404, file does not exist
           hdrs:upsert(':status', '404')
-          bodystr = 'not found'
+          bodystr = handler.HTTPSTATUS[404]
           len = #bodystr
         else
           return xerror.io(nil, err, code)

@@ -1,3 +1,5 @@
+local fn = require 'fn'
+local middleware = require 'web.pkg.account.middleware'
 local migrations = require 'web.pkg.account.migrations'
 local tcheck = require 'tcheck'
 local xerror = require 'web.xerror'
@@ -29,6 +31,12 @@ end
 
 local M = {}
 
+-- table of middleware name to config key (to be merged with the auth_key)
+-- and default error handler. If config key is nil, no config is provided
+-- to the middleware.
+local MWCONFIG = {
+}
+
 -- The account package handles account creation and management, so
 -- that new accounts can be created, login and logout supported,
 -- sessions created via a cookie, etc. It also supports the email
@@ -42,7 +50,53 @@ local M = {}
 -- urlenc).
 --
 -- Config:
---  * ...
+--  * auth_key: string = authentication key for the all signed tokens.
+--  * session: table = session-related configuration used by middleware:
+--    * token_type: string = type of the session token (default: 'session')
+--    * token_max_age: number = max age in seconds of the token (default:
+--      30 days).
+--    * cookie_name: string = name of the cookie holding the signed token
+--      (default: 'ssn')
+--    * cookie_max_age: number = max age in seconds of the session cookie
+--      when "remember me" is requested (default: 30 days)
+--    * domain: string = domain of the session cookie (default: not set)
+--    * path: string = path of the session cookie (default: not set)
+--    * secure: boolean = secure flag of the session cookie (default: true)
+--    * http_only: boolean = http-only flag of the session cookie (default:
+--      true)
+--    * same_site: string = same-site flag of the session cookie (default:
+--      'lax')
+--  * verify_email,
+--    reset_password,
+--    change_email: tables = configuration of middleware related to those:
+--    * token_type: string = type of the generated token (default:
+--      'vemail', 'resetpwd' and 'changeemail', respectively)
+--    * token_max_age: number = max age in seconds of the token (default:
+--      2 days)
+--    * queue_name: string = name of the message queue where the message
+--      to send the email is posted (default: 'sendemail')
+--    * queue_max_age: number = max age in seconds to process the queue
+--      message (default: 30)
+--    * max_attempts: number = max attempts to process the queue message
+--      successfully before being moved to dead (default: 3)
+--    * payload: table = arbitrary table to post as part of the queue message,
+--      will be combined with the actual dynamic payload (default: nil)
+--  * error_handlers: table = table of error handlers, one for each
+--    available middleware - each value is a function that should expect
+--    (req, res, nxt, err) as arguments:
+--    * signup = by default, 400 if EINVAL or throws the error
+--    * login = by default, 401 if EINVAL or throws the error
+--    * check_session = by default throws the error
+--    * logout = by default throws the error
+--    * delete = by default, 400 if EINVAL or throws the error
+--    * init_vemail = by default, 400 if EINVAL or throws the error
+--    * vemail = by default, 400 if EINVAL or throws the error
+--    * setpwd = by default, 400 if EINVAL or throws the error
+--    * init_resetpwd = by default, 200 if EINVAL or throws the error
+--    * resetpwd = by default, 400 if EINVAL or throws the error
+--    * init_changeemail = by default, 400 if EINVAL or throws the error
+--    * changeemail = by default, 400 if EINVAL or throws the error
+--    * authz = by default, 403
 --
 -- Methods:
 --
