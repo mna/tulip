@@ -35,23 +35,21 @@ local M = {}
 
 local MWPREFIX = 'web.pkg.account'
 
--- table of middleware name to config key (to be merged with the auth_key)
--- and default error handler. If config key is nil, no config is provided
--- to the middleware.
+-- table of middleware name to default handler.
 local MWCONFIG = {
-  signup = {handler = handler.errhandler{EINVAL = 400}},
-  login = {config = 'session', handler = handler.errhandler{EINVAL = 401}},
-  check_session = {config = 'session', handler = handler.errhandler{}},
-  logout = {config = 'session', handler = handler.errhandler{}},
-  delete = {config = 'session', handler = handler.errhandler{EINVAL = 400}},
-  init_vemail = {config = 'verify_email', handler = handler.errhandler{EINVAL = 400}},
-  vemail = {config = 'verify_email', handler = handler.errhandler{EINVAL = 400}},
-  setpwd = {handler = handler.errhandler{EINVAL = 400}},
-  init_resetpwd = {config = 'reset_password', handler = handler.errhandler{EINVAL = 200}},
-  resetpwd = {config = 'reset_password', handler = handler.errhandler{EINVAL = 400}},
-  init_changeemail = {config = 'change_email', handler = handler.errhandler{EINVAL = 400}},
-  changeemail = {config = 'change_email', handler = handler.errhandler{EINVAL = 400}},
-  authz = {handler = handler.errhandler{403}},
+  signup = handler.errhandler{EINVAL = 400},
+  login = handler.errhandler{EINVAL = 401},
+  check_session = handler.errhandler{},
+  logout = handler.errhandler{},
+  delete = handler.errhandler{EINVAL = 400},
+  init_vemail = handler.errhandler{EINVAL = 400},
+  vemail = handler.errhandler{EINVAL = 400},
+  setpwd = handler.errhandler{EINVAL = 400},
+  init_resetpwd = handler.errhandler{EINVAL = 200},
+  resetpwd = handler.errhandler{EINVAL = 400},
+  init_changeemail = handler.errhandler{EINVAL = 400},
+  changeemail = handler.errhandler{EINVAL = 400},
+  authz = handler.errhandler{403},
 }
 
 local MWDEFAULTS = {
@@ -358,9 +356,13 @@ function M.register(cfg, app)
   })
 
   -- register the middleware
-  for k, v in pairs(MWCONFIG) do
-    local errh = cfg.error_handlers and cfg.error_handlers[k] or v.handler
-    local mwcfg = v.config and xtable.merge({auth_key = cfg.auth_key}, MWDEFAULTS[v.config], cfg[v.config])
+  local mwcfg = xtable.merge({}, cfg)
+  for k, v in pairs(MWDEFAULTS) do
+    mwcfg[k] = xtable.merge({}, v, cfg[k])
+  end
+
+  for k, h in pairs(MWCONFIG) do
+    local errh = cfg.error_handlers and cfg.error_handlers[k] or h
     app:register_middleware(MWPREFIX .. ':' .. k, fn.partialtrail(middleware[k], 3, errh, mwcfg))
   end
 end

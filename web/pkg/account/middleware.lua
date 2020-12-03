@@ -69,6 +69,7 @@ function M.signup(req, res, nxt, errh)
 end
 
 function M.login(req, res, nxt, errh, cfg)
+  local ssn = cfg.session
   local app = req.app
   local body, err = req:decode_body()
   if not body then
@@ -86,9 +87,9 @@ function M.login(req, res, nxt, errh, cfg)
   req.locals.account = acct
 
   local tok; tok, err = app:token{
-    type = cfg.token_type,
+    type = ssn.token_type,
     ref_id = acct.id,
-    max_age = cfg.token_max_age,
+    max_age = ssn.token_max_age,
   }
   if not tok then
     return errh(req, res, nxt, err)
@@ -96,7 +97,7 @@ function M.login(req, res, nxt, errh, cfg)
   req.locals.session_id = tok
 
   -- store the token securely (signed) in a cookie
-  local ckcfg = xtable.merge({}, cfg)
+  local ckcfg = xtable.merge({auth_key = cfg.auth_key}, ssn)
   if not persist then
     ckcfg.cookie_max_age = nil
   end
@@ -110,15 +111,16 @@ function M.login(req, res, nxt, errh, cfg)
 end
 
 function M.check_session(req, res, nxt, errh, cfg)
+  local ssn = cfg.session
   local app = req.app
 
-  local ck = req.cookies[cfg.cookie_name]
+  local ck = req.cookies[ssn.cookie_name]
   if ck then
-    local tok = read_b64_token_from_cookie(ck, cfg)
+    local tok = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
 
     if tok then
       local ok, id_or_err = app:token({
-        type = cfg.token_type,
+        type = ssn.token_type,
       }, nil, tok)
 
       if ok then
@@ -147,16 +149,17 @@ function M.check_session(req, res, nxt, errh, cfg)
 end
 
 function M.logout(req, res, nxt, errh, cfg)
+  local ssn = cfg.session
   local app = req.app
 
-  local ck = req.cookies[cfg.cookie_name]
+  local ck = req.cookies[ssn.cookie_name]
   if ck then
-    local tok = read_b64_token_from_cookie(ck, cfg)
+    local tok = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
 
     if tok then
       -- delete the token
       local ok, err = app:token({
-        type = cfg.token_type,
+        type = ssn.token_type,
         delete = true,
       }, nil, tok)
       if (not ok) and (not xerror.is(err, 'EINVAL')) then
@@ -166,13 +169,13 @@ function M.logout(req, res, nxt, errh, cfg)
 
     -- delete the cookie
     handler.set_cookie(res, {
-      name = cfg.cookie_name,
+      name = ssn.cookie_name,
       ttl = -1,
-      domain = cfg.domain,
-      path = cfg.path,
-      insecure = not cfg.secure,
-      allowjs = not cfg.http_only,
-      same_site = cfg.same_site,
+      domain = ssn.domain,
+      path = ssn.path,
+      insecure = not ssn.secure,
+      allowjs = not ssn.http_only,
+      same_site = ssn.same_site,
     })
   end
   req.locals.session_id = nil
@@ -182,6 +185,7 @@ function M.logout(req, res, nxt, errh, cfg)
 end
 
 function M.delete(req, res, nxt, errh, cfg)
+  local ssn = cfg.session
   local app = req.app
 
   local acct, err = xerror.inval(req.locals.account, 'no current account')
@@ -196,28 +200,38 @@ function M.delete(req, res, nxt, errh, cfg)
   local pwd = body.password or ''
 
   local ok; ok, err = app:db(function(conn)
-    -- validate the password
-    xerror.must(app:account(acct.id, pwd, conn))
-    xerror.must(acct:delete(conn))
-    return true
+    return xerror.must(conn:tx(function()
+      -- validate the password
+      xerror.must(app:account(acct.id, pwd, conn))
+
+      -- delete the account
+      xerror.must(acct:delete(conn))
+
+      -- delete the account's tokens
+      xerror.must(app:token({
+        type = ssn.token_type,
+        ref_id = acct.id,
+        delete = true,
+      }, conn))
+
+      return true
+    end))
   end)
   if not ok then
     return errh(req, res, nxt, err)
   end
 
-  -- clear session cookie and token
-  if req.cookies[cfg.cookie_name] then
+  -- clear session cookie
+  if req.cookies[ssn.cookie_name] then
     handler.set_cookie(res, {
-      name = cfg.cookie_name,
+      name = ssn.cookie_name,
       ttl = -1,
-      domain = cfg.domain,
-      path = cfg.path,
-      insecure = not cfg.secure,
-      allowjs = not cfg.http_only,
-      same_site = cfg.same_site,
+      domain = ssn.domain,
+      path = ssn.path,
+      insecure = not ssn.secure,
+      allowjs = not ssn.http_only,
+      same_site = ssn.same_site,
     })
-    -- TODO: delete all tokens for this account id
-    -- TODO: schema issue: same user can have multiple active sessions
   end
   req.locals.session_id = nil
   req.locals.account = nil
@@ -226,6 +240,7 @@ function M.delete(req, res, nxt, errh, cfg)
 end
 
 function M.init_vemail(req, res, nxt, errh, cfg)
+  local vem = cfg.verify_email
   local app = req.app
 
   local acct, err = xerror.inval(req.locals.account, 'no current account')
@@ -233,29 +248,31 @@ function M.init_vemail(req, res, nxt, errh, cfg)
     return errh(req, res, nxt, err)
   end
 
-  -- TODO: should be in a transaction (token + mqueue)
+  local ok; ok, err = app:db(function(conn)
+    return xerror.must(conn:tx(function()
+      -- generate a new base64-encoded token
+      local tok = xerror.must(app:token({
+        type = vem.token_type,
+        ref_id = acct.id,
+        max_age = vem.token_max_age,
+        once = true,
+      }, conn))
 
-  -- generate a new base64-encoded token
-  local tok; tok, err = app:token({
-    type = cfg.token_type,
-    ref_id = acct.id,
-    max_age = cfg.token_max_age,
-    once = true,
-  })
-  if not tok then
-    return errh(req, res, nxt, err)
-  end
+      -- hmac-encode it
+      local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
 
-  -- hmac-encode it
-  local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
-  local ok; ok, err = app:mqueue({
-    max_attempts = cfg.max_attempts,
-    max_age = cfg.queue_max_age,
-    queue = cfg.queue_name,
-  }, nil, xtable.merge({}, cfg.payload, {
-    email = acct.email,
-    encoded_token = encoded,
-  }))
+      -- enqueue it
+      xerror.must(app:mqueue({
+        max_attempts = vem.max_attempts,
+        max_age = vem.queue_max_age,
+        queue = vem.queue_name,
+      }, conn, xtable.merge({}, vem.payload, {
+        email = acct.email,
+        encoded_token = encoded,
+      })))
+      return true
+    end))
+  end)
   if not ok then
     return errh(req, res, nxt, err)
   end
@@ -264,6 +281,7 @@ function M.init_vemail(req, res, nxt, errh, cfg)
 end
 
 function M.vemail(req, res, nxt, errh, cfg)
+  local vem = cfg.verify_email
   local app = req.app
 
   local enc_tok, err = xerror.inval(req.url.query and req.url.query.t, 'no token')
@@ -277,7 +295,7 @@ function M.vemail(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    cfg.token_max_age, enc_tok, email), 'invalid token')
+    vem.token_max_age, enc_tok, email), 'invalid token')
   if not tok then
     return errh(req, res, nxt, err)
   end
@@ -290,7 +308,7 @@ function M.vemail(req, res, nxt, errh, cfg)
 
   -- validate the token
   local ok; ok, err = app:token({
-    type = cfg.token_type,
+    type = vem.token_type,
     ref_id = acct.id,
   }, nil, tok)
   if not ok then
@@ -330,7 +348,6 @@ function M.setpwd(req, res, nxt, errh)
   end
 
   -- validate old (current) password before changing
-  -- TODO: then delete all sessions for that account id
   ok, err = app:db(function(conn)
     xerror.must(app:account(acct.id, oldpwd, conn))
     xerror.must(acct:change_pwd(newpwd, conn))
@@ -344,6 +361,7 @@ function M.setpwd(req, res, nxt, errh)
 end
 
 function M.init_resetpwd(req, res, nxt, errh, cfg)
+  local rep = cfg.reset_password
   local app = req.app
 
   -- get the email of the account from the form
@@ -358,29 +376,31 @@ function M.init_resetpwd(req, res, nxt, errh, cfg)
     return errh(req, res, nxt, err)
   end
 
-  -- TODO: should be in a transaction (token + mqueue)
+  local ok; ok, err = app:db(function(conn)
+    return xerror.must(conn:tx(function()
+      -- generate a new base64-encoded token
+      local tok = xerror.must(app:token({
+        type = rep.token_type,
+        ref_id = acct.id,
+        max_age = rep.token_max_age,
+        once = true,
+      }, conn))
 
-  -- generate a new base64-encoded token
-  local tok; tok, err = app:token({
-    type = cfg.token_type,
-    ref_id = acct.id,
-    max_age = cfg.token_max_age,
-    once = true,
-  })
-  if not tok then
-    return errh(req, res, nxt, err)
-  end
+      -- hmac-encode it
+      local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
 
-  -- hmac-encode it
-  local encoded = crypto.encode(cfg.auth_key, tok, acct.email)
-  local ok; ok, err = app:mqueue({
-    max_attempts = cfg.max_attempts,
-    max_age = cfg.queue_max_age,
-    queue = cfg.queue_name,
-  }, nil, xtable.merge({}, cfg.payload, {
-    email = acct.email,
-    encoded_token = encoded,
-  }))
+      -- enqueue it
+      xerror.must(app:mqueue({
+        max_attempts = rep.max_attempts,
+        max_age = rep.queue_max_age,
+        queue = rep.queue_name,
+      }, conn, xtable.merge({}, rep.payload, {
+        email = acct.email,
+        encoded_token = encoded,
+      })))
+      return true
+    end))
+  end)
   if not ok then
     return errh(req, res, nxt, err)
   end
@@ -389,6 +409,7 @@ function M.init_resetpwd(req, res, nxt, errh, cfg)
 end
 
 function M.resetpwd(req, res, nxt, errh, cfg)
+  local rep = cfg.reset_password
   local app = req.app
 
   -- decode the form body to get the new password
@@ -416,7 +437,7 @@ function M.resetpwd(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    cfg.token_max_age, enc_tok, email), 'invalid token')
+    rep.token_max_age, enc_tok, email), 'invalid token')
   if not tok then
     return errh(req, res, nxt, err)
   end
@@ -427,28 +448,56 @@ function M.resetpwd(req, res, nxt, errh, cfg)
     return errh(req, res, nxt, err)
   end
 
-  -- validate the token
+  -- validate the token (must happen outside the transaction as it consumes
+  -- the token immediately, must not be rollbacked afterwards)
   ok, err = app:token({
-    type = cfg.token_type,
+    type = rep.token_type,
     ref_id = acct.id,
   }, nil, tok)
   if not ok then
     return errh(req, res, nxt, err)
   end
 
-  -- all good, change password
-  -- TODO: then delete all sessions for that account id
+  local ssn = cfg.session
   ok, err = app:db(function(conn)
-    return xerror.must(acct:change_pwd(newpwd, conn))
+    return xerror.must(conn:tx(function()
+      -- change the password
+      xerror.must(acct:change_pwd(newpwd, conn))
+
+      -- delete the account's tokens
+      xerror.must(app:token({
+        type = ssn.token_type,
+        ref_id = acct.id,
+        delete = true,
+      }, conn))
+
+      return true
+    end))
   end)
   if not ok then
     return errh(req, res, nxt, err)
   end
 
+  -- clear session cookie
+  if req.cookies[ssn.cookie_name] then
+    handler.set_cookie(res, {
+      name = ssn.cookie_name,
+      ttl = -1,
+      domain = ssn.domain,
+      path = ssn.path,
+      insecure = not ssn.secure,
+      allowjs = not ssn.http_only,
+      same_site = ssn.same_site,
+    })
+  end
+  req.locals.session_id = nil
+  req.locals.account = nil
+
   nxt()
 end
 
 function M.init_changeemail(req, res, nxt, errh, cfg)
+  local che = cfg.change_email
   local app = req.app
 
   local acct, err = xerror.inval(req.locals.account, 'no current account')
@@ -470,30 +519,33 @@ function M.init_changeemail(req, res, nxt, errh, cfg)
       xerror.inval(nil, 'an account for that email already exists'))
   end
 
-  -- TODO: should be in a transaction (token + mqueue)
+  local ok; ok, err = app:db(function(conn)
+    return xerror.must(conn:tx(function()
+      -- generate a new base64-encoded token
+      local tok = xerror.must(app:token({
+        type = che.token_type,
+        ref_id = acct.id,
+        max_age = che.token_max_age,
+        once = true,
+      }, conn))
 
-  -- generate a new base64-encoded token
-  local tok; tok, err = app:token({
-    type = cfg.token_type,
-    ref_id = acct.id,
-    max_age = cfg.token_max_age,
-    once = true,
-  })
-  if not tok then
-    return errh(req, res, nxt, err)
-  end
+      -- hmac-encode it
+      local encoded = crypto.encode(cfg.auth_key, tok, acct.email, new_email)
 
-  -- hmac-encode it
-  local encoded = crypto.encode(cfg.auth_key, tok, acct.email, new_email)
-  local ok; ok, err = app:mqueue({
-    max_attempts = cfg.max_attempts,
-    max_age = cfg.queue_max_age,
-    queue = cfg.queue_name,
-  }, nil, xtable.merge({}, cfg.payload, {
-    old_email = acct.email,
-    new_email = new_email,
-    encoded_token = encoded,
-  }))
+      -- enqueue it
+      xerror.must(app:mqueue({
+        max_attempts = che.max_attempts,
+        max_age = che.queue_max_age,
+        queue = che.queue_name,
+      }, conn, xtable.merge({}, che.payload, {
+        old_email = acct.email,
+        new_email = new_email,
+        encoded_token = encoded,
+      })))
+
+      return true
+    end))
+  end)
   if not ok then
     return errh(req, res, nxt, err)
   end
@@ -502,6 +554,7 @@ function M.init_changeemail(req, res, nxt, errh, cfg)
 end
 
 function M.changeemail(req, res, nxt, errh, cfg)
+  local che = cfg.change_email
   local app = req.app
 
   local enc_tok, err = xerror.inval(req.url.query and req.url.query.t, 'no token')
@@ -519,7 +572,7 @@ function M.changeemail(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    cfg.token_max_age, enc_tok, old_email, new_email), 'invalid token')
+    che.token_max_age, enc_tok, old_email, new_email), 'invalid token')
   if not tok then
     return errh(req, res, nxt, err)
   end
@@ -532,7 +585,7 @@ function M.changeemail(req, res, nxt, errh, cfg)
 
   -- validate the token
   local ok; ok, err = app:token({
-    type = cfg.token_type,
+    type = che.token_type,
     ref_id = acct.id,
   }, nil, tok)
   if not ok then
@@ -540,7 +593,6 @@ function M.changeemail(req, res, nxt, errh, cfg)
   end
 
   -- all good, change the email for that account
-  -- TODO: then delete all existing sessions for that account id
   ok, err = app:db(function(conn)
     return xerror.must(acct:change_email(new_email, conn))
   end)
