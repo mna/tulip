@@ -192,6 +192,68 @@ function M.test_token()
     }, nil, tok)
     lu.assertNil(ok)
     lu.assertTrue(xerror.is(id, 'EINVAL'))
+
+    -- create a couple multi-use tokens for the same ref_id
+    local tok1; tok1, err = app:token({
+      type = 'ssn',
+      ref_id = 5,
+      max_age = 120,
+    })
+    lu.assertNil(err)
+    lu.assertTrue(tok1 and #tok1 == 44)
+
+    local tok2; tok2, err = app:token({
+      type = 'ssn',
+      ref_id = 5,
+      max_age = 120,
+    })
+    lu.assertNil(err)
+    lu.assertTrue(tok2 and #tok2 == 44)
+
+    lu.assertNotEquals(tok1, tok2)
+
+    -- try to delete all tokens for ref_id = 5, without type
+    ok, err = app:token({
+      ref_id = 5,
+      delete = true,
+    })
+    lu.assertNil(err)
+    lu.assertTrue(ok)
+
+    -- tokens are still valid (did not delete anything, same as type=NULL)
+    ok, id = app:token({
+      type = 'ssn',
+    }, nil, tok1)
+    lu.assertTrue(ok)
+    lu.assertEquals(id, 5)
+
+    ok, id = app:token({
+      type = 'ssn',
+    }, nil, tok2)
+    lu.assertTrue(ok)
+    lu.assertEquals(id, 5)
+
+    -- delete all tokens for ref_id = 5, type = 'ssn'
+    ok, err = app:token({
+      ref_id = 5,
+      type = 'ssn',
+      delete = true,
+    })
+    lu.assertNil(err)
+    lu.assertTrue(ok)
+
+    -- tokens are now invalid
+    ok, id = app:token({
+      type = 'ssn',
+    }, nil, tok1)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(id, 'EINVAL'))
+
+    ok, id = app:token({
+      type = 'ssn',
+    }, nil, tok2)
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(id, 'EINVAL'))
   end
   app:run()
 end

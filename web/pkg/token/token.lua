@@ -4,9 +4,6 @@ local xpgsql = require 'xpgsql'
 
 local TOKEN_LEN = 32
 
--- TODO use a partial index so that type+ref_id are unique only if once is true
--- https://www.postgresql.org/docs/current/indexes-partial.html
-
 local MIGRATIONS = {
   function (conn)
     xerror.must(xerror.db(conn:exec[[
@@ -18,12 +15,18 @@ local MIGRATIONS = {
         "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
         "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        PRIMARY KEY ("token"),
-        UNIQUE ("type", "ref_id")
+        PRIMARY KEY ("token")
       )
     ]]))
     xerror.must(xerror.db(conn:exec[[
       CREATE INDEX ON "web_pkg_token_tokens" ("expiry");
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
+      CREATE INDEX ON "web_pkg_token_tokens" ("ref_id");
+    ]]))
+    xerror.must(xerror.db(conn:exec[[
+      CREATE UNIQUE INDEX ON "web_pkg_token_tokens" ("type", "ref_id")
+        WHERE "once";
     ]]))
   end,
   [[
@@ -56,7 +59,8 @@ INSERT INTO
   )
 VALUES
   ($1, $2, $3, $4, $5)
-ON CONFLICT ("type", "ref_id") DO UPDATE SET
+ON CONFLICT ("type", "ref_id") WHERE "once" DO
+UPDATE SET
   "token" = $1,
   "once" = $3,
   "expiry" = $5
@@ -82,6 +86,14 @@ WHERE
   "token" = $1
 ]]
 
+local SQL_DELETETOKENS = [[
+DELETE FROM
+  "web_pkg_token_tokens"
+WHERE
+  "ref_id" = $1 AND
+  "type" = $2
+]]
+
 local function model(o)
   o.ref_id = tonumber(o.ref_id)
   o.expiry = tonumber(o.expiry)
@@ -94,6 +106,12 @@ local M = {
 }
 
 function M.validate(t, conn, tok)
+  if t.delete and (not tok) then
+    -- delete all tokens for that ref_id and type
+    xerror.must(xerror.db(conn:exec(SQL_DELETETOKENS, t.ref_id, t.type)))
+    return true
+  end
+
   local res = xerror.must(xerror.db(conn:query(SQL_LOADTOKEN, tok)))
   local row = xerror.must(xerror.inval(xpgsql.model(res, model), 'invalid token'))
 

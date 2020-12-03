@@ -23,8 +23,8 @@ local function make_token(cfg)
     local close = not db
     db = db or app:db()
     return db:with(close, function()
-      if tok then
-        -- validate the token
+      if tok or t.delete then
+        -- validate or delete the token
         return token.validate(t, db, tok)
       else
         -- generate a token
@@ -37,11 +37,12 @@ end
 local M = {}
 
 -- The token package registers an App:token method that either
--- generates a one-time secret token, or validates such a token.
+-- generates a one-time secret token, validates such a token,
+-- or deletes token(s).
 --
--- If the generated token has once set, then when it is validated,
+-- If the generated token has 'once' set, then when it is validated,
 -- its type and ref_id must match, and it must not be expired.
--- If it does not have once set, then when validated only its
+-- If it does not have 'once' set, then when validated only its
 -- type must match, and it must not be expired. The ref_id value
 -- is returned as second value when the token is valid (if the first
 -- returned value is true). This is because the not-once tokens
@@ -66,6 +67,8 @@ local M = {}
 --       alive until expired (e.g. a session id token).
 --     * t.delete: boolean|nil = if true, deletes the token upon validation,
 --       even if it is not a single-use token (e.g. for logout behaviour).
+--       If no tok value is provided and delete is true, deletes all tokens
+--       associated with type and ref_id (without validation).
 --   > db: connection = optional database connection to use
 --   > tok: string = if provided, validates that token, otherwise
 --     generate a new token.
