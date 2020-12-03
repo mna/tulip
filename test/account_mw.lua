@@ -75,7 +75,7 @@ function M.test_over_http()
         ['content-type'] = 'application/x-www-form-urlencoded',
       })
     lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '400')
+    lu.assertEquals(hdrs:get(':status'), '409')
   end, 'test.account_mw', 'config_http')
 end
 

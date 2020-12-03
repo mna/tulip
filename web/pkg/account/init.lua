@@ -37,7 +37,13 @@ local MWPREFIX = 'web.pkg.account'
 
 -- table of middleware name to default handler.
 local MWCONFIG = {
-  signup = handler.errhandler{EINVAL = 400},
+  signup = handler.errhandler{EINVAL = 400; function(_, res, _, err)
+    if xerror.is_sql_state(err, "23505") then
+      res:write{status = 409, body = handler.HTTPSTATUS[409]}
+    else
+      xerror.throw(err)
+    end
+  end},
   login = handler.errhandler{EINVAL = 401},
   check_session = handler.errhandler{},
   logout = handler.errhandler{},
@@ -138,7 +144,7 @@ local MWDEFAULTS = {
 --  * error_handlers: table = table of error handlers, one for each
 --    available middleware - each value is a function that should expect
 --    (req, res, nxt, err) as arguments:
---    * signup = by default, 400 if EINVAL or throws the error
+--    * signup = by default, 400 if EINVAL, 409 if SQL with state 23505, or throws the error
 --    * login = by default, 401 if EINVAL or throws the error
 --    * check_session = by default throws the error
 --    * logout = by default throws the error
