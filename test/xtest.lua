@@ -170,4 +170,35 @@ function M.withserver(f, modname, fname, ...)
   if err2 then error(err2) end
 end
 
+-- Updates a (pre-created) HTTP request object to make the specified
+-- request. The method, path and body must be strings, and seth, delh
+-- and addh are optional tables. They respectively upsert, delete and
+-- append headers to the request. The delh table must be an array.
+function M.http_request(req, method, path, body, timeout, seth, delh, addh)
+  seth = seth or {}
+  if method then
+    seth[':method'] = method
+  end
+  if path then
+    seth[':path'] = path
+  end
+  if body then
+    req:set_body(body)
+  end
+  for k, v in pairs(seth) do
+    req.headers:upsert(k, v)
+  end
+  if delh then
+    for _, k in ipairs(delh) do
+      req.headers:delete(k)
+    end
+  end
+  if addh then
+    for k, v in pairs(addh) do
+      req.headers:append(k, v)
+    end
+  end
+  return req:go(timeout)
+end
+
 return M

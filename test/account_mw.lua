@@ -49,27 +49,23 @@ function M.test_over_http()
     local hdrs, res
     local req = request.new_from_uri(
       string.format('http://localhost:%d/', port))
-    req.headers:upsert(':method', 'GET')
 
     -- authz: no constraint
-    req.headers:upsert(':path', '/public')
-    hdrs, res = req:go(TO)
+    hdrs, res = xtest.http_request(req, 'GET', '/public', nil, TO)
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '204')
 
     -- authz: require authenticated
-    req.headers:upsert(':path', '/private')
-    hdrs, res = req:go(TO)
+    hdrs, res = xtest.http_request(req, 'GET', '/private', nil, TO)
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '401')
 
     local user1, pwd1 = tostring(os.time()), 'test1234'
     -- signup: create account
-    req.headers:upsert(':path', '/signup')
-    req.headers:upsert(':method', 'POST')
-    req.headers:upsert('content-type', 'application/x-www-form-urlencoded')
-    req:set_body(neturl.buildQuery({email = user1..'@example.com', password = pwd1}))
-    hdrs, res = req:go(TO)
+    hdrs, res = xtest.http_request(req, 'POST', '/signup',
+      neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '204')
   end, 'test.account_mw', 'config_http')
