@@ -360,7 +360,7 @@ function M.register(cfg, app)
   for k, v in pairs(MWCONFIG) do
     local errh = cfg.error_handlers and cfg.error_handlers[k] or v.handler
     local mwcfg = v.config and xtable.merge({auth_key = cfg.auth_key}, MWDEFAULTS[v.config], cfg[v.config])
-    app:register_middleware(MWPREFIX .. ':' .. k, fn.partialtrail(middleware[k], errh, mwcfg))
+    app:register_middleware(MWPREFIX .. ':' .. k, fn.partialtrail(middleware[k], 3, errh, mwcfg))
   end
 end
 
