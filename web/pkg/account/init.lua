@@ -268,7 +268,8 @@ local MWDEFAULTS = {
 -- * web.pkg.account:delete
 --
 --   Handles the delete account workflow (POST of a form). On success,
---   the account is deleted.
+--   the account is deleted as well as all session tokens and any session
+--   cookie, and req.locals.session_id and req.locals.account are unset.
 --
 --   > password: string = the raw password of the acount, must be validated
 --     to proceed with account deletion.
@@ -278,7 +279,8 @@ local MWDEFAULTS = {
 --   Initiates the verify email workflow, typically after a successful signup
 --   middleware. It generates a single-use token and enqueues a job to send
 --   an email message to the account. Can also be set as middleware to a
---   "resend verify email" endpoint.
+--   "resend verify email" endpoint. Requires req.locals.account to be set
+--   (which the signup middleware does set on success).
 --
 -- * web.pkg.account:vemail
 --

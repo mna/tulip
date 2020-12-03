@@ -604,10 +604,9 @@ function M.changeemail(req, res, nxt, errh, cfg)
 end
 
 function M.authz(req, res, nxt, denyh)
-  local routeargs = req.routeargs or {}
+  local routeargs = req.routeargs
 
-  req.app:log('d', {args = routeargs, path = req.url.path})
-  if routeargs.allow or routeargs.deny then
+  if routeargs and (routeargs.allow or routeargs.deny) then
     local allowset = xtable.toset(routeargs.allow)
     if allowset['?'] then
       -- ? means allow everyone, authenticated or not

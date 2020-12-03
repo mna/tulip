@@ -1,5 +1,6 @@
 local handler = require 'web.handler'
 local lu = require 'luaunit'
+local neturl = require 'net.url'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
 
@@ -14,6 +15,8 @@ function M.config_http()
         middleware = {'account:authz', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/private', allow = {'*'},
         middleware = {'account:authz', handler.write{status = 204}}},
+      {method = 'POST', pattern = '^/signup',
+        middleware = {'account:authz', 'account:signup', handler.write{status = 204}}},
     },
     middleware = {
       handler.recover(function(_, res, err)
@@ -48,15 +51,27 @@ function M.test_over_http()
       string.format('http://localhost:%d/', port))
     req.headers:upsert(':method', 'GET')
 
+    -- authz: no constraint
     req.headers:upsert(':path', '/public')
     hdrs, res = req:go(TO)
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '204')
 
+    -- authz: require authenticated
     req.headers:upsert(':path', '/private')
     hdrs, res = req:go(TO)
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '401')
+
+    local user1, pwd1 = tostring(os.time()), 'test1234'
+    -- signup: create account
+    req.headers:upsert(':path', '/signup')
+    req.headers:upsert(':method', 'POST')
+    req.headers:upsert('content-type', 'application/x-www-form-urlencoded')
+    req:set_body(neturl.buildQuery({email = user1..'@example.com', password = pwd1}))
+    hdrs, res = req:go(TO)
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '204')
   end, 'test.account_mw', 'config_http')
 end
 
