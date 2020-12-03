@@ -3,12 +3,8 @@
 ## high-priority
 
 * User account/auth package
-* General error handler mechanism for middleware, to avoid having to specify handlers for each package with middleware.
-  - Maybe based on raised errors? And a recover that has a mux based on the middleware name and other things?
 * Normalize connection variable name to `conn`, last arg when optional in App methods.
-
 * Flash messages that persist across redirects (probably requires i18n solution)
-* Cohesive and consistent error handling (throw vs nil+msg)
 
 ## up next
 

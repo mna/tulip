@@ -1,6 +1,7 @@
 local cookie = require 'http.cookie'
 local extmime = require 'web.handler.extmime'
 local httpstatus = require 'web.handler.httpstatus'
+local xerror = require 'web.xerror'
 local xtable = require 'web.xtable'
 
 local M = {
@@ -37,6 +38,44 @@ function M.dir(path)
       path = path .. subpath,
     }
     nxt()
+  end
+end
+
+-- Returns an HTTP error handler that accepts req, res, nxt, err and
+-- dispatches handling to the function indicated by t, where t is a
+-- table where keys are error codes (e.g. 'EINVALID') and values are
+-- either error handlers (accepting req, res, nxt, err) or a number
+-- that indicates the HTTP status code to return (the body will be
+-- set to the default text of that status code).
+--
+-- If the error does not correspond to any of the defined error codes,
+-- the handler at array position 1 is called (or if it's a number, it
+-- is used as status code), or if it is not set, the error is thrown.
+function M.errhandler(t)
+  return function(req, res, nxt, err)
+    -- check if there is a specific handler for that error code
+    for k, h in pairs(t) do
+      if xerror.is(err, k) then
+        if type(h) == 'number' then
+          res:write{status = h, body = M.HTTPSTATUS[h] or ''}
+          return
+        else
+          return h(req, res, nxt, err)
+        end
+      end
+    end
+
+    -- use the default handler, or throw
+    local f = t[1]
+    if f then
+      if type(f) == 'number' then
+        res:write{status = f, body = M.HTTPSTATUS[f] or ''}
+      else
+        f(req, res, nxt, err)
+      end
+    else
+      xerror.throw(err)
+    end
   end
 end
 

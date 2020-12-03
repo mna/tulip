@@ -1,4 +1,5 @@
 local fn = require 'fn'
+local handler = require 'web.handler'
 local middleware = require 'web.pkg.account.middleware'
 local migrations = require 'web.pkg.account.migrations'
 local tcheck = require 'tcheck'
@@ -38,19 +39,19 @@ local MWPREFIX = 'web.pkg.account'
 -- and default error handler. If config key is nil, no config is provided
 -- to the middleware.
 local MWCONFIG = {
-  signup = {config = nil, handler = nil},
-  login = {config = 'session', handler = nil},
-  check_session = {config = 'session', handler = nil},
-  logout = {config = 'session', handler = nil},
-  delete = {config = 'session', handler = nil},
-  init_vemail = {config = 'verify_email', handler = nil},
-  vemail = {config = 'verify_email', handler = nil},
-  setpwd = {config = nil, handler = nil},
-  init_resetpwd = {config = 'reset_password', handler = nil},
-  resetpwd = {config = 'reset_password', handler = nil},
-  init_changeemail = {config = 'change_email', handler = nil},
-  changeemail = {config = 'change_email', handler = nil},
-  authz = {config = nil, handler = nil},
+  signup = {handler = handler.errhandler{EINVAL = 400}},
+  login = {config = 'session', handler = handler.errhandler{EINVAL = 401}},
+  check_session = {config = 'session', handler = handler.errhandler{}},
+  logout = {config = 'session', handler = handler.errhandler{}},
+  delete = {config = 'session', handler = handler.errhandler{EINVAL = 400}},
+  init_vemail = {config = 'verify_email', handler = handler.errhandler{EINVAL = 400}},
+  vemail = {config = 'verify_email', handler = handler.errhandler{EINVAL = 400}},
+  setpwd = {handler = handler.errhandler{EINVAL = 400}},
+  init_resetpwd = {config = 'reset_password', handler = handler.errhandler{EINVAL = 200}},
+  resetpwd = {config = 'reset_password', handler = handler.errhandler{EINVAL = 400}},
+  init_changeemail = {config = 'change_email', handler = handler.errhandler{EINVAL = 400}},
+  changeemail = {config = 'change_email', handler = handler.errhandler{EINVAL = 400}},
+  authz = {handler = handler.errhandler{403}},
 }
 
 local MWDEFAULTS = {
