@@ -49,7 +49,13 @@ local MWCONFIG = {
   resetpwd = handler.errhandler{EINVAL = 400},
   init_changeemail = handler.errhandler{EINVAL = 400},
   changeemail = handler.errhandler{EINVAL = 400},
-  authz = handler.errhandler{403},
+  authz = handler.errhandler{function(req, res)
+    if not req.locals.account then
+      res:write{status = 401, body = handler.HTTPSTATUS[401]}
+    else
+      res:write{status = 403, body = handler.HTTPSTATUS[403]}
+    end
+  end},
 }
 
 local MWDEFAULTS = {
@@ -331,10 +337,12 @@ local MWDEFAULTS = {
 --
 -- * web.pkg.account:authz
 --
---   Handles authorization based on the routeargs of the request, renders
+--   Handles authorization based on the routeargs of the request. As such,
+--   it must be set on the routes' middleware, not as global middleware
+--   (because the routes package sets the routeargs). By default, renders
 --   either 403 if user is authenticated but doesn't have required group
---   membership, 401 if user is not authenticated, or 302 Found and redirect to
---   login page. Supports the following pseudo-groups:
+--   membership or 401 if user is not authenticated. Supports the following
+--   pseudo-groups:
 --
 --   - '?': authorize/deny anyone, authenticated or not
 --   - '*': authorize/deny any authenticated user

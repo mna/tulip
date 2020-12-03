@@ -604,7 +604,9 @@ function M.changeemail(req, res, nxt, errh, cfg)
 end
 
 function M.authz(req, res, nxt, denyh)
-  local routeargs = req.routeargs
+  local routeargs = req.routeargs or {}
+
+  req.app:log('d', {args = routeargs, path = req.url.path})
   if routeargs.allow or routeargs.deny then
     local allowset = xtable.toset(routeargs.allow)
     if allowset['?'] then
@@ -648,7 +650,15 @@ function M.authz(req, res, nxt, denyh)
       -- account has one denied group, so deny access
       return denyh(req, res, nxt)
     end
+
+    -- not explicitly allowed, not explicitly denied:
+    -- * if there is an allow rule, then deny
+    -- * otherwise there are only deny rules (or none), then allow
+    if #routeargs.allow > 0 then
+      return denyh(req, res, nxt)
+    end
   end
+
   nxt()
 end
 

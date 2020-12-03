@@ -1,6 +1,7 @@
 local lu = require 'luaunit'
 
 TestAccount = require 'test.account'
+TestAccountMw = require 'test.account_mw'
 TestCron = require 'test.cron'
 TestCsrf = require 'test.csrf'
 TestDatabase = require 'test.database'
