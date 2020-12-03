@@ -3,6 +3,7 @@ local middleware = require 'web.pkg.account.middleware'
 local migrations = require 'web.pkg.account.migrations'
 local tcheck = require 'tcheck'
 local xerror = require 'web.xerror'
+local xtable = require 'web.xtable'
 local Account = require 'web.pkg.account.Account'
 
 local function create_account(app, email, raw_pwd, groups, conn)
@@ -31,10 +32,58 @@ end
 
 local M = {}
 
+local MWPREFIX = 'web.pkg.account'
+
 -- table of middleware name to config key (to be merged with the auth_key)
 -- and default error handler. If config key is nil, no config is provided
 -- to the middleware.
 local MWCONFIG = {
+  signup = {config = nil, handler = nil},
+  login = {config = 'session', handler = nil},
+  check_session = {config = 'session', handler = nil},
+  logout = {config = 'session', handler = nil},
+  delete = {config = 'session', handler = nil},
+  init_vemail = {config = 'verify_email', handler = nil},
+  vemail = {config = 'verify_email', handler = nil},
+  setpwd = {config = nil, handler = nil},
+  init_resetpwd = {config = 'reset_password', handler = nil},
+  resetpwd = {config = 'reset_password', handler = nil},
+  init_changeemail = {config = 'change_email', handler = nil},
+  changeemail = {config = 'change_email', handler = nil},
+  authz = {config = nil, handler = nil},
+}
+
+local MWDEFAULTS = {
+  session = {
+    token_type = 'session',
+    token_max_age = 30 * 24 * 3600,
+    cookie_name = 'ssn',
+    cookie_max_age = 30 * 24 * 3600,
+    secure = true,
+    http_only = true,
+    same_site = 'lax',
+  },
+  verify_email = {
+    token_type = 'vemail',
+    token_max_age = 2 * 24 * 3600,
+    queue_name = 'sendemail',
+    queue_max_age = 30,
+    max_attempts = 3,
+  },
+  reset_password = {
+    token_type = 'resetpwd',
+    token_max_age = 2 * 24 * 3600,
+    queue_name = 'sendemail',
+    queue_max_age = 30,
+    max_attempts = 3,
+  },
+  change_email = {
+    token_type = 'changeemail',
+    token_max_age = 2 * 24 * 3600,
+    queue_name = 'sendemail',
+    queue_max_age = 30,
+    max_attempts = 3,
+  },
 }
 
 -- The account package handles account creation and management, so
@@ -306,6 +355,13 @@ function M.register(cfg, app)
     package = 'web.pkg.account';
     table.unpack(migrations)
   })
+
+  -- register the middleware
+  for k, v in pairs(MWCONFIG) do
+    local errh = cfg.error_handlers and cfg.error_handlers[k] or v.handler
+    local mwcfg = v.config and xtable.merge({auth_key = cfg.auth_key}, MWDEFAULTS[v.config], cfg[v.config])
+    app:register_middleware(MWPREFIX .. ':' .. k, fn.partialtrail(middleware[k], errh, mwcfg))
+  end
 end
 
 return M
