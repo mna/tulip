@@ -55,7 +55,7 @@ io.write('>>> pgpass file\n')
 if sh.test[[-s run/secrets/pgpass]] then
   io.write('<<< pgpass already generated, skipping\n')
 else
-  sh.cmd('echo', '-n', 'localhost:5432:postgres:postgres:'):redirect('run/secrets/pgpass')
+  sh.cmd('echo', '-n', 'localhost:5432:*:postgres:'):redirect('run/secrets/pgpass')
   sh.cmd('cat', 'run/secrets/pgroot_pwd'):redirect('run/secrets/pgpass')
   sh('chmod', '0600', 'run/secrets/pgpass')
 end

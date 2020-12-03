@@ -68,6 +68,14 @@ function M.test_over_http()
       })
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '204')
+
+    -- signup: create duplicate account
+    hdrs, res = xtest.http_request(req, 'POST', '/signup',
+      neturl.buildQuery({email = user1..'@example.com', password = tostring(os.time())}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '400')
   end, 'test.account_mw', 'config_http')
 end
 

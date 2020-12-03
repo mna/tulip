@@ -47,7 +47,7 @@ function M.newdb(connstr, ...)
   local olddb = os.getenv('PGDATABASE')
   local olduser = os.getenv('PGUSER')
   local cleanup = function()
-    conn:exec('DROP DATABASE IF EXISTS ' .. dbname .. ' FORCE')
+    conn:exec('DROP DATABASE IF EXISTS ' .. dbname .. ' WITH (FORCE)')
     conn:exec('DROP USER IF EXISTS ' .. dbname)
     conn:close()
 
