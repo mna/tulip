@@ -170,6 +170,7 @@ local function load_groups(acct, conn)
   for _, g in ipairs(groups) do
     table.insert(ar, g.name)
   end
+  table.sort(ar)
   acct.groups = ar
 end
 
