@@ -216,9 +216,13 @@ function M.test_over_http()
       hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '204')
-      req.cookie_store:clean()
       ck = req.cookie_store:get('localhost', '/', 'ssn')
       lu.assertNil(ck)
+
+      -- accessing private now fails (not logged in)
+      hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
 
       -- login with user 2
       hdrs, res = xtest.http_request(req, 'POST', '/login',

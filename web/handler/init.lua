@@ -161,7 +161,7 @@ function M.set_cookie(res, cfg)
     cfg.same_site = nil
   end
   if cfg.ttl then
-    cfg.expiry = (cfg.ttl >= 0 and (os.time() + cfg.ttl) or 0)
+    cfg.expiry = (cfg.ttl >= 0 and (os.time() + cfg.ttl) or -math.huge)
   end
   local ck = cookie.bake(cfg.name,
     cfg.value,
