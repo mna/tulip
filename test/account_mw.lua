@@ -31,22 +31,30 @@ function M.config_http()
         middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/private', allow = {'*'},
         middleware = {'account:check_session', 'account:authz', write_info}},
+
       {method = 'POST', pattern = '^/signup',
         middleware = {'account:signup', handler.write{status = 204}}},
       {method = 'POST', pattern = '^/login',
         middleware = {'account:login', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/logout',
         middleware = {'account:check_session', 'account:authz', 'account:logout', handler.write{status = 204}}},
+
       {method = 'GET', pattern = '^/g1', allow = {'g1'}, deny = {'*'},
         middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/verified', allow = {'@'},
         middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
       {method = 'POST', pattern = '^/setpwd', allow = {'*'},
         middleware = {'account:check_session', 'account:authz', 'account:setpwd', handler.write{status = 204}}},
+
       {method = 'GET', pattern = '^/vemail/start',
         middleware = {'account:check_session', 'account:init_vemail', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/vemail/end',
         middleware = {'account:vemail', handler.write{status = 204}}},
+
+      {method = 'POST', pattern = '^/resetpwd/start',
+        middleware = {'account:init_resetpwd', handler.write{status = 204}}},
+      {method = 'POST', pattern = '^/resetpwd/end',
+        middleware = {'account:resetpwd', handler.write{status = 204}}},
     },
     middleware = {
       handler.recover(function(_, res, err)
@@ -208,6 +216,7 @@ function M.test_over_http()
       hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '204')
+      req.cookie_store:clean()
       ck = req.cookie_store:get('localhost', '/', 'ssn')
       lu.assertNil(ck)
 
@@ -283,6 +292,10 @@ function M.test_over_http()
       lu.assertNil(err)
       lu.assertEquals(#msgs, 1)
       local msg = msgs[1]
+      assert(app:db(function(conn)
+        assert(msg:done(conn))
+        return true
+      end))
 
       -- vemail: pass invalid token
       hdrs, res = xtest.http_request(req, 'GET', {
@@ -305,6 +318,68 @@ function M.test_over_http()
 
       -- check_session/authz: can now access verified route
       hdrs, res = xtest.http_request(req, 'GET', '/verified', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- logout
+      hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- init_resetpwd: returns 200 if email is not found
+      hdrs, res = xtest.http_request(req, 'POST', '/resetpwd/start',
+        neturl.buildQuery({email = 'nope@example.com'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '200')
+
+      -- there is no enqueued message
+      msgs, err = app:mqueue({queue = 'sendemail'})
+      lu.assertNil(err)
+      lu.assertEquals(#msgs, 0)
+
+      -- init_resetpwd: valid
+      hdrs, res = xtest.http_request(req, 'POST', '/resetpwd/start',
+        neturl.buildQuery({email = user1..'@example.com'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- get the enqueued message
+      msgs, err = app:mqueue({queue = 'sendemail'})
+      lu.assertNil(err)
+      lu.assertEquals(#msgs, 1)
+      msg = msgs[1]
+      assert(app:db(function(conn)
+        assert(msg:done(conn))
+        return true
+      end))
+
+      -- resetpwd: invalid token
+      hdrs, res = xtest.http_request(req, 'POST', '/resetpwd/end',
+        neturl.buildQuery({
+          e = user1..'@example.com',
+          t = 'nope',
+          new_password = 'abcd',
+        }), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- resetpwd: valid token
+      local newpwd1 = tostring(cqueues.monotime())
+      hdrs, res = xtest.http_request(req, 'POST', '/resetpwd/end',
+        neturl.buildQuery({
+          e = user1..'@example.com',
+          t = msg.payload.encoded_token,
+          new_password = newpwd1,
+          new_password2 = newpwd1,
+        }), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '204')
     end, 'test.account_mw', 'config_http')

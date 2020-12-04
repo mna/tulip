@@ -2,7 +2,6 @@
 
 ## high-priority
 
-* User account/auth package
 * Normalize connection variable name to `conn`, last arg when optional in App methods.
 * Flash messages that persist across redirects (probably requires i18n solution)
 

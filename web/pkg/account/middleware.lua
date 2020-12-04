@@ -413,7 +413,7 @@ function M.resetpwd(req, res, nxt, errh, cfg)
   local app = req.app
 
   -- decode the form body to get the new password
-  local body, err = app:decode_body()
+  local body, err = req:decode_body()
   if not body then
     return errh(req, res, nxt, err)
   end
