@@ -1,3 +1,4 @@
+local cqueues = require 'cqueues'
 local handler = require 'web.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
@@ -30,6 +31,17 @@ function M.config_http()
     database = {
       connection_string = '',
       pool = {},
+      migrations = {
+        {
+          package = 'test';
+          [[
+          INSERT INTO web_pkg_account_groups
+            (name)
+          VALUES
+            ('g1'), ('g2'), ('g3')
+          ]],
+        },
+      },
     },
 
     account = {
@@ -60,7 +72,7 @@ function M.test_over_http()
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '401')
 
-    local user1, pwd1 = tostring(os.time()), 'test1234'
+    local user1, pwd1 = tostring(cqueues.monotime()), 'atest1234'
     -- signup: create account
     hdrs, res = xtest.http_request(req, 'POST', '/signup',
       neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
@@ -76,6 +88,23 @@ function M.test_over_http()
       })
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '409')
+
+    local user2, pwd2 = tostring(cqueues.monotime()), 'btest1234'
+    -- signup: create account with invalid password confirmation
+    hdrs, res = xtest.http_request(req, 'POST', '/signup',
+      neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd1}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '400')
+
+    -- signup: create account with password confirmation and some groups
+    hdrs, res = xtest.http_request(req, 'POST', '/signup',
+      neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd2, groups = 'g1, g2'}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '204')
   end, 'test.account_mw', 'config_http')
 end
 
