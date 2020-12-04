@@ -2,6 +2,7 @@ local cqueues = require 'cqueues'
 local fn = require 'fn'
 local process = require 'process'
 local stdlib = require 'posix.stdlib'
+local url = require 'net.url'
 local xpgsql = require 'xpgsql'
 
 local M = {}
@@ -171,15 +172,29 @@ function M.withserver(f, modname, fname, ...)
 end
 
 -- Updates a (pre-created) HTTP request object to make the specified
--- request. The method, path and body must be strings, and seth, delh
+-- request. The method and body must be strings, and seth, delh
 -- and addh are optional tables. They respectively upsert, delete and
 -- append headers to the request. The delh table must be an array.
+-- The path can be a string or a table where each array part will be
+-- concatenated with '/' as separator, and where the key-value parts
+-- will be encoded as query string.
 function M.http_request(req, method, path, body, timeout, seth, delh, addh)
   seth = seth or {}
   if method then
     seth[':method'] = method
   end
   if path then
+    if type(path) == 'table' then
+      local base = url.parse(table.concat(path, '/'))
+      local qs = {}
+      for k, v in pairs(path) do
+        if type(k) == 'string' then
+          qs[k] = v
+        end
+      end
+      base:setQuery(qs)
+      path = tostring(base)
+    end
     seth[':path'] = path
   end
   if body then

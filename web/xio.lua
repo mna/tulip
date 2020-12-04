@@ -4,6 +4,15 @@ local rand = require 'openssl.rand'
 -- ensure the CSPRNG is seeded
 assert(rand.ready(), 'failed to seed CSPRNG')
 
+local BASE64_URLSAFE = {
+  ['+'] = '.',
+  ['/'] = '_',
+  ['='] = '-',
+  ['.'] = '+',
+  ['_'] = '/',
+  ['-'] = '=',
+}
+
 local M = {}
 
 -- Reads the full content of path and returns the string. On error,
@@ -29,14 +38,15 @@ function M.randomint(n)
   return rand.uniform(n)
 end
 
--- Encodes s into a base64 string.
+-- Encodes s into a base64 string, using URL-safe characters.
 function M.b64encode(s)
-  return base64.encode(s)
+  return string.gsub(base64.encode(s), '[%+/=]', BASE64_URLSAFE)
 end
 
--- Decodes s which is a base64-encoded string. Returns nil if it was
--- not properly encoded.
+-- Decodes s which is a base64-encoded string using URL-safe
+-- characters. Returns nil if it was not properly encoded.
 function M.b64decode(s)
+  s = string.gsub(s, '[%._%-]', BASE64_URLSAFE)
   local ok, v = pcall(base64.decode, s)
   if not ok then return end
   return v

@@ -5,6 +5,7 @@ local lu = require 'luaunit'
 local neturl = require 'net.url'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
+local App = require 'web.App'
 
 local function write_info(req, res)
   local acct = req.locals.account
@@ -20,12 +21,6 @@ local function write_info(req, res)
 end
 
 local M = {}
-
-local queues = {
-  vemail = 'v' .. tostring(cqueues.monotime()),
-  resetpwd = 'p' .. tostring(cqueues.monotime()),
-  changeemail = 'e' .. tostring(cqueues.monotime()),
-}
 
 function M.config_http()
   return {
@@ -91,15 +86,6 @@ function M.config_http()
         secure = false,
         same_site = 'none',
       },
-      verify_email = {
-        queue_name = queues.vemail,
-      },
-      reset_password = {
-        queue_name = queues.resetpwd,
-      },
-      change_email = {
-        queue_name = queues.changeemail,
-      },
     },
   }
 end
@@ -107,185 +93,223 @@ end
 local TO = 10
 
 function M.test_over_http()
-  xtest.withserver(function(port)
-    local hdrs, res
-    local req = request.new_from_uri(
-      string.format('http://localhost:%d/', port))
+  local app = App{
+    mqueue = {},
+    database = {connection_string = ''},
+  }
 
-    -- authz: no constraint
-    hdrs, res = xtest.http_request(req, 'GET', '/public', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+  app.main = function()
+    xtest.withserver(function(port)
+      local hdrs, res
+      local req = request.new_from_uri(
+        string.format('http://localhost:%d/', port))
 
-    -- authz: require authenticated
-    hdrs, res = xtest.http_request(req, 'GET', '/private', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '401')
+      -- authz: no constraint
+      hdrs, res = xtest.http_request(req, 'GET', '/public', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
 
-    -- logout: no-op when not logged in
-    hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+      -- authz: require authenticated
+      hdrs, res = xtest.http_request(req, 'GET', '/private', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
 
-    -- init_vemail: fails without account
-    hdrs, res = xtest.http_request(req, 'GET', '/vemail/start', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '400')
+      -- logout: no-op when not logged in
+      hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
 
-    local user1, pwd1 = tostring(cqueues.monotime()), 'atest1234'
-    -- signup: create account
-    hdrs, res = xtest.http_request(req, 'POST', '/signup',
-      neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+      -- init_vemail: fails without account
+      hdrs, res = xtest.http_request(req, 'GET', '/vemail/start', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
 
-    -- signup: create duplicate account
-    hdrs, res = xtest.http_request(req, 'POST', '/signup',
-      neturl.buildQuery({email = user1..'@example.com', password = tostring(os.time())}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '409')
+      local user1, pwd1 = tostring(cqueues.monotime()), 'atest1234'
+      -- signup: create account
+      hdrs, res = xtest.http_request(req, 'POST', '/signup',
+        neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
 
-    local user2, pwd2 = tostring(cqueues.monotime()), 'btest1234'
-    -- signup: create account with invalid password confirmation
-    hdrs, res = xtest.http_request(req, 'POST', '/signup',
-      neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd1}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '400')
+      -- signup: create duplicate account
+      hdrs, res = xtest.http_request(req, 'POST', '/signup',
+        neturl.buildQuery({email = user1..'@example.com', password = tostring(os.time())}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '409')
 
-    -- signup: create account with password confirmation and some groups
-    hdrs, res = xtest.http_request(req, 'POST', '/signup',
-      neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd2, groups = 'g1, g2'}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+      local user2, pwd2 = tostring(cqueues.monotime()), 'btest1234'
+      -- signup: create account with invalid password confirmation
+      hdrs, res = xtest.http_request(req, 'POST', '/signup',
+        neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
 
-    -- login: unknown email
-    hdrs, res = xtest.http_request(req, 'POST', '/login',
-      neturl.buildQuery({email = 'nope@example.com', password = pwd1}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '401')
-    local ck = req.cookie_store:get('localhost', '/', 'ssn')
-    lu.assertNil(ck)
+      -- signup: create account with password confirmation and some groups
+      hdrs, res = xtest.http_request(req, 'POST', '/signup',
+        neturl.buildQuery({email = user2..'@example.com', password = pwd2, password2 = pwd2, groups = 'g1, g2'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
 
-    -- login: invalid password
-    hdrs, res = xtest.http_request(req, 'POST', '/login',
-      neturl.buildQuery({email = user1..'@example.com', password = pwd2}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '401')
-    ck = req.cookie_store:get('localhost', '/', 'ssn')
-    lu.assertNil(ck)
-    local first_ssn_ck = ck
+      -- login: unknown email
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = 'nope@example.com', password = pwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+      local ck = req.cookie_store:get('localhost', '/', 'ssn')
+      lu.assertNil(ck)
 
-    -- login: valid
-    hdrs, res = xtest.http_request(req, 'POST', '/login',
-      neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
-    ck = req.cookie_store:get('localhost', '/', 'ssn')
-    lu.assertTrue(ck and ck ~= '')
+      -- login: invalid password
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user1..'@example.com', password = pwd2}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+      ck = req.cookie_store:get('localhost', '/', 'ssn')
+      lu.assertNil(ck)
+      local first_ssn_ck = ck
 
-    -- check_session: accessing private route returns logged-in info
-    hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '200')
-    local body = cjson.decode(res:get_body_as_string(TO))
-    lu.assertEquals(#body.ssn_id, 44)
-    lu.assertTrue(body.acct_id > 0)
-    lu.assertNotEquals(body.ssn_id, ck)
-    lu.assertEquals(body.groups, '')
+      -- login: valid
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user1..'@example.com', password = pwd1, rememberme = 't'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+      ck = req.cookie_store:get('localhost', '/', 'ssn')
+      lu.assertTrue(ck and ck ~= '')
 
-    -- check_session/authz: cannot access g1 route (user has no group)
-    hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '403')
+      -- check_session: accessing private route returns logged-in info
+      hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '200')
+      local body = cjson.decode(res:get_body_as_string(TO))
+      lu.assertEquals(#body.ssn_id, 44)
+      lu.assertTrue(body.acct_id > 0)
+      lu.assertNotEquals(body.ssn_id, ck)
+      lu.assertEquals(body.groups, '')
 
-    -- logout: from logged in
-    hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
-    ck = req.cookie_store:get('localhost', '/', 'ssn')
-    lu.assertNil(ck)
+      -- check_session/authz: cannot access g1 route (user has no group)
+      hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '403')
 
-    -- login with user 2
-    hdrs, res = xtest.http_request(req, 'POST', '/login',
-      neturl.buildQuery({email = user2..'@example.com', password = pwd2, rememberme = 't'}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
-    ck = req.cookie_store:get('localhost', '/', 'ssn')
-    lu.assertTrue(ck and ck ~= '')
-    lu.assertNotEquals(ck, first_ssn_ck)
+      -- logout: from logged in
+      hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+      ck = req.cookie_store:get('localhost', '/', 'ssn')
+      lu.assertNil(ck)
 
-    -- check_session: accessing private route returns logged-in info
-    hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '200')
-    body = cjson.decode(res:get_body_as_string(TO))
-    lu.assertEquals(#body.ssn_id, 44)
-    lu.assertTrue(body.acct_id > 0)
-    lu.assertNotEquals(body.ssn_id, ck)
-    lu.assertEquals(body.groups, 'g1,g2')
+      -- login with user 2
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user2..'@example.com', password = pwd2, rememberme = 't'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+      ck = req.cookie_store:get('localhost', '/', 'ssn')
+      lu.assertTrue(ck and ck ~= '')
+      lu.assertNotEquals(ck, first_ssn_ck)
 
-    -- check_session/authz: can access g1 route
-    hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+      -- check_session: accessing private route returns logged-in info
+      hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '200')
+      body = cjson.decode(res:get_body_as_string(TO))
+      lu.assertEquals(#body.ssn_id, 44)
+      lu.assertTrue(body.acct_id > 0)
+      lu.assertNotEquals(body.ssn_id, ck)
+      lu.assertEquals(body.groups, 'g1,g2')
 
-    -- check_session/authz: cannot access verified route
-    hdrs, res = xtest.http_request(req, 'GET', '/verified', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '403')
+      -- check_session/authz: can access g1 route
+      hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
 
-    local newpwd2 = tostring(cqueues.monotime())
-    -- setpwd with invalid password confirmation
-    hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
-      neturl.buildQuery({
-        email = user2..'@example.com', old_password = pwd2,
-        new_password = newpwd2, new_password2 = 'nope',
-      }), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '400')
+      -- check_session/authz: cannot access verified route
+      hdrs, res = xtest.http_request(req, 'GET', '/verified', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '403')
 
-    -- setpwd with invalid original password
-    hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
-      neturl.buildQuery({email = user2..'@example.com', old_password = 'nope', new_password = newpwd2}), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '400')
+      local newpwd2 = tostring(cqueues.monotime())
+      -- setpwd with invalid password confirmation
+      hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
+        neturl.buildQuery({
+          email = user2..'@example.com', old_password = pwd2,
+          new_password = newpwd2, new_password2 = 'nope',
+        }), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
 
-    -- setpwd: valid
-    hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
-      neturl.buildQuery({
-        email = user2..'@example.com', old_password = pwd2,
-        new_password = newpwd2, new_password2 = newpwd2,
-      }), TO, {
-        ['content-type'] = 'application/x-www-form-urlencoded',
-      })
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
+      -- setpwd with invalid original password
+      hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
+        neturl.buildQuery({email = user2..'@example.com', old_password = 'nope', new_password = newpwd2}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
 
-    -- init_vemail: enqueue token
-    hdrs, res = xtest.http_request(req, 'GET', '/vemail/start', nil, TO)
-    lu.assertNotNil(hdrs and res)
-    lu.assertEquals(hdrs:get(':status'), '204')
-  end, 'test.account_mw', 'config_http')
+      -- setpwd: valid
+      hdrs, res = xtest.http_request(req, 'POST', '/setpwd',
+        neturl.buildQuery({
+          email = user2..'@example.com', old_password = pwd2,
+          new_password = newpwd2, new_password2 = newpwd2,
+        }), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- init_vemail: enqueue token
+      hdrs, res = xtest.http_request(req, 'GET', '/vemail/start', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- get the enqueued message
+      local msgs, err = app:mqueue({queue = 'sendemail'})
+      lu.assertNil(err)
+      lu.assertEquals(#msgs, 1)
+      local msg = msgs[1]
+
+      -- vemail: pass invalid token
+      hdrs, res = xtest.http_request(req, 'GET', {
+        '/vemail/end';
+        t = 'nope',
+        e = msg.payload.email,
+      }, nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- vemail: pass valid token
+      hdrs, res = xtest.http_request(req, 'GET',
+        {
+          '/vemail/end';
+          t = msg.payload.encoded_token,
+          e = msg.payload.email,
+        }, nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- check_session/authz: can now access verified route
+      hdrs, res = xtest.http_request(req, 'GET', '/verified', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+    end, 'test.account_mw', 'config_http')
+  end
+  app:run()
 end
 
 return M
