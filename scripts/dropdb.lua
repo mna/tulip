@@ -37,6 +37,10 @@ local SQL_CREATEDB = [[
 CREATE DATABASE %s
 ]]
 
+local SQL_CREATECRON = [[
+CREATE EXTENSION pg_cron
+]]
+
 local maindb = os.getenv('PGDATABASE')
 local tempdb = 'testweb' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
 
@@ -77,6 +81,7 @@ if all then
   conn = assert(xpgsql.connect())
   assert(conn:with(true, function()
     assert(conn:exec(string.format(SQL_DROPDB, tempdb)))
+    assert(conn:exec(SQL_CREATECRON))
     return true
   end))
   io.write(string.format('re-created main database %s\n', maindb))

@@ -13,7 +13,7 @@ function M:teardown()
 end
 
 function M:beforeAll()
-  local ok, cleanup, err = xtest.newdb('')
+  local ok, cleanup, err = xtest.newdb('', xtest.mockcron)
   if not ok then cleanup() end
   assert(ok, err)
 
@@ -43,6 +43,8 @@ function M.test_account_methods()
       },
     },
     account = {},
+    token = {},
+    mqueue = {},
   }
 
   app.main = function()

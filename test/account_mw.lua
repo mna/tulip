@@ -1,9 +1,21 @@
+local cjson = require 'cjson'
 local cqueues = require 'cqueues'
 local handler = require 'web.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
+
+local function write_info(req, res)
+  res:write{
+    status = 200,
+    content_type = 'application/json',
+    body = {
+      ssn_id = req.locals.session_id,
+      acct_id = req.locals.account and req.locals.account.id,
+    },
+  }
+end
 
 local M = {}
 
@@ -13,11 +25,17 @@ function M.config_http()
     server = { host = 'localhost', port = 0 },
     routes = {
       {method = 'GET', pattern = '^/public',
-        middleware = {'account:authz', handler.write{status = 204}}},
+        middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/private', allow = {'*'},
-        middleware = {'account:authz', handler.write{status = 204}}},
+        middleware = {'account:check_session', 'account:authz', write_info}},
       {method = 'POST', pattern = '^/signup',
-        middleware = {'account:authz', 'account:signup', handler.write{status = 204}}},
+        middleware = {'account:signup', handler.write{status = 204}}},
+      {method = 'POST', pattern = '^/login',
+        middleware = {'account:login', handler.write{status = 204}}},
+      {method = 'GET', pattern = '^/logout',
+        middleware = {'account:check_session', 'account:authz', 'account:logout', handler.write{status = 204}}},
+      {method = 'GET', pattern = '^/g1', allow = {'g1'}, deny = {'*'},
+        middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
     },
     middleware = {
       handler.recover(function(_, res, err)
@@ -28,12 +46,19 @@ function M.config_http()
       'routes',
     },
     urlenc = {},
+    json = {},
+    token = {},
+    mqueue = {
+      default_max_age = 1,
+      default_max_attempts = 2,
+    },
     database = {
       connection_string = '',
       pool = {},
       migrations = {
         {
-          package = 'test';
+          package = 'test',
+          after = {'web.pkg.account'};
           [[
           INSERT INTO web_pkg_account_groups
             (name)
@@ -105,6 +130,57 @@ function M.test_over_http()
       })
     lu.assertNotNil(hdrs and res)
     lu.assertEquals(hdrs:get(':status'), '204')
+
+    -- login: unknown email
+    hdrs, res = xtest.http_request(req, 'POST', '/login',
+      neturl.buildQuery({email = 'nope@example.com', password = pwd1}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '401')
+    local ck = req.cookie_store:get('localhost', '/', 'ssn')
+    lu.assertNil(ck)
+
+    -- login: invalid password
+    hdrs, res = xtest.http_request(req, 'POST', '/login',
+      neturl.buildQuery({email = user1..'@example.com', password = pwd2}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '401')
+    ck = req.cookie_store:get('localhost', '/', 'ssn')
+    lu.assertNil(ck)
+
+    -- login: valid
+    hdrs, res = xtest.http_request(req, 'POST', '/login',
+      neturl.buildQuery({email = user1..'@example.com', password = pwd1}), TO, {
+        ['content-type'] = 'application/x-www-form-urlencoded',
+      })
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '204')
+    ck = req.cookie_store:get('localhost', '/', 'ssn')
+    lu.assertTrue(ck and ck ~= '')
+
+    -- check_session: accessing private route returns logged-in info
+    hdrs, res = xtest.http_request(req, 'GET', '/private', '', TO)
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '200')
+    local body = cjson.decode(res:get_body_as_string(TO))
+    lu.assertEquals(#body.ssn_id, 44)
+    lu.assertTrue(body.acct_id > 0)
+    lu.assertNotEquals(body.ssn_id, ck)
+
+    -- check_session/authz: cannot access g1 route (user has no group)
+    hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- logout: from logged in
+    hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '204')
+    ck = req.cookie_store:get('localhost', '/', 'ssn')
+    lu.assertNil(ck)
   end, 'test.account_mw', 'config_http')
 end
 
