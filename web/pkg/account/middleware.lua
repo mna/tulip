@@ -116,11 +116,7 @@ function M.check_session(req, res, nxt, errh, cfg)
 
   local ck = req.cookies[ssn.cookie_name]
   if ck then
-    local tok, tokerr = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
-
-    if not tok then
-      app:log('d', {pkg='check_session', msg=tokerr or 'no token', original=ck})
-    end
+    local tok = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
 
     if tok then
       local ok, id_or_err = app:token({

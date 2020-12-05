@@ -54,31 +54,30 @@ function M.decode(hkey, max_age, v, ...)
   -- decode from base64
   local decoded = xio.b64decode(v)
   if not decoded then
-    return nil, string.format('b64decode failed: %s', v)
+    return nil, string.format('%s: b64decode failed', v)
   end
 
   -- get parts, value is date|value|mac
-  local parts = {}
-  string.gsub(decoded, '([^|]+)', function(p)
-    table.insert(parts, p)
-  end)
+  local parts = table.pack(string.match(decoded, '^([^|]+)|([^|]+)|(.+)$'))
   if #parts ~= 3 then
-    return nil, string.format('%d part(s): %s', #parts, decoded)
+    return nil, string.format('%s: %d part(s)', v, #parts)
   end
 
   -- verify MAC, to compute it prepend the extra values
   local mac_vals = {...}
   table.move(parts, 1, 2, #mac_vals + 1, mac_vals)
   if not verify_mac(hkey, table.concat(mac_vals, '|'), parts[3]) then
-    return nil, 'mac failed'
+    return nil, string.format('%s: mac failed', v)
   end
 
   -- verify date range
   local t1 = math.tointeger(parts[1])
-  if not t1 then return nil, 'epoch not integer' end
+  if not t1 then
+    return nil, string.format('%s: epoch not integer: %s', v, parts[1])
+  end
   local t2 = os.time()
   if max_age > 0 and (t2 - t1) > max_age then
-    return nil, string.format('token too old: %d > %d', (t2-t1), max_age)
+    return nil, string.format('%s: token too old: %d > %d', v, (t2-t1), max_age)
   end
 
   -- the returned value itself is base64-encoded, so that the pipe separator
@@ -98,7 +97,8 @@ function M.encode(hkey, v, ...)
   local mac = create_mac(hkey, table.concat(mac_vals, '|'))
 
   local cooked_vals = {mac_vals[#mac_vals-1], mac_vals[#mac_vals], mac}
-  return xio.b64encode(table.concat(cooked_vals, '|'))
+  local raw_str = table.concat(cooked_vals, '|')
+  return xio.b64encode(raw_str)
 end
 
 return M
