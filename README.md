@@ -1,6 +1,6 @@
 # luaweb
 
-Lua web framework based on [http][] and [PostgreSQL][pg].
+Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
 * Canonical repository: https://git.sr.ht/~mna/luaweb
 * Issue tracker: https://todo.sr.ht/~mna/luaweb
@@ -8,7 +8,7 @@ Lua web framework based on [http][] and [PostgreSQL][pg].
 ## Description
 
 Lua Web is a minimal and simple web framework that provides a lot with very little.
-Using only Lua (currently 5.3) and the PostgreSQL database (currently 13), the
+Using only Lua (currently 5.4) and the PostgreSQL database (currently 13), the
 framework packs the following features:
 
 * HTTP and HTTPS ✔
@@ -18,7 +18,7 @@ framework packs the following features:
 * Fire-and-forget (at-most-once) publish-subscribe mechanism ✔
 * Statsd-compatible metrics collection ✔
 * Cron-like scheduled processing ✔
-* Hardened server with timeouts and connection capacity
+* Hardened server with timeouts and connection capacity ✔
 * SQL injection, XSS and CSRF protections ✔
 * Template-based dynamic HTML page generation ✔
 * Static file-based serving ✔
