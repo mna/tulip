@@ -9,8 +9,8 @@ local function make_token(cfg)
     lookup_types = xtable.toset(cfg.allowed_types)
   end
 
-  return function(app, t, db, tok)
-    tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, db, tok)
+  return function(app, t, conn, tok)
+    tcheck({'*', 'table', 'table|nil', 'string|nil'}, app, t, conn, tok)
 
     if lookup_types then
       local ok, err = xerror.inval(lookup_types[t.type],
@@ -20,15 +20,15 @@ local function make_token(cfg)
       end
     end
 
-    local close = not db
-    db = db or app:db()
-    return db:with(close, function()
+    local close = not conn
+    conn = conn or app:db()
+    return conn:with(close, function()
       if tok or t.delete then
         -- validate or delete the token
-        return token.validate(t, db, tok)
+        return token.validate(t, conn, tok)
       else
         -- generate a token
-        return token.generate(t, db)
+        return token.generate(t, conn)
       end
     end)
   end
@@ -57,7 +57,7 @@ local M = {}
 --   * allowed_types: array of string = if set, only those types
 --     will be allowed for the tokens.
 --
--- v, err = App:token(t[, db[, tok]])
+-- v, err = App:token(t[, conn[, tok]])
 --   > t: table = a table with the following fields:
 --     * t.type: string = the type of the token (e.g. resetpwd)
 --     * t.ref_id: number = the reference id of the token (e.g. user id)
@@ -69,7 +69,7 @@ local M = {}
 --       even if it is not a single-use token (e.g. for logout behaviour).
 --       If no tok value is provided and delete is true, deletes all tokens
 --       associated with type and ref_id (without validation).
---   > db: connection = optional database connection to use
+--   > conn: connection = optional database connection to use
 --   > tok: string = if provided, validates that token, otherwise
 --     generate a new token.
 --   < v: bool|string|nil = if tok is provided, returns a boolean

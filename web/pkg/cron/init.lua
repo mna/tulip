@@ -11,8 +11,8 @@ local function make_schedule(cfg)
     lookup_jobs = xtable.toset(cfg.allowed_jobs)
   end
 
-  return function(app, job, db, t)
-    tcheck({'*', 'string', 'table|nil', 'string|table|nil'}, app, job, db, t)
+  return function(app, job, conn, t)
+    tcheck({'*', 'string', 'table|nil', 'string|table|nil'}, app, job, conn, t)
 
     if lookup_jobs then
       local ok, err = xerror.inval(lookup_jobs[job],
@@ -22,19 +22,19 @@ local function make_schedule(cfg)
       end
     end
 
-    local close = not db
-    db = db or app:db()
-    return db:with(close, function()
+    local close = not conn
+    conn = conn or app:db()
+    return conn:with(close, function()
       if t then
         if type(t) == 'string' then
           t = {schedule = t}
         end
-        return cron.schedule(job, db, xtable.merge({
+        return cron.schedule(job, conn, xtable.merge({
           max_age = def_max_age,
           max_attempts = def_max_att,
         }, t))
       else
-        return cron.unschedule(job, db)
+        return cron.unschedule(job, conn)
       end
     end)
   end
@@ -58,9 +58,9 @@ local M = {}
 --     at startup. The key is the job name, and the value is the same
 --     as the t table that can be passed in App:schedule.
 --
--- v, err = App:schedule(job[, db[, t]])
+-- v, err = App:schedule(job[, conn[, t]])
 --   > job: string = name of the job
---   > db: connection|nil = optional database connection to use
+--   > conn: connection|nil = optional database connection to use
 --   > t: string|table|nil = if nil, unschedule the job.
 --     If it is a string, it is the cron schedule, if it is a table,
 --     it is a table with the following fields:
@@ -70,7 +70,7 @@ local M = {}
 --     * t.command: string|nil = if set, the scheduled job will run this SQL command
 --       instead of enqueueing a message.
 --     * t.payload: table|function|nil = if set, will be the message's payload. If it is
---       a function, it is called with the job name, db connection and config table and
+--       a function, it is called with the job name, connection and config table and
 --       its first return value is used as payload.
 --   < v: bool|nil = true if the job was scheduled or unscheduled sucessfully,
 --     nil on error.

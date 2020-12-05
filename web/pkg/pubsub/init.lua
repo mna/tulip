@@ -15,8 +15,8 @@ local function make_pubsub(cfg)
     error_handler = cfg.error_handler or pubsub.default_err_handler,
   }
 
-  return function(app, chan, fdb, msg, cq)
-    tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fdb, msg)
+  return function(app, chan, fconn, msg, cq)
+    tcheck({'*', 'string', 'function|table|nil', 'table|nil'}, app, chan, fconn, msg)
 
     if lookup_chans then
       local ok, err = xerror.inval(lookup_chans[chan],
@@ -31,13 +31,13 @@ local function make_pubsub(cfg)
     end
 
     if msg then
-      local close = not fdb
-      local db = fdb or app:db()
-      return db:with(close, function(c)
+      local close = not fconn
+      local conn = fconn or app:db()
+      return conn:with(close, function(c)
         return pubsub.publish(chan, c, msg)
       end)
     else
-      return pubsub.subscribe(chan, fdb, state, cq)
+      return pubsub.subscribe(chan, fconn, state, cq)
     end
   end
 end
@@ -54,7 +54,7 @@ local M = {}
 --     will be allowed.
 --   * get_connection: function = if set, used to get the long-running
 --     connection used to listen for notifications (and re-connect if
---     connection is lost). Defaults to app:db().
+--     connection is lost). Defaults to App:db().
 --   * error_handler: function = if set, called whenever an error occurs
 --     in the background coroutine that dispatches notifications. It is
 --     called with the current xpgsql connection, a number that increments
@@ -71,9 +71,9 @@ local M = {}
 --   * listeners: table = if set, key is the channel and value is an
 --     array of functions to register as listeners for that channel.
 --
--- ok, err = App:pubsub(chan, fdb[, msg])
+-- ok, err = App:pubsub(chan, fconn[, msg])
 --   > chan: string = then pubsub channel
---   > fdb: function|connection|nil = either a function to register
+--   > fconn: function|connection|nil = either a function to register
 --     as handler for that channel, or an optional database
 --     connection to use to publish msg. The handler function receives
 --     a Notification object as argument with a channel and payload

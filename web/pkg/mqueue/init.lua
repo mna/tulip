@@ -11,8 +11,8 @@ local function make_mqueue(cfg)
     lookup_queues = xtable.toset(cfg.allowed_queues)
   end
 
-  return function(app, t, db, msg)
-    tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, db, msg)
+  return function(app, t, conn, msg)
+    tcheck({'*', 'table', 'table|nil', 'table|nil'}, app, t, conn, msg)
 
     if lookup_queues then
       local ok, err = xerror.inval(lookup_queues[t.queue],
@@ -22,9 +22,9 @@ local function make_mqueue(cfg)
       end
     end
 
-    local close = not db
-    db = db or app:db()
-    return db:with(close, function()
+    local close = not conn
+    conn = conn or app:db()
+    return conn:with(close, function()
       if msg then
         -- enqueue the message
         return mqueue.enqueue(
@@ -32,10 +32,10 @@ local function make_mqueue(cfg)
             max_age = def_max_age,
             max_attempts = def_max_att,
           }, t),
-          db, msg)
+          conn, msg)
       else
         -- dequeue some messages
-        return mqueue.dequeue(xtable.merge({max_receive = 1}, t), db)
+        return mqueue.dequeue(xtable.merge({max_receive = 1}, t), conn)
       end
     end)
   end
@@ -55,14 +55,14 @@ local M = {}
 --   * default_max_attempts: integer|nil = if set, use as default
 --     maximum number of attempts to process a message.
 --
--- v, err = App:mqueue(t[, db[, msg]])
+-- v, err = App:mqueue(t[, conn[, msg]])
 --   > t: table = a table with the following fields:
 --     * t.max_attempts: number|nil = maximum number of attempts (enqueue only)
 --     * t.max_age: number|nil = number of seconds to process message (enqueue only)
 --     * t.queue: string = queue name
 --     * t.max_receive: number|nil = maximum number of messages to
 --       receive, when the call is a dequeue operation. Defaults to 1.
---   > db: connection|nil = optional database connection to use
+--   > conn: connection|nil = optional database connection to use
 --   > msg: table|nil = if provided, enqueues that message. It
 --       gets encoded as JSON.
 --   < v: bool|array of tables|nil = if msg is provided, returns a boolean

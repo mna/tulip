@@ -2,9 +2,9 @@
 
 ## high-priority
 
-* Normalize connection variable name to `conn`, last arg when optional in App methods.
 * Flash messages that persist across redirects (probably requires i18n solution)
 * A better way to check for package dependencies (e.g. checking for 'database' would not work if the config was under 'web.pkg.database' - maybe the register function should store a string in a dict?).
+* Document in a quick reference table the methods, signatures, config options of each package.
 
 ## up next
 
