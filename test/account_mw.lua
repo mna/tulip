@@ -38,6 +38,8 @@ function M.config_http()
         middleware = {'account:login', handler.write{status = 204}}},
       {method = 'GET', pattern = '^/logout',
         middleware = {'account:check_session', 'account:authz', 'account:logout', handler.write{status = 204}}},
+      {method = 'POST', pattern = '^/delete',
+        middleware = {'account:check_session', 'account:delete', handler.write{status = 204}}},
 
       {method = 'GET', pattern = '^/g1', allow = {'g1'}, deny = {'*'},
         middleware = {'account:check_session', 'account:authz', handler.write{status = 204}}},
@@ -440,7 +442,7 @@ function M.test_over_http()
         '/changeemail/end',
         t = 'nope',
         oe = user1..'@example.com',
-        ne = user2..'@example.com',
+        ne = user3..'@example.com',
       }, '', TO)
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '400')
@@ -462,6 +464,82 @@ function M.test_over_http()
         oe = msg.payload.old_email,
         ne = msg.payload.new_email,
       }, '', TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- logout
+      hdrs, res = xtest.http_request(req, 'GET', '/logout', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- authz: private now fails, not authenticated
+      hdrs, res = xtest.http_request(req, 'GET', '/private', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+
+      -- login: old email address fails
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user1..'@example.com', password = newpwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+
+      -- delete: no account
+      hdrs, res = xtest.http_request(req, 'POST', '/delete',
+        neturl.buildQuery({password = newpwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- login: success with user3
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user3..'@example.com', password = newpwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- delete: invalid password
+      hdrs, res = xtest.http_request(req, 'POST', '/delete',
+        neturl.buildQuery({password = pwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- delete: valid password
+      hdrs, res = xtest.http_request(req, 'POST', '/delete',
+        neturl.buildQuery({password = newpwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- authz: private fails, account deleted
+      hdrs, res = xtest.http_request(req, 'GET', '/private', nil, TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+
+      -- login: fails with user3 (deleted)
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user3..'@example.com', password = newpwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '401')
+
+      -- login: success with user2
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user2..'@example.com', password = newpwd2}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- authz: can access /g1 (has this group)
+      hdrs, res = xtest.http_request(req, 'GET', '/g1', nil, TO)
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '204')
     end, 'test.account_mw', 'config_http')

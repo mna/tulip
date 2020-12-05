@@ -22,9 +22,9 @@ framework packs the following features:
 * SQL injection, XSS and CSRF protections ✔
 * Template-based dynamic HTML page generation ✔
 * Static file-based serving ✔
-* Account registration, token-based validation and password reset
-* Secure user authentication with cookie-based session
-* User- and group-based authorization
+* Account registration, token-based validation and password reset ✔
+* Secure user authentication with cookie-based session ✔
+* User- and group-based authorization ✔
 * Straightforward pattern-based routes handler multiplexer ✔
 * Transactional database migrations runner ✔
 * Efficient database access with connection pooling ✔

@@ -4,6 +4,7 @@
 
 * Normalize connection variable name to `conn`, last arg when optional in App methods.
 * Flash messages that persist across redirects (probably requires i18n solution)
+* A better way to check for package dependencies (e.g. checking for 'database' would not work if the config was under 'web.pkg.database' - maybe the register function should store a string in a dict?).
 
 ## up next
 
@@ -15,7 +16,6 @@
 
 ## later/someday
 
-* A better way to check for package dependencies (e.g. checking for 'database' would not work if the config was under 'web.pkg.database' - maybe the register function should store a string in a dict?).
 * Test App composition, for both web and worker contexts
 * Lua 5.4 and postgresql 13 (Fedora 33?)
 * Review structured log calls for consistency
