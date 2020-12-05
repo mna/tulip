@@ -55,6 +55,11 @@ function M.config_http()
         middleware = {'account:init_resetpwd', handler.write{status = 204}}},
       {method = 'POST', pattern = '^/resetpwd/end',
         middleware = {'account:resetpwd', handler.write{status = 204}}},
+
+      {method = 'POST', pattern = '^/changeemail/start',
+        middleware = {'account:check_session', 'account:init_changeemail', handler.write{status = 204}}},
+      {method = 'GET', pattern = '^/changeemail/end',
+        middleware = {'account:changeemail', handler.write{status = 204}}},
     },
     middleware = {
       handler.recover(function(_, res, err)
@@ -111,6 +116,16 @@ function M.test_over_http()
       local hdrs, res
       local req = request.new_from_uri(
         string.format('http://localhost:%d/', port))
+
+      assert(app:db(function(conn)
+        assert(conn:exec[[
+        DELETE FROM web_pkg_mqueue_pending
+        ]])
+        assert(conn:exec[[
+        DELETE FROM web_pkg_mqueue_active
+        ]])
+        return true
+      end))
 
       -- authz: no constraint
       hdrs, res = xtest.http_request(req, 'GET', '/public', nil, TO)
@@ -187,7 +202,7 @@ function M.test_over_http()
       lu.assertNil(ck)
       local first_ssn_ck = ck
 
-      -- login: valid
+      -- login: valid, with user1
       hdrs, res = xtest.http_request(req, 'POST', '/login',
         neturl.buildQuery({email = user1..'@example.com', password = pwd1, rememberme = 't'}), TO, {
           ['content-type'] = 'application/x-www-form-urlencoded',
@@ -384,6 +399,69 @@ function M.test_over_http()
         }), TO, {
           ['content-type'] = 'application/x-www-form-urlencoded',
         })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- init_changeemail: no account
+      hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
+        neturl.buildQuery({new_email = 'nope@example.com'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- login with user 1
+      hdrs, res = xtest.http_request(req, 'POST', '/login',
+        neturl.buildQuery({email = user1..'@example.com', password = newpwd1, rememberme = 't'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- init_changeemail: conflicting email
+      hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
+        neturl.buildQuery({new_email = user2..'@example.com'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      local user3 = tostring(cqueues.monotime())
+      -- init_changeemail: valid
+      hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
+        neturl.buildQuery({new_email = user3..'@example.com'}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '204')
+
+      -- changeemail: invalid token
+      hdrs, res = xtest.http_request(req, 'GET', {
+        '/changeemail/end',
+        t = 'nope',
+        oe = user1..'@example.com',
+        ne = user2..'@example.com',
+      }, '', TO)
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
+      -- get the enqueued message
+      msgs, err = app:mqueue({queue = 'sendemail'})
+      lu.assertNil(err)
+      lu.assertEquals(#msgs, 1)
+      msg = msgs[1]
+      assert(app:db(function(conn)
+        assert(msg:done(conn))
+        return true
+      end))
+
+      -- changeemail: valid token
+      hdrs, res = xtest.http_request(req, 'GET', {
+        '/changeemail/end',
+        t = msg.payload.encoded_token,
+        oe = msg.payload.old_email,
+        ne = msg.payload.new_email,
+      }, '', TO)
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '204')
     end, 'test.account_mw', 'config_http')

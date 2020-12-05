@@ -53,27 +53,33 @@ end
 function M.decode(hkey, max_age, v, ...)
   -- decode from base64
   local decoded = xio.b64decode(v)
-  if not decoded then return end
+  if not decoded then
+    return nil, string.format('b64decode failed: %s', v)
+  end
 
   -- get parts, value is date|value|mac
   local parts = {}
   string.gsub(decoded, '([^|]+)', function(p)
     table.insert(parts, p)
   end)
-  if #parts ~= 3 then return end
+  if #parts ~= 3 then
+    return nil, string.format('%d part(s): %s', #parts, decoded)
+  end
 
   -- verify MAC, to compute it prepend the extra values
   local mac_vals = {...}
   table.move(parts, 1, 2, #mac_vals + 1, mac_vals)
   if not verify_mac(hkey, table.concat(mac_vals, '|'), parts[3]) then
-    return
+    return nil, 'mac failed'
   end
 
   -- verify date range
   local t1 = math.tointeger(parts[1])
-  if not t1 then return end
+  if not t1 then return nil, 'epoch not integer' end
   local t2 = os.time()
-  if max_age > 0 and (t2 - t1) > max_age then return end
+  if max_age > 0 and (t2 - t1) > max_age then
+    return nil, string.format('token too old: %d > %d', (t2-t1), max_age)
+  end
 
   -- the returned value itself is base64-encoded, so that the pipe separator
   -- is safe (cannot appear in the value).

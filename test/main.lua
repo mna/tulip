@@ -18,6 +18,7 @@ TestServer = require 'test.server'
 TestToken = require 'test.token'
 TestWroutes = require 'test.wroutes'
 TestXerror = require 'test.xerror'
+TestXio = require 'test.xio'
 TestXstring = require 'test.xstring'
 TestXtable = require 'test.xtable'
 

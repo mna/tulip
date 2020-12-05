@@ -116,7 +116,11 @@ function M.check_session(req, res, nxt, errh, cfg)
 
   local ck = req.cookies[ssn.cookie_name]
   if ck then
-    local tok = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
+    local tok, tokerr = read_b64_token_from_cookie(ck, xtable.merge({auth_key = cfg.auth_key}, ssn))
+
+    if not tok then
+      app:log('d', {pkg='check_session', msg=tokerr or 'no token', original=ck})
+    end
 
     if tok then
       local ok, id_or_err = app:token({
@@ -295,7 +299,7 @@ function M.vemail(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    vem.token_max_age, enc_tok, email), 'invalid token')
+    vem.token_max_age, enc_tok, email))
   if not tok then
     return errh(req, res, nxt, err)
   end
@@ -437,7 +441,7 @@ function M.resetpwd(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    rep.token_max_age, enc_tok, email), 'invalid token')
+    rep.token_max_age, enc_tok, email))
   if not tok then
     return errh(req, res, nxt, err)
   end
@@ -513,10 +517,12 @@ function M.init_changeemail(req, res, nxt, errh, cfg)
 
   -- best-effort to catch this early
   local new_email = body.new_email
-  local exist = app:account(new_email)
+  local exist; exist, err = app:account(new_email)
   if exist then
-    return errh(req, res, nxt,
-      xerror.inval(nil, 'an account for that email already exists'))
+    local _; _, err = xerror.inval(nil, 'an account for that email already exists')
+    return errh(req, res, nxt, err)
+  elseif err and (not xerror.is(err, 'EINVAL')) then
+    return errh(req, res, nxt, err)
   end
 
   local ok; ok, err = app:db(function(conn)
@@ -572,7 +578,7 @@ function M.changeemail(req, res, nxt, errh, cfg)
 
   -- hmac-decode the token
   local tok; tok, err = xerror.inval(crypto.decode(cfg.auth_key,
-    che.token_max_age, enc_tok, old_email, new_email), 'invalid token')
+    che.token_max_age, enc_tok, old_email, new_email))
   if not tok then
     return errh(req, res, nxt, err)
   end
