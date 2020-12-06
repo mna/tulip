@@ -367,13 +367,7 @@ function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.create_account = create_account
   app.account = get_account
-
-  local db = app.config.database
-  db.migrations = db.migrations or {}
-  table.insert(db.migrations, {
-    package = 'web.pkg.account';
-    table.unpack(migrations)
-  })
+  app:register_migrations('web.pkg.account', migrations)
 
   -- register the middleware
   local mwcfg = xtable.merge({}, cfg)

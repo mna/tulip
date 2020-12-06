@@ -85,13 +85,7 @@ local M = {
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.token = make_token(cfg)
-
-  local db = app.config.database
-  db.migrations = db.migrations or {}
-  table.insert(db.migrations, {
-    package = 'web.pkg.token';
-    table.unpack(token.migrations)
-  })
+  app:register_migrations('web.pkg.token', token.migrations)
 end
 
 return M

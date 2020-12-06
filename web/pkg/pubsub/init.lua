@@ -101,10 +101,11 @@ end
 function M.activate(cfg, app, cq)
   tcheck({'table', 'web.App'}, cfg, app)
 
-  cfg.listeners = cfg.listeners or {}
-  for chan, fns in pairs(cfg.listeners) do
-    for _, f in ipairs(fns) do
-      xerror.must(app:pubsub(chan, f, nil, cq))
+  if cfg.listeners then
+    for chan, fns in pairs(cfg.listeners) do
+      for _, f in ipairs(fns) do
+        xerror.must(app:pubsub(chan, f, nil, cq))
+      end
     end
   end
 end

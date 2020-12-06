@@ -91,7 +91,7 @@ local M = {
       if migs.after then
         local v = self:lookup_migrations(name)
         v.after = xtable.toarray(xtable.setunion(
-          xtable.toset(v.after), migs.after))
+          xtable.toset(v.after), xtable.toset(migs.after)))
       end
     end,
 
@@ -134,38 +134,37 @@ end
 function M.activate(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
-  cfg.migrations = cfg.migrations or {}
-
-  local graph = tsort.new()
-  local migrations = {}
-  for _, v in ipairs(cfg.migrations) do
-    local ms = migrations[v.package] or {}
-    for _, m in ipairs(v) do
-      table.insert(ms, m)
+  if cfg.migrations then
+    for _, v in ipairs(cfg.migrations) do
+      app:register_migrations(v.package, v)
     end
-    migrations[v.package] = ms
-    if v.after then
-      for _, from in ipairs(v.after) do
-        graph:add(from, v.package)
+  end
+
+  local order
+  local migrations = app.migrations
+  local migrator = Migrator.new(cfg.connection_string)
+  if migrations then
+    local graph = tsort.new()
+    for nm, migs in pairs(migrations) do
+      migrator:register(nm, migs)
+      if migs.after then
+        for _, from in ipairs(migs.after) do
+          graph:add(from, nm)
+        end
+      else
+        graph:add(nm)
       end
-    else
-      graph:add(v.package)
     end
-  end
 
-  local mig = Migrator.new(cfg.connection_string)
-  for pkg, ms in pairs(migrations) do
-    mig:register(pkg, ms)
-  end
-
-  local order = graph:sort()
-  if not order then
-    xerror.throw('circular dependency in database migrations')
+    order = graph:sort()
+    if not order then
+      xerror.throw('circular dependency in database migrations')
+    end
   end
 
   app:log('i', {pkg = 'database', msg = 'migrations started'})
   xerror.must(app:db(function(conn)
-    return xerror.must(mig:run(conn, function(pkg, i)
+    return xerror.must(migrator:run(conn, function(pkg, i)
       app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
     end, order))
   end))

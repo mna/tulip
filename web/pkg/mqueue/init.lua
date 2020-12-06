@@ -77,13 +77,7 @@ local M = {
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.mqueue = make_mqueue(cfg)
-
-  local db = app.config.database
-  db.migrations = db.migrations or {}
-  table.insert(db.migrations, {
-    package = 'web.pkg.mqueue';
-    table.unpack(mqueue.migrations)
-  })
+  app:register_migrations('web.pkg.mqueue', mqueue.migrations)
 end
 
 return M

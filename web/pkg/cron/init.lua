@@ -88,9 +88,10 @@ end
 function M.activate(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
 
-  cfg.jobs = cfg.jobs or {}
-  for job, t in pairs(cfg.jobs) do
-    xerror.must(app:schedule(job, nil, t))
+  if cfg.jobs then
+    for job, t in pairs(cfg.jobs) do
+      xerror.must(app:schedule(job, nil, t))
+    end
   end
 end
 
