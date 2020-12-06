@@ -42,7 +42,11 @@ local function make_pubsub(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.database',
+  },
+}
 
 -- The pubsub package registers an App:pubsub method that either
 -- publishes a notification on a channel, or subscribes to
@@ -92,10 +96,6 @@ function M.register(cfg, app)
   -- TODO: test pubsub usage in a representative way, e.g. for server-sent
   -- events or websocket, see if it is usable.
   app.pubsub = make_pubsub(cfg)
-
-  if not app.config.database then
-    xerror.throw('no database registered')
-  end
 end
 
 function M.activate(app, cq)

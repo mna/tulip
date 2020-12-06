@@ -31,7 +31,13 @@ local function get_account(app, v, raw_pwd, conn)
   end)
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.database',
+    'web.pkg.mqueue',
+    'web.pkg.token',
+  },
+}
 
 local MWPREFIX = 'web.pkg.account'
 
@@ -361,16 +367,7 @@ function M.register(cfg, app)
   app.create_account = create_account
   app.account = get_account
 
-  if not app.config.token then
-    xerror.throw('no token package registered')
-  end
-  if not app.config.mqueue then
-    xerror.throw('no mqueue package registered')
-  end
   local db = app.config.database
-  if not db then
-    xerror.throw('no database registered')
-  end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {
     package = 'web.pkg.account';

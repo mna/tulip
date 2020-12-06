@@ -34,7 +34,11 @@ local function make_token(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.database',
+  },
+}
 
 -- The token package registers an App:token method that either
 -- generates a one-time secret token, validates such a token,
@@ -83,9 +87,6 @@ function M.register(cfg, app)
   app.token = make_token(cfg)
 
   local db = app.config.database
-  if not db then
-    xerror.throw('no database registered')
-  end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {
     package = 'web.pkg.token';

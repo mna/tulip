@@ -30,14 +30,14 @@ function M.test_cron_missing_dep()
     cron = {},
   })
   lu.assertFalse(ok)
-  lu.assertStrContains(err, 'no message queue registered')
+  lu.assertStrContains(err, 'requires package web.pkg.mqueue')
 
   ok, err = pcall(App, {
     mqueue = {},
     cron = {},
   })
   lu.assertFalse(ok)
-  lu.assertStrContains(err, 'no database registered')
+  lu.assertStrContains(err, 'requires package web.pkg.database')
 end
 
 function M.test_cron()

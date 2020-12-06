@@ -40,7 +40,12 @@ local function make_schedule(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.database',
+    'web.pkg.mqueue',
+  },
+}
 
 -- The cron package registers an App:schedule method that registers
 -- a job to run at a specific schedule.
@@ -78,13 +83,6 @@ local M = {}
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.schedule = make_schedule(cfg)
-
-  if not app.config.database then
-    xerror.throw('no database registered')
-  end
-  if not app.config.mqueue then
-    xerror.throw('no message queue registered')
-  end
 end
 
 function M.activate(app)

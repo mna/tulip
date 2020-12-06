@@ -58,7 +58,11 @@ local function main(app, cq)
   return srv:loop()
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.middleware',
+  },
+}
 
 -- The server package turns the app into a web server. It sets
 -- a main method on the app that will start the server and bootstrap
@@ -94,10 +98,6 @@ local M = {}
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
   app.main = main
-
-  if not app.config.middleware then
-    xerror.throw('no middleware package registered')
-  end
 end
 
 return M

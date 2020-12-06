@@ -41,7 +41,11 @@ local function make_mqueue(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.database',
+  },
+}
 
 -- The mqueue package registers an App:mqueue method that either
 -- enqueues a message, or dequeues a batch of messages to process.
@@ -75,9 +79,6 @@ function M.register(cfg, app)
   app.mqueue = make_mqueue(cfg)
 
   local db = app.config.database
-  if not db then
-    xerror.throw('no database registered')
-  end
   db.migrations = db.migrations or {}
   table.insert(db.migrations, {
     package = 'web.pkg.mqueue';

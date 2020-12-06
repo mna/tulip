@@ -57,13 +57,18 @@ local function make_main(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.mqueue',
+    'web.pkg.wmiddleware',
+  },
+}
 
 -- The worker package registers an App:main method that processes
 -- messages from the message queue (which may include messages
 -- scheduled with cron).
 --
--- Requires: database, mqueue and wmiddleware packages
+-- Requires: mqueue and wmiddleware packages
 -- Config:
 --   * idle_sleep: number = seconds to sleep when there are no
 --     messages to process. The first time no messages are available,
@@ -96,16 +101,6 @@ local M = {}
 -- running until explicitly stopped.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-
-  if not app.config.database then
-    xerror.throw('no database registered')
-  end
-  if not app.config.mqueue then
-    xerror.throw('no message queue registered')
-  end
-  if not app.config.wmiddleware then
-    xerror.throw('no wmiddleware package registered')
-  end
   app.main = make_main(cfg)
 end
 

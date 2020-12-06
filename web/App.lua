@@ -4,22 +4,58 @@ local xerror = require 'web.xerror'
 
 local function register_packages(app, cfg)
   local pkgs = {}
+
+  -- First, require the top-level keys that represent packages.
   for k, v in pairs(cfg) do
+    local full_name
+
     -- if there is no '.' in the key, try first as 'web.pkg.<key>'
     local ok, pkg = false, nil
     if not string.find(k, '.', 1, true) then
-      ok, pkg = pcall(require, 'web.pkg.' .. k)
+      full_name = 'web.pkg.'..k
+      ok, pkg = pcall(require, full_name)
     end
     if not ok then
+      full_name = k
       ok, pkg = pcall(require, k)
     end
 
     if not ok then
       xerror.throw('package not found: %s: %s', k, pkg)
     end
+    if pkgs[full_name] then
+      xerror.throw('package already required: %s', full_name)
+    end
+    pkgs[full_name] = {
+      package = pkg,
+      defined_name = k,
+      config = v,
+    }
 
-    table.insert(pkgs, pkg)
-    pkg.register(v, app)
+    if pkg.replaces then
+      if pkgs[pkg.replaces] then
+        xerror.throw('package %s replaces %s, which is already required', full_name, pkg.replaces)
+      end
+      pkgs[pkg.replaces] = true
+    end
+  end
+
+  for _, v in pairs(pkgs) do
+    if v ~= true then
+      local pkg = v.package
+
+      -- check fulfilled dependencies
+      if pkg.requires then
+        for _, dep in ipairs(pkg.requires) do
+          if not pkgs[dep] then
+            xerror.throw('package %s requires package %s', v.defined_name, dep)
+          end
+        end
+      end
+
+      -- register the package
+      pkg.register(v.config, app)
+    end
   end
 
   return pkgs
@@ -252,9 +288,12 @@ function App:activate(cq)
     self.log_level = LOGLEVELS[self.log_level]
   end
 
-  for _, pkg in ipairs(self.packages) do
-    if pkg.activate then
-      pkg.activate(self, cq)
+  for _, pkg in pairs(self.packages) do
+    if pkg ~= true then
+      pkg = pkg.package
+      if pkg.activate then
+        pkg.activate(self, cq)
+      end
     end
   end
   return true
