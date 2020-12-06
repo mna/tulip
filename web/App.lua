@@ -45,6 +45,7 @@ local function register_packages(app, cfg)
       end
     end
   end
+  app.packages = pkgs
 
   for _, v in pairs(pkgs) do
     if v ~= true then
@@ -63,8 +64,6 @@ local function register_packages(app, cfg)
       pkg.register(v.config, app)
     end
   end
-
-  return pkgs
 end
 
 -- Returns the __name of the metatable of o, or nil if none.
@@ -306,7 +305,7 @@ return function (cfg)
   setmetatable(o, App)
 
   -- require and register all config packages
-  o.packages = register_packages(o, cfg)
+  register_packages(o, cfg)
 
   return o
 end
