@@ -13,3 +13,13 @@ This is how an App resolves packages:
 5. Finally, when `App:run` is called, each defined package's `activate` function is called - if it exists - to make last-minute preparation before the app is started. Again, any error it encounters should be thrown. It receives the `App` instance and the `cqueue` instance that the app will use as arguments.
 
 With this two-step approach (between `register` and `activate`), packages can register string names as middleware in the `register` step, and resolve them to actual functions in the `activate` step, regardless of the order the packages are defined/processed.
+
+## Configuration
+
+TODO: all this:
+
+Packages should *never* depend on other package's configuration, so that drop-in replacements can work even though their configuration is under a different name (and may be completely different in structure).
+
+To enforce this, both the package's `register` and `activate` functions should have a similar signature expecting `(cfg, app)` (with the `cqueues` instance added as third argument for `activate`), and `cfg` in that case should be the configuration of that particular package.
+
+A special case must be made to be able to register DB migrations from other packages - in that case, it should work in a similar way to `register_middleware`, i.e. the `App` instance should provide a means to do this without referring to another package's configuration.
