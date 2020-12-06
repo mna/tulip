@@ -86,14 +86,25 @@ local App = {__name = 'web.App'}
 App.__index = App
 
 -- Registers a name with a value in the collection identified by field.
+-- If append is true and a value already exists for that name, then each
+-- value in the array part of v is appended to the existing value.
+-- Otherwise if append is false and a value already exists, an error
+-- is thrown.
 -- Internal method for extenders of App instance.
-function App:_register(field, name, v)
+function App:_register(field, name, v, append)
   local coll = self[field] or {}
   if coll[name] then
-    if string.match(field, '^_') then
-      field = string.sub(field, 2)
+    if append then
+      local ar = coll[name]
+      for _, vv in ipairs(v) do
+        table.insert(ar, vv)
+      end
+    else
+      if string.match(field, '^_') then
+        field = string.sub(field, 2)
+      end
+      xerror.throw('%s: %q is already registered', field, name)
     end
-    xerror.throw('%s: %q is already registered', field, name)
   end
   coll[name] = v
   self[field] = coll

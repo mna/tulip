@@ -3,6 +3,7 @@ local tcheck = require 'tcheck'
 local tsort = require 'resty.tsort'
 local xerror = require 'web.xerror'
 local xpgsql = require 'xpgsql'
+local xtable = require 'web.xtable'
 local Migrator = require 'web.pkg.database.Migrator'
 
 local function try_from_pool(pool, idle_to, life_to)
@@ -82,7 +83,24 @@ local function make_db(cfg, app)
   end
 end
 
-local M = {}
+local M = {
+  app = {
+    register_migrations = function(self, name, migs)
+      tcheck({'*', 'string', 'table'}, self, name, migs)
+      self:_register('migrations', name, migs, true)
+      if migs.after then
+        local v = self:lookup_migrations(name)
+        v.after = xtable.toarray(xtable.setunion(
+          xtable.toset(v.after), migs.after))
+      end
+    end,
+
+    lookup_migrations = function(self, name)
+      tcheck({'*', 'string'}, self, name)
+      return self:_lookup('migrations', name)
+    end,
+  },
+}
 
 -- The database package registers a db function on the app that
 -- returns a connection when called. If a function is provided as
