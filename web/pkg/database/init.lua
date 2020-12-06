@@ -113,10 +113,9 @@ function M.register(cfg, app)
   app.db = make_db(cfg, app)
 end
 
-function M.activate(app)
-  tcheck('web.App', app)
+function M.activate(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
 
-  local cfg = app.config.database
   cfg.migrations = cfg.migrations or {}
 
   local graph = tsort.new()

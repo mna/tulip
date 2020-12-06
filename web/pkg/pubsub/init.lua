@@ -98,10 +98,9 @@ function M.register(cfg, app)
   app.pubsub = make_pubsub(cfg)
 end
 
-function M.activate(app, cq)
-  tcheck('web.App', app)
+function M.activate(cfg, app, cq)
+  tcheck({'table', 'web.App'}, cfg, app)
 
-  local cfg = app.config.pubsub
   cfg.listeners = cfg.listeners or {}
   for chan, fns in pairs(cfg.listeners) do
     for _, f in ipairs(fns) do

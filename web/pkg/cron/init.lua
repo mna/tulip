@@ -85,10 +85,9 @@ function M.register(cfg, app)
   app.schedule = make_schedule(cfg)
 end
 
-function M.activate(app)
-  tcheck('web.App', app)
+function M.activate(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
 
-  local cfg = app.config.cron
   cfg.jobs = cfg.jobs or {}
   for job, t in pairs(cfg.jobs) do
     xerror.must(app:schedule(job, nil, t))

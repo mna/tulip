@@ -1,7 +1,11 @@
 local tcheck = require 'tcheck'
 local Mw = require 'web.pkg.csrf.Mw'
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.middleware',
+  },
+}
 
 -- The csrf package registers a middleware that protects against CSRF
 -- attacks. It is based on Go's gorilla CSRF package (https://github.com/gorilla/csrf),

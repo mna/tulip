@@ -45,6 +45,7 @@ function M.test_account_methods()
     account = {},
     token = {},
     mqueue = {},
+    middleware = {},
   }
 
   app.main = function()

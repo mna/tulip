@@ -177,9 +177,11 @@ function M.register(cfg, app)
   app.metrics = make_metrics(cfg)
 
   if cfg.middleware then
+    xerror.must(app:has_package('web.pkg.middleware'))
     app:register_middleware('web.pkg.metrics', make_middleware(cfg))
   end
   if cfg.wmiddleware then
+    xerror.must(app:has_package('web.pkg.wmiddleware'))
     app:register_wmiddleware('web.pkg.metrics', make_wmiddleware(cfg))
   end
 end

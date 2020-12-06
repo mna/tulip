@@ -14,7 +14,11 @@ function Mw:__call(msg, nxt)
   nxt()
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.wmiddleware',
+  },
+}
 
 -- The wroutes package registers a route multiplexer where each
 -- message is routed to a specific handler based on the queue
@@ -27,10 +31,9 @@ function M.register(cfg, app)
   app:register_wmiddleware('web.pkg.wroutes', Mw.new())
 end
 
-function M.activate(app)
-  tcheck('web.App', app)
+function M.activate(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
 
-  local cfg = app.config.wroutes
   -- resolve all wmiddleware strings to actual functions
   for _, route in ipairs(cfg) do
     local mws = route.wmiddleware or {}

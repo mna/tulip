@@ -45,7 +45,11 @@ local function gzip_middleware(req, res, nxt)
   nxt()
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.middleware',
+  },
+}
 
 -- Package gzip registers a middleware that gzips the response
 -- of the request if it accepts that encoding.

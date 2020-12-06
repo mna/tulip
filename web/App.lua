@@ -38,6 +38,12 @@ local function register_packages(app, cfg)
       end
       pkgs[pkg.replaces] = true
     end
+
+    if pkg.app then
+      for appk, appv in pairs(pkg.app) do
+        app[appk] = appv
+      end
+    end
   end
 
   for _, v in pairs(pkgs) do
@@ -61,8 +67,28 @@ local function register_packages(app, cfg)
   return pkgs
 end
 
-local function register_common(app, field, name, v)
-  local coll = app[field] or {}
+-- Returns the __name of the metatable of o, or nil if none.
+local function metatable_name(o)
+  if type(o) == 'table' then
+    local mt = getmetatable(o)
+    return mt and mt.__name
+  end
+end
+
+local LOGLEVELS = {
+  d = 1,    debug = 1,
+  e = 1000, error = 1000,
+  i = 10,   info = 10,
+  w = 100,  warning = 100,
+}
+
+local App = {__name = 'web.App'}
+App.__index = App
+
+-- Registers a name with a value in the collection identified by field.
+-- Internal method for extenders of App instance.
+function App:_register(field, name, v)
+  local coll = self[field] or {}
   if coll[name] then
     if string.match(field, '^_') then
       field = string.sub(field, 2)
@@ -70,11 +96,13 @@ local function register_common(app, field, name, v)
     xerror.throw('%s: %q is already registered', field, name)
   end
   coll[name] = v
-  app[field] = coll
+  self[field] = coll
 end
 
-local function lookup_common(app, field, name)
-  local coll = app[field]
+-- Lookup a name and return its registered value in the collection
+-- identified by field. Internal method for extenders of App instance.
+function App:_lookup(field, name)
+  local coll = self[field]
   if not coll then return end
 
   if not string.find(name, '.', 1, true) then
@@ -84,19 +112,14 @@ local function lookup_common(app, field, name)
   return coll[name]
 end
 
--- Returns the __name of the metatable of o, or nil if none.
-local function metatable_name(o)
-  if type(o) == 'table' then
-    local mt = getmetatable(o)
-    return mt and mt.__name
-  end
-end
-
-local function resolve_common(app, field, mws)
+-- Resolve the names registered in the mws array by replacing the names
+-- with the values registered in the collection identified by field.
+-- Internal method for extenders of App instance.
+function App:_resolve(field, mws)
   for i, mw in ipairs(mws) do
     local typ = type(mw)
     if typ == 'string' then
-      local mwi = lookup_common(app, field, mw)
+      local mwi = self:_lookup(field, mw)
       if not mwi then
         if string.match(field, '^_') then
           field = string.sub(field, 2)
@@ -111,27 +134,18 @@ local function resolve_common(app, field, mws)
   end
 end
 
-local App = {__name = 'web.App'}
-App.__index = App
-
--- List of App functions (key) to package "generic" names (value)
--- to attach to the App and fail by default when called, to indicate
--- that a package should be registered to get this functionality.
-local FAIL_PLACEHOLDERS = {
-  db = 'database',
-  email = 'email',
-  metrics = 'metrics',
-  mqueue = 'message queue',
-  pubsub = 'pubsub',
-  render = 'template',
-  schedule = 'cron',
-  token = 'token',
-}
-
-for k, v in pairs(FAIL_PLACEHOLDERS) do
-  App[k] = function()
-    xerror.throw('no %s package registered', v)
+-- Returns true if name is a registered package for this App instance.
+-- If exact is true, this exact package must be registered (i.e. it must
+-- not be a drop-in replacement for it).
+-- Returns true if the package is registered, or nil and an error message
+-- indicating that the package is not registered, so it can also be
+-- called inside an xerror.must call.
+function App:has_package(name, exact)
+  local pkg = self.packages and self.packages[name]
+  if pkg and (pkg ~= true or not exact) then
+    return true
   end
+  return nil, string.format('package %s is not registered', name)
 end
 
 -- Encodes the table t to the specified mime type, using the
@@ -160,13 +174,6 @@ function App:decode(s, mime)
   xerror.throw('no decoder registered for MIME type %q', mime)
 end
 
-local LOGLEVELS = {
-  d = 1,    debug = 1,
-  e = 1000, error = 1000,
-  i = 10,   info = 10,
-  w = 100,  warning = 100,
-}
-
 -- Logs the t table at level lvl to all registered loggers.
 function App:log(lvl, t)
   local types = tcheck({'string|number', 'table'}, lvl, t)
@@ -186,103 +193,63 @@ function App:log(lvl, t)
   end
 end
 
--- Register a middleware in the list of available middleware. It panics if a
--- middleware is already registered for that name.
-function App:register_middleware(name, mw)
-  tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  register_common(self, '_middleware', name, mw)
-end
-
--- Get the registered middleware instance for that name, or nil if none.
-function App:lookup_middleware(name)
-  tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, '_middleware', name)
-end
-
--- Resolve any middleware referenced by name with the actual instance registered
--- for that name. Raises on error.
-function App:resolve_middleware(mws)
-  tcheck({'*', 'table'}, self, mws)
-  resolve_common(self, '_middleware', mws)
-end
-
--- Register a wmiddleware in the list of available wmiddleware. It panics if
--- a wmiddleware is already registered for that name.
-function App:register_wmiddleware(name, mw)
-  tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  register_common(self, '_wmiddleware', name, mw)
-end
-
--- Get the registered wmiddleware instance for that name, or nil if none.
-function App:lookup_wmiddleware(name)
-  tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, '_wmiddleware', name)
-end
-
--- Resolve any wmiddleware referenced by name with the actual instance registered
--- for that name. Raises on error.
-function App:resolve_wmiddleware(mws)
-  tcheck({'*', 'table'}, self, mws)
-  resolve_common(self, '_wmiddleware', mws)
-end
-
 -- Register an encoder in the list of encoders. It panics if an encoder
 -- is already registered for that name.
 function App:register_encoder(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  register_common(self, 'encoders', name, mw)
+  self:_register('encoders', name, mw)
 end
 
 -- Get the registered encoder instance for that name, or nil if none.
 function App:lookup_encoder(name)
   tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, 'encoders', name)
+  return self:_lookup('encoders', name)
 end
 
 -- Register a decoder in the list of decoders. It panics if a decoder is
 -- already registered for that name.
 function App:register_decoder(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  register_common(self, 'decoders', name, mw)
+  self:_register('decoders', name, mw)
 end
 
 -- Get the registered decoder instance for that name, or nil if none.
 function App:lookup_decoder(name)
   tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, 'decoders', name)
+  return self:_lookup('decoders', name)
 end
 
 -- Register a finalizer in the list of finalizers. It panics if a finalizer
 -- is already registered for that name.
 function App:register_finalizer(name, fz)
   tcheck({'*', 'string', 'table|function'}, self, name, fz)
-  register_common(self, 'finalizers', name, fz)
+  self:_register('finalizers', name, fz)
 end
 
 -- Get the registered finalizer instance for that name, or nil if none.
 function App:lookup_finalizer(name)
   tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, 'finalizers', name)
+  return self:_lookup('finalizers', name)
 end
 
 -- Register a logger in the list of loggers. It panics if a logger is
 -- already registered for that name.
 function App:register_logger(name, mw)
   tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  register_common(self, 'loggers', name, mw)
+  self:_register('loggers', name, mw)
 end
 
 -- Get the registered logger instance for that name, or nil if none.
 function App:lookup_logger(name)
   tcheck({'*', 'string'}, self, name)
-  return lookup_common(self, 'loggers', name)
+  return self:_lookup('loggers', name)
 end
 
 -- Activates all packages registered by the app. Panics if activation
 -- fails (that is, the activate function of packages should throw on
 -- error).
 function App:activate(cq)
-  tcheck({'web.App', 'userdata'}, self, cq)
+  tcheck({'web.App', 'userdata|nil'}, self, cq)
 
   if type(self.log_level) == 'string' then
     self.log_level = LOGLEVELS[self.log_level]
@@ -290,9 +257,10 @@ function App:activate(cq)
 
   for _, pkg in pairs(self.packages) do
     if pkg ~= true then
+      local cfg = pkg.config
       pkg = pkg.package
       if pkg.activate then
-        pkg.activate(self, cq)
+        pkg.activate(cfg, self, cq)
       end
     end
   end

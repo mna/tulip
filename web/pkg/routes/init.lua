@@ -14,7 +14,11 @@ function Mw:__call(req, res, nxt)
   nxt()
 end
 
-local M = {}
+local M = {
+  requires = {
+    'web.pkg.middleware',
+  },
+}
 
 -- The routes package registers a route multiplexer where each
 -- request is routed to a specific handler based on the method
@@ -27,10 +31,9 @@ function M.register(cfg, app)
   app:register_middleware('web.pkg.routes', Mw.new())
 end
 
-function M.activate(app)
-  tcheck('web.App', app)
+function M.activate(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
 
-  local cfg = app.config.routes
   -- resolve all middleware strings to actual functions
   for _, route in ipairs(cfg) do
     local mws = route.middleware or {}

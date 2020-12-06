@@ -34,6 +34,7 @@ end
 local M = {
   requires = {
     'web.pkg.database',
+    'web.pkg.middleware',
     'web.pkg.mqueue',
     'web.pkg.token',
   },

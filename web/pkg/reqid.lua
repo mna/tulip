@@ -18,7 +18,9 @@ local function make_middleware(cfg)
   end
 end
 
-local M = {}
+local M = {
+  requires = {'web.pkg.middleware'},
+}
 
 -- The reqid package registers a middleware that adds a unique
 -- id to each request. The id is added to both the request and the

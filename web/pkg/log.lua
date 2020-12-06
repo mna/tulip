@@ -60,7 +60,7 @@ end
 -- it writes to io.output(), so if set to a file, will log to
 -- that file). It also configures the log levels to consider for
 -- all logging backends and registers a logging middleware and
--- wmiddleare that are not enabled by default, under the name
+-- wmiddleware that are not enabled by default, under the name
 -- 'web.pkg.log'.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
@@ -71,8 +71,13 @@ function M.register(cfg, app)
   else
     app:register_logger('web.pkg.log', stdout_logger)
   end
-  app:register_middleware('web.pkg.log', log_middleware)
-  app:register_wmiddleware('web.pkg.log', log_wmiddleware)
+
+  if app:has_package('web.pkg.middleware') then
+    app:register_middleware('web.pkg.log', log_middleware)
+  end
+  if app:has_package('web.pkg.wmiddleware') then
+    app:register_wmiddleware('web.pkg.log', log_wmiddleware)
+  end
 end
 
 return M

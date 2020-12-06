@@ -9,7 +9,24 @@ local function app_call(app, req, res, nxt)
   handler.chain_middleware(app.middleware, req, res, nxt)
 end
 
-local M = {}
+local M = {
+  app = {
+    register_middleware = function(self, name, mw)
+      tcheck({'*', 'string', 'table|function'}, self, name, mw)
+      self:_register('_middleware', name, mw)
+    end,
+
+    lookup_middleware = function(self, name)
+      tcheck({'*', 'string'}, self, name)
+      return self:_lookup('_middleware', name)
+    end,
+
+    resolve_middleware = function(self, mws)
+      tcheck({'*', 'table'}, self, mws)
+      self:_resolve('_middleware', mws)
+    end,
+  },
+}
 
 -- The middleware package enables app-level middleware in the
 -- order specified in the configuration. This means that requests
@@ -24,8 +41,8 @@ function M.register(cfg, app)
   mt.__call = app_call
 end
 
-function M.activate(app)
-  tcheck('web.App', app)
+function M.activate(cfg, app)
+  tcheck({'table', 'web.App'}, cfg, app)
   app:resolve_middleware(app.middleware)
 end
 
