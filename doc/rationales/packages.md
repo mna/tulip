@@ -17,8 +17,6 @@ With this two-step approach (between `register` and `activate`), packages can re
 
 ## Configuration
 
-TODO: all this:
-
 Packages should *never* depend on other package's configuration, so that drop-in replacements can work even though their configuration is under a different name (and may be completely different in structure).
 
 To enforce this, both the package's `register` and `activate` functions should have a similar signature expecting `(cfg, app)` (with the `cqueues` instance added as third argument for `activate`), and `cfg` in that case should be the configuration of that particular package.

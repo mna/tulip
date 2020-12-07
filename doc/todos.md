@@ -2,7 +2,7 @@
 
 ## high-priority
 
-* Flash messages that persist across redirects (probably requires i18n solution)
+* Flash messages that persist across redirects
 * Document in a quick reference table the methods, signatures, config options of each package. (started in Google Sheets)
 
 ## up next
@@ -17,5 +17,4 @@
 
 * Request header and body size limits (maybe even response body size)
 * Test App composition, for both web and worker contexts
-* Lua 5.4 and postgresql 13 (Fedora 33?)
 * Review structured log calls for consistency
