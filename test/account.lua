@@ -1,6 +1,6 @@
 local lu = require 'luaunit'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 
@@ -32,10 +32,10 @@ function M.test_account_methods()
       migrations = {
         {
           package = 'test.account',
-          after = {'web.pkg.account'};
+          after = {'tulip.pkg.account'};
           [[
             INSERT INTO
-              "web_pkg_account_groups" ("name")
+              "tulip_pkg_account_groups" ("name")
             VALUES
               ('a'), ('b'), ('c')
           ]],

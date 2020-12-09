@@ -1,6 +1,6 @@
 local lu = require 'luaunit'
 local zlib = require 'http.zlib'
-local App = require 'web.App'
+local App = require 'tulip.App'
 local Stream = require 'test.Stream'
 
 local M = {}

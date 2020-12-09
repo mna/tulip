@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local xstring = require 'web.xstring'
+local xstring = require 'tulip.xstring'
 
 local M = {}
 

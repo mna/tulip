@@ -1,6 +1,6 @@
 local cqueues = require 'cqueues'
 local lu = require 'luaunit'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 

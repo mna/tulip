@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local xtable = require 'web.xtable'
+local xtable = require 'tulip.xtable'
 
 local M = {}
 

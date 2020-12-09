@@ -1,6 +1,6 @@
 local lu = require 'luaunit'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 
@@ -30,14 +30,14 @@ function M.test_cron_missing_dep()
     cron = {},
   })
   lu.assertFalse(ok)
-  lu.assertStrContains(err, 'requires package web.pkg.mqueue')
+  lu.assertStrContains(err, 'requires package tulip.pkg.mqueue')
 
   ok, err = pcall(App, {
     mqueue = {},
     cron = {},
   })
   lu.assertFalse(ok)
-  lu.assertStrContains(err, 'requires package web.pkg.database')
+  lu.assertStrContains(err, 'requires package tulip.pkg.database')
 end
 
 function M.test_cron()

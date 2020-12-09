@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local xerror = require 'web.xerror'
+local xerror = require 'tulip.xerror'
 local xpgsql = require 'xpgsql'
 
 local M = {}

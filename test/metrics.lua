@@ -2,7 +2,7 @@ local auxlib = require 'cqueues.auxlib'
 local condition = require 'cqueues.condition'
 local lu = require 'luaunit'
 local socket = require 'cqueues.socket'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 

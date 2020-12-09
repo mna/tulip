@@ -2,7 +2,7 @@ local lu = require 'luaunit'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
 
-local Migrator = require 'web.pkg.database.Migrator'
+local Migrator = require 'tulip.pkg.database.Migrator'
 
 local M = {}
 
@@ -40,7 +40,7 @@ function M:test_migrate()
       "version",
       "package"
     FROM
-      "web_pkg_database_migrations"
+      "tulip_pkg_database_migrations"
     ORDER BY
       "created"
   ]]

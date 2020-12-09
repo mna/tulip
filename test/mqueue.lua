@@ -2,11 +2,11 @@ local lu = require 'luaunit'
 local process = require 'process'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local function call_expire(app)
   assert(app:db(function(c)
-    assert(c:exec([[ CALL web_pkg_mqueue_expire () ]]))
+    assert(c:exec([[ CALL tulip_pkg_mqueue_expire () ]]))
     return true
   end))
 end
@@ -93,7 +93,7 @@ function M.test_mqueue()
 
     local rows = app:db(function(c)
       return xpgsql.models(assert(c:query(
-        'SELECT * FROM web_pkg_mqueue_dead'
+        'SELECT * FROM tulip_pkg_mqueue_dead'
       )))
     end)
     lu.assertEquals(#rows, 1)
@@ -163,7 +163,7 @@ function M.test_mqueue()
     -- no messages from q1 in the dead table
     rows = app:db(function(c)
       return xpgsql.models(assert(c:query(
-        "SELECT * FROM web_pkg_mqueue_dead WHERE queue = 'q1'"
+        "SELECT * FROM tulip_pkg_mqueue_dead WHERE queue = 'q1'"
       )))
     end)
     lu.assertEquals(#rows, 0)

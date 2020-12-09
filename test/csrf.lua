@@ -1,5 +1,5 @@
-local crypto = require 'web.crypto'
-local handler = require 'web.handler'
+local crypto = require 'tulip.crypto'
+local handler = require 'tulip.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
 local process = require 'process'
@@ -33,7 +33,7 @@ function M.config_http()
     },
     middleware = { set_session_id, 'csrf', 'routes' },
     csrf = {
-      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      auth_key = os.getenv('TULIP_CSRFKEY'),
       max_age = 3600,
       secure = false,
       same_site = 'none', -- required for the cookie_store to work
@@ -61,7 +61,7 @@ function M.config_https()
     },
     middleware = { set_session_id, 'csrf', 'routes' },
     csrf = {
-      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      auth_key = os.getenv('TULIP_CSRFKEY'),
       max_age = 3600,
       same_site = 'none', -- required for the cookie_store to work
       trusted_origins = {
@@ -82,7 +82,7 @@ function M.config_expiry()
     },
     middleware = { 'csrf', 'routes' },
     csrf = {
-      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      auth_key = os.getenv('TULIP_CSRFKEY'),
       max_age = 1,
       secure = false,
       same_site = 'none', -- required for the cookie_store to work

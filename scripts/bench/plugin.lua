@@ -1,5 +1,5 @@
 local tcheck = require 'tcheck'
-local xio = require 'web.xio'
+local xio = require 'tulip.xio'
 local xpgsql = require 'xpgsql'
 
 local MIGRATIONS = {
@@ -70,7 +70,7 @@ end
 local M = {}
 
 function M.register(cfg, app)
-  tcheck({'table', 'web.App'}, cfg, app)
+  tcheck({'table', 'tulip.App'}, cfg, app)
 
   local db = app.config.database
   if not db then

@@ -84,7 +84,8 @@ export PGCONNECT_TIMEOUT=10
 export PGUSER=postgres
 export PGDATABASE=postgres
 
-export LUAWEB_CSRFKEY=`cat run/secrets/csrf_key`
+export TULIP_CSRFKEY=`cat run/secrets/csrf_key`
+export TULIP_ACCOUNTKEY=`cat run/secrets/account_key`
   ]]):redirect('./.envrc')
 end
 
@@ -94,7 +95,7 @@ local luaver = (sh.cmd('lua', '-v') |
                 sh.cmd('cut', '-d', '.', '-f1,2')):output()
 -- NOTE: luarocks-fetch-gitrec must be installed in standard location,
 -- i.e. via luarocks install.
-local rocksfile = 'luaweb-git-1.rockspec'
+local rocksfile = 'tulip-git-1.rockspec'
 sh.cmd('echo', string.format([[
 package = %q
 build = {
@@ -137,7 +138,7 @@ source = {
   url = '...'
 }
 version = 'git-1'
-]], 'luaweb', luaver)):redirect(rocksfile, true)
+]], 'tulip', luaver)):redirect(rocksfile, true)
 -- install luaossl first as it requires special parameters
 sh('llrocks', 'install', 'luaossl', 'CFLAGS=-DHAVE_EVP_KDF_CTX=1 -fPIC')
 sh('llrocks', 'install', '--only-deps', rocksfile)

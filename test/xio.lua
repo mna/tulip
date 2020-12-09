@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local xio = require 'web.xio'
+local xio = require 'tulip.xio'
 
 local M = {}
 

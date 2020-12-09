@@ -1,6 +1,6 @@
 local cjson = require 'cjson'
 local lu = require 'luaunit'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local JSON_MIME = 'application/json'
 local NULL = cjson.null

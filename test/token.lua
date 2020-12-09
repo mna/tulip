@@ -1,9 +1,9 @@
 local lu = require 'luaunit'
 local process = require 'process'
-local xerror = require 'web.xerror'
+local xerror = require 'tulip.xerror'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 
@@ -84,7 +84,7 @@ function M.test_token()
     -- consumed and deleted)
     local conn = xpgsql.connect()
     local res = assert(conn:query[[
-      SELECT COUNT(*) FROM "web_pkg_token_tokens"
+      SELECT COUNT(*) FROM "tulip_pkg_token_tokens"
     ]])
     conn:close()
     lu.assertEquals(res[1][1], '0')
@@ -155,7 +155,7 @@ function M.test_token()
     -- at this point the table should be empty
     conn = xpgsql.connect()
     res = assert(conn:query[[
-      SELECT COUNT(*) FROM "web_pkg_token_tokens"
+      SELECT COUNT(*) FROM "tulip_pkg_token_tokens"
     ]])
     conn:close()
     lu.assertEquals(res[1][1], '0')

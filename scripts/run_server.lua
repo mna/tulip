@@ -1,11 +1,11 @@
 #!/usr/bin/env -S llrocks run
 
 -- usage: ./scripts/run_server.lua FILE [FUNCTIONNAME]
--- This scripts runs a web.App by requiring FILE which must be
+-- This scripts runs a tulip.App by requiring FILE which must be
 -- a Lua file reachable from this script, and calls FUNCTIONNAME
 -- on this FILE, which must be a valid function exported by the
 -- module. If FUNCTIONNAME is not provided, FILE should export
--- a table ready to use as web.App configuration.
+-- a table ready to use as tulip.App configuration.
 --
 -- The function should return the App configuration ready to use,
 -- and then the script creates and runs the app with that
@@ -14,7 +14,7 @@
 -- number of the server.
 
 local tcheck = require 'tcheck'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local modname, fname = arg[1], arg[2]
 tcheck({'string', 'string|nil'}, modname, fname)

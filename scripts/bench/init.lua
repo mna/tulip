@@ -1,4 +1,4 @@
-local handler = require 'web.handler'
+local handler = require 'tulip.handler'
 
 return {
   log = {level = 'debug'},

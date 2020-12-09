@@ -12,7 +12,7 @@ FROM
   pg_database
 WHERE
   (NOT datistemplate) AND
-  datname LIKE 'testweb%'
+  datname LIKE 'testtulip%'
 ]]
 
 local SQL_DROPDB = [[
@@ -26,7 +26,7 @@ FROM
   pg_user
 WHERE
   (NOT usesuper) AND
-  usename LIKE 'testweb%'
+  usename LIKE 'testtulip%'
 ]]
 
 local SQL_DROPUSER = [[
@@ -42,7 +42,7 @@ CREATE EXTENSION pg_cron
 ]]
 
 local maindb = os.getenv('PGDATABASE')
-local tempdb = 'testweb' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
+local tempdb = 'testtulip' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
 
 local conn = assert(xpgsql.connect())
 assert(conn:with(true, function()

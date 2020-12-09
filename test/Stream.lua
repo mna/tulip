@@ -1,7 +1,7 @@
 local lu = require 'luaunit'
 local headers = require 'http.headers'
-local Request = require 'web.pkg.server.Request'
-local Response = require 'web.pkg.server.Response'
+local Request = require 'tulip.pkg.server.Request'
+local Response = require 'tulip.pkg.server.Response'
 
 -- Stream mocks a lua-http Stream object for tests.
 local Stream = {__name = 'test.Stream', connection = {version = 1.1}}

@@ -1,7 +1,7 @@
 local lu = require 'luaunit'
-local App = require 'web.App'
-local Request = require 'web.pkg.server.Request'
-local Response = require 'web.pkg.server.Response'
+local App = require 'tulip.App'
+local Request = require 'tulip.pkg.server.Request'
+local Response = require 'tulip.pkg.server.Response'
 local Stream = require 'test.Stream'
 
 local function build_args(method, path)

@@ -43,7 +43,7 @@ function M.newdb(connstr, ...)
   end
 
   local conn = assert(xpgsql.connect(connstr))
-  local dbname = 'testweb' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
+  local dbname = 'testtulip' .. string.gsub(tostring(cqueues.monotime()), '%.', '_')
 
   local olddb = os.getenv('PGDATABASE')
   local olduser = os.getenv('PGUSER')

@@ -2,7 +2,7 @@ local cqueues = require 'cqueues'
 local lu = require 'luaunit'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local function count_conns()
   local c = assert(xpgsql.connect(''))
@@ -174,7 +174,7 @@ function M.test_migrations_order()
   -- drop the migration table to ensure all migrations are run
   assert(app:db(function(conn)
     assert(conn:exec[[
-      DROP TABLE IF EXISTS web_pkg_database_migrations
+      DROP TABLE IF EXISTS tulip_pkg_database_migrations
     ]])
     return true
   end))
@@ -192,7 +192,7 @@ function M.test_migrations_order()
   app:run()
 
   lu.assertEquals(order, {
-    'web.pkg.database', 'a', 'b', 'd', 'c',
+    'tulip.pkg.database', 'a', 'b', 'd', 'c',
   })
 end
 
@@ -211,7 +211,7 @@ function M.test_migrations_minimal()
   -- drop the migration table to ensure all migrations are run
   assert(app:db(function(conn)
     assert(conn:exec[[
-      DROP TABLE IF EXISTS web_pkg_database_migrations
+      DROP TABLE IF EXISTS tulip_pkg_database_migrations
     ]])
     return true
   end))
@@ -229,7 +229,7 @@ function M.test_migrations_minimal()
   app:run()
 
   lu.assertEquals(order, {
-    'web.pkg.database', 'a', 'b',
+    'tulip.pkg.database', 'a', 'b',
   })
 end
 
@@ -250,7 +250,7 @@ function M.test_migrations_order_circular()
   -- drop the migration table to ensure all migrations are run
   assert(app:db(function(conn)
     assert(conn:exec[[
-      DROP TABLE IF EXISTS web_pkg_database_migrations
+      DROP TABLE IF EXISTS tulip_pkg_database_migrations
     ]])
     return true
   end))

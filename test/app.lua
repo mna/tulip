@@ -1,10 +1,10 @@
 local lu = require 'luaunit'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local M = {}
 
 function M.test_deps()
-  lu.assertErrorMsgContains('requires package web.pkg.database', function()
+  lu.assertErrorMsgContains('requires package tulip.pkg.database', function()
     App{
       -- token depends on database
       token = {},

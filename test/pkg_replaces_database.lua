@@ -1,5 +1,5 @@
 local M = {
-  replaces = 'web.pkg.database',
+  replaces = 'tulip.pkg.database',
   app = {
     register_migrations = function()
     end,

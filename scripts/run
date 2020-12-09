@@ -6,7 +6,7 @@
 -- server.
 
 local bench = require 'scripts.bench'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local app = App(bench)
 assert(app:run())

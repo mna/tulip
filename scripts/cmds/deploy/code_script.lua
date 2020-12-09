@@ -21,7 +21,7 @@ if [ -d "/opt/app" ]; then
 fi
 
 mkdir -p /opt/app
-curl -o /tmp/%s.tar.gz "https://git.sr.ht/~mna/luaweb/archive/%s.tar.gz"
+curl -o /tmp/%s.tar.gz "https://git.sr.ht/~mna/tulip/archive/%s.tar.gz"
 cd /tmp
 tar --strip-components=1 --directory /opt/app -xzf %s.tar.gz
 rm -f /tmp/%s.tar.gz

@@ -1,11 +1,11 @@
 local cjson = require 'cjson'
 local cqueues = require 'cqueues'
-local handler = require 'web.handler'
+local handler = require 'tulip.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
 local request = require 'http.request'
 local xtest = require 'test.xtest'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local function write_info(req, res)
   local acct = req.locals.account
@@ -84,9 +84,9 @@ function M.config_http()
       migrations = {
         {
           package = 'test',
-          after = {'web.pkg.account'};
+          after = {'tulip.pkg.account'};
           [[
-          INSERT INTO web_pkg_account_groups
+          INSERT INTO tulip_pkg_account_groups
             (name)
           VALUES
             ('g1'), ('g2'), ('g3')
@@ -96,7 +96,7 @@ function M.config_http()
     },
 
     account = {
-      auth_key = os.getenv('LUAWEB_ACCOUNTKEY'),
+      auth_key = os.getenv('TULIP_ACCOUNTKEY'),
       session = {
         secure = false,
         same_site = 'none',
@@ -121,10 +121,10 @@ function M.test_over_http()
 
       assert(app:db(function(conn)
         assert(conn:exec[[
-        DELETE FROM web_pkg_mqueue_pending
+        DELETE FROM tulip_pkg_mqueue_pending
         ]])
         assert(conn:exec[[
-        DELETE FROM web_pkg_mqueue_active
+        DELETE FROM tulip_pkg_mqueue_active
         ]])
         return true
       end))

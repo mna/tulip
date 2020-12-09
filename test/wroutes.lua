@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local App = require 'web.App'
+local App = require 'tulip.App'
 
 local function mw(msg, nxt)
   msg.mw = true

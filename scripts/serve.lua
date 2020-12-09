@@ -1,7 +1,7 @@
 #!/usr/bin/env -S llrocks run
 
 local cjson = require 'cjson'
-local handler = require 'web.handler'
+local handler = require 'tulip.handler'
 local xpgsql = require 'xpgsql'
 
 local function send_pubsub(req, res, nxt)
@@ -51,7 +51,7 @@ local function list_messages(req, res, nxt)
       payload,
       first_created
     FROM
-      web_pkg_mqueue_%s
+      tulip_pkg_mqueue_%s
   ]], msg_type)
 
   if msg_type == 'pending' or msg_type == 'active' or
@@ -117,7 +117,7 @@ function M.config()
     },
 
     account = {
-      auth_key = os.getenv('LUAWEB_ACCOUNTKEY'),
+      auth_key = os.getenv('TULIP_ACCOUNTKEY'),
 
       session = {
         token_type = 'session',
@@ -248,7 +248,7 @@ function M.config()
     urlenc = {},
 
     csrf = {
-      auth_key = os.getenv('LUAWEB_CSRFKEY'),
+      auth_key = os.getenv('TULIP_CSRFKEY'),
       max_age = 3600 * 12, -- 12 hours, validity of token
       http_only = true,
       secure = true,
@@ -272,8 +272,8 @@ function M.config()
     },
 
     sendgrid = {
-      from = os.getenv('LUAWEB_TEST_FROMEMAIL'),
-      api_key = os.getenv('LUAWEB_TEST_SENDGRIDKEY'),
+      from = os.getenv('TULIP_TEST_FROMEMAIL'),
+      api_key = os.getenv('TULIP_TEST_SENDGRIDKEY'),
     },
 
     metrics = {

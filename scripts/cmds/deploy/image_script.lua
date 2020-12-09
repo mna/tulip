@@ -195,7 +195,7 @@ Environment=PGPORT=5432
 Environment=PGCONNECT_TIMEOUT=10
 Environment=PGUSER=postgres
 Environment=PGDATABASE=postgres
-Environment=LUAWEB_CSRFKEY=`cat /opt/secrets/csrf_key`
+Environment=TULIP_CSRFKEY=`cat /opt/secrets/csrf_key`
 Environment=LUA_PATH='/usr/share/lua/5.3/?.lua;/usr/share/lua/5.3/?/init.lua;/usr/lib64/lua/5.3/?.lua;/usr/lib64/lua/5.3/?/init.lua;./?.lua;./?/init.lua'
 Environment=LUA_CPATH='/usr/lib/lua/5.3/?.so;/usr/lib64/lua/5.3/?.so;/usr/lib64/lua/5.3/loadall.so;./?.so'
 
