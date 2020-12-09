@@ -2,7 +2,6 @@
 
 ## high-priority
 
-* Flash messages that persist across redirects
 * Document in a quick reference table the methods, signatures, config options of each package. (started in Google Sheets)
 
 ## up next
@@ -12,6 +11,7 @@
 * I18n solution (not just text translation, but static assets too)
 * Graceful shutdown with per-package hooks (semi-done with finalizers)
 * Two-factor authentication, based on TOTP, with recovery codes.
+* Webhook package (inbound handler -> send to a queue, outbound manager -> async, handle retries)
 
 ## later/someday
 
