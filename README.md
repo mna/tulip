@@ -55,6 +55,8 @@ To run tests and benchmarks (be sure to check the configuration section below):
 
 ```
 $ llrocks run test/main.lua
+
+# if there are benchmarks available:
 $ llrocks run bench/*.lua
 ```
 

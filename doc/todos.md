@@ -11,7 +11,7 @@
 * I18n solution (not just text translation, but static assets too)
 * Graceful shutdown with per-package hooks (semi-done with finalizers)
 * Two-factor authentication, based on TOTP, with recovery codes.
-* Webhook package (inbound handler -> send to a queue, outbound manager -> async, handle retries)
+* Webhook package (inbound handler -> send to a queue, outbound manager -> async, handles retries)
 
 ## later/someday
 

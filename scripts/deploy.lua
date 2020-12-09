@@ -19,7 +19,7 @@ The usage of the command looks like this:
 $ deploy www.example.com
 
 By default, this is sufficient to run the most common case, which
-is to deploy the current HEAD to the existing infrastructure
+is to deploy the latest tagged version to the existing infrastructure
 associated with that sub-domain (as identified by looking up the
 node with the IP address linked to the sub-domain). The existing
 database is left untouched, and only the new code is deployed and
@@ -48,6 +48,11 @@ $ deploy --with-db 'db-backup-id' --without-code www.example.com
 
     Restore the database from the specified backup in the existing infrastructure and do not
     deploy any code (so, execute steps 2 and 4 only).
+
+$ deploy --without-code www.example.com
+
+    Only restarts the services on the existing infrastructure, no code nor database is
+    deployed (so, execute step 4 only).
 
 Options:
 
