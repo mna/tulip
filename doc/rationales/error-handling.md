@@ -19,7 +19,7 @@ This is also how the Lua standard library behaves when giving e.g. an invalid mo
 
 ## Configuration Errors
 
-When a `web.App` is created with its configuration, if any configuration error occurs, it should fail *immediately* and *noisily*. This is due to invalid configuration - such as a missing package dependency. This is similar in spirit to "Programming Errors", but is mentioned explicitly due to it's slightly different context.
+When a `tulip.App` is created with its configuration, if any configuration error occurs, it should fail *immediately* and *noisily*. This is due to invalid configuration - such as a missing package dependency. This is similar in spirit to "Programming Errors", but is mentioned explicitly due to it's slightly different context.
 
 ## Normal Errors
 
@@ -27,7 +27,7 @@ Any other situation should be considered a "normal" error, and as such the "fals
 
 ## Error Normalization
 
-To allow better error-handling decisions to be made, the various types of errors and extra error values (such as error message + POSIX error number, or error message + postgresql-specific code and maybe SQL state code, etc.) should be converted to a self-contained Error instance. This is what the `web.xerror` package does - adding a category code to each error (e.g. 'EIO', 'EDB', 'ESQL') and storing extra information under well-defined field names.
+To allow better error-handling decisions to be made, the various types of errors and extra error values (such as error message + POSIX error number, or error message + postgresql-specific code and maybe SQL state code, etc.) should be converted to a self-contained Error instance. This is what the `tulip.xerror` package does - adding a category code to each error (e.g. 'EIO', 'EDB', 'ESQL') and storing extra information under well-defined field names.
 
 This makes handling easier as after conversion, only `nil, err` need to be returned and handled, and the error has all the information required.
 
@@ -73,7 +73,7 @@ In most cases, this error handler should be optional and the default should be t
 
 ## Explicit Assertions
 
-As mentioned earlier, there are valid places where we do want to throw errors. There are also places where it is idiomatic to do so, because we know we run in a `pcall`. That is the case of the `xpgsql` module, when calling `conn:with`, `conn:ensuretx` and `conn:tx` - and also in the `web.pkg.database` package, when a function is provided to `App:db`.
+As mentioned earlier, there are valid places where we do want to throw errors. There are also places where it is idiomatic to do so, because we know we run in a `pcall`. That is the case of the `xpgsql` module, when calling `conn:with`, `conn:ensuretx` and `conn:tx` - and also in the `tulip.pkg.database` package, when a function is provided to `App:db`.
 
 To prevent having `assert` calls everywhere in the code, making it hard to distinguish between valid and erroneous uses of those, the `xerror` module defines specific functions with a name that clearly indicates the intent, so that a code search for `assert` would rapidly identify improper uses.
 

@@ -1,13 +1,13 @@
-# luaweb
+# tulip
 
 Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
-* Canonical repository: https://git.sr.ht/~mna/luaweb
-* Issue tracker: https://todo.sr.ht/~mna/luaweb
+* Canonical repository: https://git.sr.ht/~mna/tulip
+* Issue tracker: https://todo.sr.ht/~mna/tulip
 
 ## Description
 
-Lua Web is a minimal and simple web framework that provides a lot with very little.
+Tulip is a minimal and simple web framework that provides a lot with very little.
 Using only Lua (currently 5.4) and the PostgreSQL database (currently 13), the
 framework packs the following features:
 
@@ -82,11 +82,11 @@ file managed by `direnv` should contain:
 * `PGCONNECT_TIMEOUT`: init-generated
 * `PGUSER`: init-generated
 * `PGDATABASE`: init-generated
-* `LUAWEB_CSRFKEY`: init-generated
-* `LUAWEB_ACCOUNTKEY`: init-generated
-* `LUAWEB_SENDGRIDKEY`: set to a valid Sendgrid API key
-* `LUAWEB_TEST_FROMEMAIL`: set to a valid email address for tests
-* `LUAWEB_TEST_TOEMAIL`: set to a valid email address for tests
+* `TULIP_CSRFKEY`: init-generated
+* `TULIP_ACCOUNTKEY`: init-generated
+* `TULIP_SENDGRIDKEY`: set to a valid Sendgrid API key
+* `TULIP_TEST_FROMEMAIL`: set to a valid email address for tests
+* `TULIP_TEST_TOEMAIL`: set to a valid email address for tests
 
 ## License
 
