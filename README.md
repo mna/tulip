@@ -1,7 +1,5 @@
 # tulip
 
-![Tulip Logo](doc/assets/tulip.png)
-
 Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
 * Canonical repository: https://git.sr.ht/~mna/tulip
