@@ -1,31 +1,90 @@
+local fn = require 'fn'
+local handler = require 'web.handler'
+local neturl = require 'net.url'
 local tcheck = require 'tcheck'
+local xtable = require 'xtable'
 
-local function flash_method(req, t)
-
+local function flash_method(req, ...)
+  local new = table.pack(...)
+  local flashes = req._flash or {}
+  for i = 1, new.n do
+    local v = new[i]
+    if type(v) ~= 'table' then
+      -- ensure all stored values are tables
+      v = {__ = tostring(v)}
+    end
+    table.insert(flashes, v)
+  end
+  req._flash = flashes
+  return true
 end
 
-local function load_flashes(req)
+local function load_flashes(req, cfg)
+  local ck = req.cookies[cfg.cookie_name]
+  if ck then
+    local t = neturl.parseQuery(ck)
+
+    -- transform the decoded table to an array, and transformed string
+    -- messages back to strings
+    local flashes = {}
+    for k, v in pairs(t) do
+      local i = tonumber(k)
+      if i and i > 0 then
+        local first, msg = next(v)
+        if first == '__' and (not next(v, first)) then
+          v = msg
+        end
+        flashes[i] = v
+        if flashes.n and i > flashes.n then
+          flashes.n = i
+        end
+      end
+    end
+
+    return flashes
+  end
 end
 
-local function make_write_headers(req, res)
+local function make_write_headers(req, res, cfg)
   local oldfn = res._write_headers
   return function(self, hdrs, eos, deadline)
-    local flashes = req.locals._flash
-    -- TODO: create/update or remove cookie based on flashes
+    local v, ttl = -1
+    if req._flash and #req._flash > 0 then
+      ttl = nil
+      v = neturl.buildQuery(req._flash)
+    end
+    handler.set_cookie(res, {
+      name = cfg.cookie_name,
+      value = v,
+      ttl = ttl,
+      domain = cfg.domain,
+      path = cfg.path,
+      insecure = not cfg.secure,
+      allowjs = not cfg.http_only,
+      same_site = cfg.same_site,
+    })
     return oldfn(self, hdrs, eos, deadline)
   end
 end
 
-local function flash_middleware(req, res, nxt)
+local function flash_middleware(req, res, nxt, cfg)
+  -- load existing flashes
+  req.locals.flash = load_flashes(req, cfg)
+  req.flash = flash_method
+
   -- install the modified res method, to write the flash messages'
   -- cookie before sending the response.
-  res._write_headers = make_write_headers(req, res)
-
-  -- load existing flashes
-  req.locals._flash = load_flashes(req)
+  res._write_headers = make_write_headers(req, res, cfg)
 
   nxt()
 end
+
+local CFGDEFAULTS = {
+  cookie_name = 'flash',
+  secure = true,
+  http_only = true,
+  same_site = 'lax',
+}
 
 local M = {
   requires = {
@@ -38,40 +97,48 @@ local M = {
 -- used in a subsequent request (e.g. following an account creation, after
 -- a redirect to the login page, the "account created, please login" message
 -- could be displayed). To that end, the flash messages are stored in a
--- session cookie by the middleware registered with this package. Note that
--- it must be enabled in order for flash messages to work.
+-- session cookie by the middleware registered with this package.
+--
+-- Available flash messages for a request (that is, flash messages that were
+-- added in a previous request) are stored on req.locals.flash after the
+-- middleware has executed. Messages added by Request:flash will be stored
+-- in a cookie before the response is written.
 --
 -- Requires: the middleware package.
 --
 -- Config: none
+--  * cookie_name: string = name of the cookie holding the messages
+--    (default: 'flash')
+--  * domain: string = domain of the flash cookie (default: not set)
+--  * path: string = path of the flash cookie (default: not set)
+--  * secure: boolean = secure flag of the flash cookie (default: true)
+--  * http_only: boolean = http-only flag of the flash cookie (default:
+--    true)
+--  * same_site: string = same-site flag of the flash cookie (default:
+--    'lax')
 --
 -- Methods:
 --
--- v, err = Request:flash([t])
+-- ok, err = Request:flash(...)
 --
---   Adds a flash message, or retrieves all flash messages. Once retrieved,
---   the flash messages are "consumed" and removed for the next request. Flash
---   messages are stored in req.locals._flash until the end of the request
---   (where they are stored in the cookie), but should never be accessed
---   directly there, use this method instead.
+--   Adds flash messages to be stored for the next request. Flash
+--   messages get stored in a cookie.
 --
---   > t: table|string = the message to add, will be url-encoded in the cookie.
---   < v: boolean|table = if a message to add is passed as argument, returns
---     a boolean indicating success, otherwise returns an array of flash
---     messages, which are either a table or a string.
+--   > ...: table|string = the message(s) to add, will be url-encoded in the cookie.
+--   < ok: boolean|nil = if a message to add is passed as argument, returns
+--     true, otherwise returns nil.
 --   < err: string|nil = if v is falsy, the error message.
 --
 -- Middleware:
 --
 -- * web.pkg.flash
 --
---   Must be added before any handler that writes the response, so that the
---   flash messages get stored in a cookie (or the cookie gets deleted if
---   there are no messages).
---
+--   Must be added before any handler that writes the response and any handler
+--   that uses existing flash messages.
 function M.register(cfg, app)
   tcheck({'table', 'web.App'}, cfg, app)
-  app:register_middleware('web.pkg.flash', flash_middleware)
+  local mwcfg = xtable.merge({}, CFGDEFAULTS, cfg)
+  app:register_middleware('web.pkg.flash', fn.partialtrail(flash_middleware, 3, mwcfg))
 end
 
 return M
