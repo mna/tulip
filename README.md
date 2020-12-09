@@ -1,6 +1,6 @@
 # tulip
 
-<img src="doc/assets/tulip.png" width="200" height="200" alt="Tulip logo" />
+![Tulip Logo](doc/assets/tulip.png)
 
 Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
