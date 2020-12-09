@@ -2,7 +2,7 @@ local fn = require 'fn'
 local handler = require 'web.handler'
 local neturl = require 'net.url'
 local tcheck = require 'tcheck'
-local xtable = require 'xtable'
+local xtable = require 'web.xtable'
 
 local function flash_method(req, ...)
   local new = table.pack(...)
@@ -48,7 +48,7 @@ end
 local function make_write_headers(req, res, cfg)
   local oldfn = res._write_headers
   return function(self, hdrs, eos, deadline)
-    local v, ttl = -1
+    local v, ttl = nil, -1
     if req._flash and #req._flash > 0 then
       ttl = nil
       v = neturl.buildQuery(req._flash)

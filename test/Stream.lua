@@ -1,5 +1,7 @@
 local lu = require 'luaunit'
 local headers = require 'http.headers'
+local Request = require 'web.pkg.server.Request'
+local Response = require 'web.pkg.server.Response'
 
 -- Stream mocks a lua-http Stream object for tests.
 local Stream = {__name = 'test.Stream', connection = {version = 1.1}}
@@ -124,6 +126,17 @@ function Stream.new(method, path, body)
 
   local o = {_headers = hdrs, _body = body}
   return setmetatable(o, Stream)
+end
+
+function Stream.newreqres(app, method, path, body)
+  local stm = Stream.new(method, path, body)
+
+  local req = Request.new(stm, 5)
+  local res = Response.new(stm, 5)
+  stm.request, stm.response = req, res
+  req.app, res.app = app, app
+
+  return stm, req, res
 end
 
 return Stream

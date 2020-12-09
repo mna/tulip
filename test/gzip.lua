@@ -1,8 +1,6 @@
 local lu = require 'luaunit'
 local zlib = require 'http.zlib'
 local App = require 'web.App'
-local Request = require 'web.pkg.server.Request'
-local Response = require 'web.pkg.server.Response'
 local Stream = require 'test.Stream'
 
 local M = {}
@@ -18,11 +16,7 @@ function M.test_request()
 
   app.main = function()
     local newreqres = function(method, path, accept)
-      local stm = Stream.new(method, path)
-      local req = Request.new(stm, 5)
-      local res = Response.new(stm, 5)
-      stm.request, stm.response = req, res
-      req.app, res.app = app, app
+      local _, req, res = Stream.newreqres(app, method, path)
       if accept then
         req.headers:upsert('accept-encoding', 'gzip')
       end
