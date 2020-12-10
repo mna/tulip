@@ -3,7 +3,7 @@ build = {
   type = 'builtin'
 }
 dependencies = {
-  "lua ~> 5.4",
+  "lua >= 5.3, < 5.5",
 
   "argon2 3.0.1-1",
   "base64 1.5-2",
@@ -36,7 +36,11 @@ dependencies = {
   "xpgsql	0.5-1",
 }
 source = {
-  url = '...'
+   url = "git+ssh://git@git.sr.ht/~mna/tulip"
+}
+description = {
+   homepage = "Lua web framework based on lua-http and PostgreSQL.",
+   license = "BSD"
 }
 version = 'git-1'
 
