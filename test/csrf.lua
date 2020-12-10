@@ -2,8 +2,8 @@ local crypto = require 'tulip.crypto'
 local handler = require 'tulip.handler'
 local lu = require 'luaunit'
 local neturl = require 'net.url'
-local process = require 'process'
 local request = require 'http.request'
+local unistd = require 'posix.unistd'
 local xtest = require 'test.xtest'
 
 local function set_session_id(req, _, nxt)
@@ -301,7 +301,7 @@ function M.test_csrf_expiry()
     lu.assertEquals(hdrs:get(':status'), '200')
 
     -- sleep for a bit to let it expire
-    process.sleep(2)
+    unistd.sleep(2)
     local expired_tok = body
 
     -- make a POST request with the token

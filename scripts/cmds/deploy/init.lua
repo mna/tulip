@@ -1,9 +1,9 @@
 local codesh = require 'scripts.cmds.deploy.code_script'
 local fn = require 'fn'
 local imgsh = require 'scripts.cmds.deploy.image_script'
-local process = require 'process'
 local sh = require 'shell'
 local svcsh = require 'scripts.cmds.deploy.svc_script'
+local unistd = require 'posix.unistd'
 
 local function log(s, ...)
   local msg = string.format(s, ...)
@@ -384,7 +384,7 @@ return function(domain, opts)
       set_firewall(opts.firewall, node)
     end
     -- wait a bit, might not be able to ssh into it otherwise
-    process.sleep(5)
+    unistd.sleep(5)
   else
     node = get_node(dom_obj)
     assert(node, string.format('no node exists for IP address %s', dom_obj.A.ip))

@@ -32,7 +32,6 @@ dependencies = {
    "luashell 0.4-1",
    "net-url 0.9-1",
    "optparse 1.4-1",
-   "process 1.9.0-1",
    "tcheck 0.1-1",
    "xpgsql 0.5-1"
 }

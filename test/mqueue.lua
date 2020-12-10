@@ -1,5 +1,5 @@
 local lu = require 'luaunit'
-local process = require 'process'
+local unistd = require 'posix.unistd'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
 local App = require 'tulip.App'
@@ -72,7 +72,7 @@ function M.test_mqueue()
     lu.assertEquals(#v, 0)
 
     -- wait a bit and call expire, message moves back to pending
-    process.sleep(2)
+    unistd.sleep(2)
     call_expire(app)
 
     v, err = app:mqueue({queue = 'q'})
@@ -84,7 +84,7 @@ function M.test_mqueue()
     lu.assertEquals(v[1].payload.x, 'a')
 
     -- wait a bit and call expire, message moves to dead
-    process.sleep(2)
+    unistd.sleep(2)
     call_expire(app)
 
     v, err = app:mqueue({queue = 'q'})
@@ -151,7 +151,7 @@ function M.test_mqueue()
 
     -- wait a bit and call expire, messages move back to pending
     -- except the one that is done.
-    process.sleep(2)
+    unistd.sleep(2)
     call_expire(app)
 
     v, err = app:mqueue({queue = 'q1', max_receive = 10})
