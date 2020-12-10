@@ -122,24 +122,23 @@ function App:_lookup(field, name)
   return coll[name]
 end
 
--- Resolve the names registered in the mws array by replacing the names
+-- Resolve the names registered in the coll array by replacing the names
 -- with the values registered in the collection identified by field.
 -- Internal method for extenders of App instance.
-function App:_resolve(field, mws)
-  for i, mw in ipairs(mws) do
-    local typ = type(mw)
+function App:_resolve(field, coll)
+  for i, v in ipairs(coll) do
+    local typ = type(v)
     if typ == 'string' then
-      local mwi = self:_lookup(field, mw)
-      if not mwi then
+      local vi = self:_lookup(field, v)
+      if not vi then
         if string.match(field, '^_') then
           field = string.sub(field, 2)
         end
-        xerror.throw('no %s registered for %q', field, mw)
+        xerror.throw('no %s registered for %q', field, v)
       end
-      mws[i] = mwi
-    elseif metatable_name(mw) == 'tulip.App' then
-      -- if mw is an App, activate it
-      mw:activate()
+      coll[i] = vi
+    elseif metatable_name(v) == 'tulip.App' then
+      v:activate()
     end
   end
 end
@@ -160,7 +159,7 @@ end
 
 -- Encodes the table t to the specified mime type, using the
 -- registered encoders. It panics if no encoder supports this mime type,
--- otherwise returns the encoded string.
+-- otherwise returns the encoded string or nil and an error.
 function App:encode(t, mime)
   if self.encoders then
     for _, enc in pairs(self.encoders) do
@@ -173,7 +172,7 @@ end
 
 -- Decodes the string s encoded as the specified mime type, using
 -- the registered decoders. It panics if no decoder supports this mime type,
--- otherwise returns the decoded value.
+-- otherwise returns the decoded value or nil and an error.
 function App:decode(s, mime)
   if self.decoders then
     for _, dec in pairs(self.decoders) do
@@ -205,9 +204,9 @@ end
 
 -- Register an encoder in the list of encoders. It panics if an encoder
 -- is already registered for that name.
-function App:register_encoder(name, mw)
-  tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  self:_register('encoders', name, mw)
+function App:register_encoder(name, enc)
+  tcheck({'*', 'string', 'table|function'}, self, name, enc)
+  self:_register('encoders', name, enc)
 end
 
 -- Get the registered encoder instance for that name, or nil if none.
@@ -218,9 +217,9 @@ end
 
 -- Register a decoder in the list of decoders. It panics if a decoder is
 -- already registered for that name.
-function App:register_decoder(name, mw)
-  tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  self:_register('decoders', name, mw)
+function App:register_decoder(name, dec)
+  tcheck({'*', 'string', 'table|function'}, self, name, dec)
+  self:_register('decoders', name, dec)
 end
 
 -- Get the registered decoder instance for that name, or nil if none.
@@ -244,9 +243,9 @@ end
 
 -- Register a logger in the list of loggers. It panics if a logger is
 -- already registered for that name.
-function App:register_logger(name, mw)
-  tcheck({'*', 'string', 'table|function'}, self, name, mw)
-  self:_register('loggers', name, mw)
+function App:register_logger(name, lg)
+  tcheck({'*', 'string', 'table|function'}, self, name, lg)
+  self:_register('loggers', name, lg)
 end
 
 -- Get the registered logger instance for that name, or nil if none.
@@ -257,7 +256,7 @@ end
 
 -- Activates all packages registered by the app. Panics if activation
 -- fails (that is, the activate function of packages should throw on
--- error).
+-- error). Receives the cqueue instance that will be used by the application.
 function App:activate(cq)
   tcheck({'tulip.App', 'userdata|nil'}, self, cq)
 
@@ -298,6 +297,8 @@ function App:run()
   return table.unpack(res, 1, res.n)
 end
 
+-- Returns a function that creates an App instance for the
+-- provided configuration.
 return function (cfg)
   tcheck('table', cfg)
 
