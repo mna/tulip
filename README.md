@@ -1,4 +1,4 @@
-t # tulip
+# tulip
 
 Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
