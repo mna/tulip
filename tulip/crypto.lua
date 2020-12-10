@@ -27,7 +27,7 @@ local M = {}
 
 -- Returns a new token that is masked with a unique random token.
 -- The unique token used for masking is appended to the masked
--- token, so the return values is twice the size of the raw_tok.
+-- token, so the return value is twice the size of the raw_tok.
 --
 -- This is to mitigate the BREACH attack (http://breachattack.com/#mitigations)
 function M.mask_token(raw_tok)
@@ -49,7 +49,9 @@ end
 -- Decodes v, validating the hmac authentication and
 -- returns the token on success, nil on error. Note that the
 -- returned token is base64-encoded (assuming it was when
--- encode was called, which it should).
+-- encode was called, which it should). The extra values must
+-- be the same as the ones provided to encode, in the same
+-- order.
 function M.decode(hkey, max_age, v, ...)
   -- decode from base64
   local decoded = xio.b64decode(v)
@@ -87,7 +89,9 @@ end
 
 -- Encodes v with an hmac authentication created using hkey and
 -- returns the encoded token. Note that v should already be
--- base64-encoded.
+-- base64-encoded. The extra values are used for the hmac
+-- computation, but are not stored in the returned token. The
+-- same values in the same order must be provided to decode.
 function M.encode(hkey, v, ...)
   -- create MAC with the extra values, then the date and the encoded
   -- value.
