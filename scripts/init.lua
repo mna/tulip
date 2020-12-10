@@ -90,58 +90,64 @@ export TULIP_ACCOUNTKEY=`cat run/secrets/account_key`
 end
 
 io.write('>>> lua dependencies\n')
-local luaver = (sh.cmd('lua', '-v') |
-                sh.cmd('cut', '-d', ' ', '-f2') |
-                sh.cmd('cut', '-d', '.', '-f1,2')):output()
--- NOTE: luarocks-fetch-gitrec must be installed in standard location,
--- i.e. via luarocks install.
 local rocksfile = 'tulip-git-1.rockspec'
-sh.cmd('echo', string.format([[
-package = %q
-build = {
-  type = 'builtin'
-}
-dependencies = {
-  "lua ~> %s",
+if sh.test('-s ./'..rocksfile) then
+  io.write('<<< rockspec already generated, assuming dependencies are installed too, skipping\n')
+else
+  local luaver = (sh.cmd('lua', '-v') |
+                  sh.cmd('cut', '-d', ' ', '-f2') |
+                  sh.cmd('cut', '-d', '.', '-f1,2')):output()
+  -- NOTE: luarocks-fetch-gitrec must be installed in standard location,
+  -- i.e. via luarocks install.
+  sh.cmd('echo', string.format([[
+  package = %q
+  build = {
+    type = 'builtin'
+  }
+  dependencies = {
+    "lua ~> %s",
 
-  "argon2 3.0.1-1",
-  "base64 1.5-2",
-  "basexx	0.4.1-1",
-  "binaryheap	0.4-1",
-  "compat53	0.8-1",
-  "cqueues 20200726.54-0",
-  "cqueues-pgsql	0.1-0",
-  "fifo	0.2-0",
-  "http	0.3-0",
-  "inspect	3.1.1-0",
-  "lpeg	1.0.2-1",
-  "lpeg_patterns	0.5-0",
-  "lua-cjson 2.1.0.6-1",
-  "lua-resty-template 2.0-1",
-  "lua-resty-tsort 1.0-1",
-  "lua-zlib 1.2-1",
-  "luabenchmark	0.10.0-1",
-  "luacov	0.14.0-2",
-  "luafn	0.2-1",
-  "luaossl	20200709-0",
-  "luapgsql	1.6.1-1",
-  "luaposix	35.0-1",
-  "luashell	0.4-1",
-  "luaunit	3.3-1",
-  "net-url	0.9-1",
-  "optparse	1.4-1",
-  "process 1.9.0-1",
-  "tcheck	0.1-1",
-  "xpgsql	0.5-1",
-}
-source = {
-  url = '...'
-}
-version = 'git-1'
-]], 'tulip', luaver)):redirect(rocksfile, true)
--- install luaossl first as it requires special parameters
-sh('llrocks', 'install', 'luaossl', 'CFLAGS=-DHAVE_EVP_KDF_CTX=1 -fPIC')
-sh('llrocks', 'install', '--only-deps', rocksfile)
+    "argon2 3.0.1-1",
+    "base64 1.5-2",
+    "basexx	0.4.1-1",
+    "binaryheap	0.4-1",
+    "compat53	0.8-1",
+    "cqueues 20200726.54-0",
+    "cqueues-pgsql	0.1-0",
+    "fifo	0.2-0",
+    "http	0.3-0",
+    "inspect	3.1.1-0",
+    "lpeg	1.0.2-1",
+    "lpeg_patterns	0.5-0",
+    "lua-cjson 2.1.0.6-1",
+    "lua-resty-template 2.0-1",
+    "lua-resty-tsort 1.0-1",
+    "lua-zlib 1.2-1",
+    "luabenchmark	0.10.0-1",
+    "luacov	0.14.0-2",
+    "luafn	0.2-1",
+    "luaossl	20200709-0",
+    "luapgsql	1.6.1-1",
+    "luaposix	35.0-1",
+    "luashell	0.4-1",
+    "luaunit	3.3-1",
+    "net-url	0.9-1",
+    "optparse	1.4-1",
+    "process 1.9.0-1",
+    "tcheck	0.1-1",
+    "xpgsql	0.5-1",
+  }
+  source = {
+    url = '...'
+  }
+  version = 'git-1'
+  ]], 'tulip', luaver)):redirect(rocksfile, true)
+
+  -- install luaossl first as it requires special parameters
+  sh('llrocks', 'install', 'luaossl', 'CFLAGS=-DHAVE_EVP_KDF_CTX=1 -fPIC')
+  -- install all other dependencies
+  sh('llrocks', 'install', '--only-deps', rocksfile)
+end
 
 io.write('>>> starting database\n')
 sh('docker-compose', 'up', '-d')
