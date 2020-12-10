@@ -24,7 +24,6 @@ dependencies = {
    "lua-resty-template 2.0-1",
    "lua-resty-tsort 1.0-1",
    "lua-zlib 1.2-1",
-   "luabenchmark 0.10.0-1",
    "luafn 0.2-1",
    "luaossl 20200709-0",
    "luapgsql 1.6.1-1",
