@@ -1,9 +1,10 @@
-# tulip
+t # tulip
 
 Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
 * Canonical repository: https://git.sr.ht/~mna/tulip
 * Issue tracker: https://todo.sr.ht/~mna/tulip
+* Documentation: https://man.sr.ht/~mna/tulip
 
 ## Description
 
