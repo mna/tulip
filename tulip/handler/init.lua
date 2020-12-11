@@ -5,12 +5,16 @@ local xerror = require 'tulip.xerror'
 local xtable = require 'tulip.xtable'
 
 local M = {
+  -- List mapping well-known file extensions to MIME types.
   EXTMIME = extmime,
+  -- Default MIME type when unknown.
   DEFAULTMIME = 'application/octet-stream',
+  -- List mapping common HTTP status codes to standard status text.
   HTTPSTATUS = httpstatus,
 }
 
--- Returns a handler that just calls Response:write with t.
+-- Returns a handler that just calls Response:write with t and calls the
+-- next middleware.
 function M.write(t)
   return function(_, res, nxt)
     res:write(t)
@@ -18,8 +22,9 @@ function M.write(t)
   end
 end
 
--- Serves a directory based on the first request.pathargs argument.
--- Sets the content-type based on some well-known file extensions.
+-- Returns a handler that serves a directory based on the first
+-- Request.pathargs argument, then calls the next middleware. Sets the
+-- content-type based on some well-known file extensions.
 function M.dir(path)
   if #path == 0 or path[-1] ~= '/' then
     path = path .. '/'
@@ -79,9 +84,9 @@ function M.errhandler(t)
   end
 end
 
--- Recovers from an error raised in subsequent middleware, and calls f
--- with req, res and the error. Note that there is no next function argument
--- in the arguments to f.
+-- Returns a handler that recovers from an error raised in subsequent
+-- middleware, and calls f with req, res and the error. Note that there is no
+-- next function argument in the arguments to f.
 function M.recover(f)
   return function(req, res, nxt)
     local ok, err = pcall(nxt)
@@ -91,9 +96,9 @@ function M.recover(f)
   end
 end
 
--- Recovers from an error raised in subsequent wmiddleware, and calls f
--- with msg and the error. Note that there is no next function argument
--- in the arguments to f.
+-- Returns a worker handler that recovers from an error raised in subsequent
+-- wmiddleware, and calls f with msg and the error. Note that there is no next
+-- function argument in the arguments to f.
 function M.wrecover(f)
   return function(msg, nxt)
     local ok, err = pcall(nxt)
@@ -106,7 +111,8 @@ end
 -- Starts a call to a chain of middleware, where mws is an array
 -- of middleware functions. This calls the middleware at index i
 -- with a next() function generated to call the following middleware,
--- ending with a call to last() if it is non-nil.
+-- ending with a call to last() if it is non-nil. If i is not provided,
+-- it is set to 1.
 function M.chain_middleware(mws, req, res, last, i)
   i = i or 1
   if i > #mws then
@@ -122,7 +128,8 @@ end
 -- Starts a call to a chain of wmiddleware, where mws is an array
 -- of wmiddleware functions. This calls the wmiddleware at index i
 -- with a next() function generated to call the following wmiddleware,
--- ending with a call to last() if it is non-nil.
+-- ending with a call to last() if it is non-nil. If i is not provided,
+-- it is set to 1.
 function M.chain_wmiddleware(mws, msg, last, i)
   i = i or 1
   if i > #mws then
