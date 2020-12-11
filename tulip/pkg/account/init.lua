@@ -117,7 +117,7 @@ local MWDEFAULTS = {
 -- urlenc).
 --
 -- Config:
---  * auth_key: string = authentication key for the all signed tokens.
+--  * auth_key: string = authentication key for all signed tokens.
 --  * session: table = session-related configuration used by middleware:
 --    * token_type: string = type of the session token (default: 'session')
 --    * token_max_age: number = max age in seconds of the token (default:
@@ -173,10 +173,11 @@ local MWDEFAULTS = {
 --
 --   > email: string = the email address
 --   > raw_pwd: string = the raw (unhashed) password
+--   > groups: array of strings|nil = the group(s) this account belongs to
 --   > conn: connection|nil = optional database connection to use
 --
 --   < acct: Account = the created Account instance
---   < err: string|nil = error message if acct is nil
+--   < err: Error|nil = error message if acct is nil
 --
 -- acct, err = App:account(v[, raw_pwd[, conn]])
 --
@@ -189,7 +190,7 @@ local MWDEFAULTS = {
 --
 --   < acct: Account = the corresponding Account instance, nil if
 --     raw_pwd is provided but doesn't match the account's password.
---   < err: string|nil = error message if acct is nil
+--   < err: Error|nil = error message if acct is nil
 --
 -- ok, err = Account:delete(conn)
 --
@@ -198,7 +199,7 @@ local MWDEFAULTS = {
 --   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
---   < err: string|nil = error message if ok is falsy
+--   < err: Error|nil = error message if ok is falsy
 --
 -- ok, err = Account:verify_email(conn)
 --
@@ -209,7 +210,7 @@ local MWDEFAULTS = {
 --   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
---   < err: string|nil = error message if ok is falsy
+--   < err: Error|nil = error message if ok is falsy
 --
 -- ok, err = Account:change_pwd(new_pwd, conn)
 --
@@ -219,7 +220,7 @@ local MWDEFAULTS = {
 --   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
---   < err: string|nil = error message if ok is falsy
+--   < err: Error|nil = error message if ok is falsy
 --
 -- ok, err = Account:change_email(new_email, conn)
 --
@@ -231,7 +232,7 @@ local MWDEFAULTS = {
 --   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
---   < err: string|nil = error message if ok is falsy
+--   < err: Error|nil = error message if ok is falsy
 --
 -- ok, err = Account:change_groups(add, rm, conn)
 --
@@ -242,13 +243,13 @@ local MWDEFAULTS = {
 --   > conn: connection = database connection to use
 --
 --   < ok: boolean = true on success
---   < err: string|nil = error message if ok is falsy
+--   < err: Error|nil = error message if ok is falsy
 --
 -- Middleware:
 --
 -- * tulip.pkg.account:signup
 --
---   Handles the signup workflow (POST of a form). On success,
+--   Handles the signup workflow (e.g. on POST of a form). On success,
 --   the created account is stored in req.locals.account.
 --
 --   > email: string = form field with the email address
@@ -257,14 +258,14 @@ local MWDEFAULTS = {
 --
 -- * tulip.pkg.account:login
 --
---   Handles the login workflow (POST of a form). On success,
+--   Handles the login workflow (e.g. on POST of a form). On success,
 --   the logged-in account is stored under req.locals.account and
 --   a session is initiated, with its id stored under req.locals.session_id
 --   and a session cookie stored in the response's headers.
 --
 --   > email: string = form field with the email address
 --   > password: string = form field with the raw password
---   > rememberme: boolean = indicates if the session should be persisted
+--   > rememberme: string = if not an empty string, indicates that the session should be persisted
 --
 -- * tulip.pkg.account:check_session
 --
@@ -280,7 +281,7 @@ local MWDEFAULTS = {
 --
 -- * tulip.pkg.account:delete
 --
---   Handles the delete account workflow (POST of a form). On success,
+--   Handles the delete account workflow (e.g. on POST of a form). On success,
 --   the account is deleted as well as all session tokens and any session
 --   cookie, and req.locals.session_id and req.locals.account are unset.
 --
@@ -305,7 +306,7 @@ local MWDEFAULTS = {
 --
 -- * tulip.pkg.account:setpwd
 --
---   Handles the update password workflow (POST of a form). Must be
+--   Handles the update password workflow (e.g. on POST of a form). Must be
 --   logged-in (i.e. the Account must be stored in req.locals.account).
 --
 --   > old_password: string = the old (raw) password
@@ -322,7 +323,7 @@ local MWDEFAULTS = {
 --
 -- * tulip.pkg.account:resetpwd
 --
---   Handles the reset password workflow (POST of form). Checks the the
+--   Handles the reset password workflow (e.g. on POST of form). Checks that the
 --   token is valid and if so, updates the password to the new one.
 --
 --   > t: string = the token, either as query string or in a form field
@@ -335,8 +336,9 @@ local MWDEFAULTS = {
 --
 --   Initiates the change email workflow. It generates a single-use
 --   token and sends an email message to the specified new email
---   address.
+--   address. Requires req.locals.account to be set.
 --
+--   TODO: should also verify password
 --   > new_email: string = the new email to which the reset token
 --   should be sent.
 --
