@@ -97,7 +97,7 @@ function Mw:__call(req, res, nxt)
   -- get the masked, base64-encoded token for this request
   local cooked_tok = xio.b64encode(crypto.mask_token(raw_tok))
   req.locals.csrf_token = cooked_tok
-  req.locals.csrf_input_name = self.hidden_input_name
+  req.locals.csrf_input_name = self.input_name
 
   -- if the request is not for a safe method, validate the csrf
   -- token.
