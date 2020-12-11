@@ -53,6 +53,19 @@ local M = {
 
 -- Package gzip registers a middleware that gzips the response
 -- of the request if it accepts that encoding.
+--
+-- Requires: middleware package.
+--
+-- Config: none
+--
+-- Middleware:
+--
+-- * tulip.pkg.gzip
+--
+--   Adds a vary by Accept-Encoding header to the response, and if the
+--   request's Accept-Encoding accepts gzip, enables compression of the
+--   response's body. Doing so will set the response's Content-Encoding
+--   to gzip and Transfer-Encoding to chunked.
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app:register_middleware('tulip.pkg.gzip', gzip_middleware)
