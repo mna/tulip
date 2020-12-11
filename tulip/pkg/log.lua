@@ -3,8 +3,6 @@ local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
 
-local M = {}
-
 local function stdout_logger(t)
   io.write(cjson.encode(t) .. '\n')
 end
@@ -56,12 +54,42 @@ local function log_wmiddleware(msg, nxt)
   })
 end
 
--- The log package register a logging backend to stdout (in fact,
--- it writes to io.output(), so if set to a file, will log to
--- that file). It also configures the log levels to consider for
--- all logging backends and registers a logging middleware and
--- wmiddleware that are not enabled by default, under the name
--- 'tulip.pkg.log'.
+local M = {}
+
+-- The log package registers a logging backend in JSON format.
+--
+-- Config:
+--
+-- * level: string|number = the minimum log level to output. If set to a
+--   string, it should be either 'debug', 'error', 'info', or 'warning'
+--   or the first letter of those words. Can also be a number. The mapping
+--   of string level to number is: debug=1, info=10, warning=100 and
+--   error=1000.
+-- * file: string = path to a file to log to. If not set, will log to
+--   io.output().
+--
+-- Fields:
+--
+-- App.log_level: string|number
+--
+--    Sets the minimum log level to consider for all logging backends.
+--    Once the app is activated (in the call to app:run), if the level is
+--    a string, it is converted to a number.
+--
+-- Middleware:
+--
+-- * tulip.pkg.log
+--
+--   Registered if the tulip.pkg.middleware package is registered. Logs
+--   web requests.
+--
+-- Wmiddleware:
+--
+-- * tulip.pkg.log
+--
+--   Registered if the tulip.pkg.wmiddleware package is registered. Logs
+--   processed worker messages.
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
 
