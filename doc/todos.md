@@ -7,7 +7,8 @@
 ## up next
 
 * Deployment script, with support for arbitrary staging environments and update of existing deploys (semi-done)
-* I18n solution (not just text translation, but static assets too)
+* Support multi-part forms/file uploads
+* I18n (l10n) solution (not just text translation, but static assets too)
 * Graceful shutdown with per-package hooks (semi-done with finalizers)
 * Two-factor authentication, based on TOTP, with recovery codes.
 
