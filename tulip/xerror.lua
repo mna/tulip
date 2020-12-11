@@ -86,9 +86,11 @@ function M.converter(ecode, ...)
 end
 
 local DBKEYS = {'status_code', 'status', 'sql_state'}
--- Special converter for DB calls that either converts the error
+-- Converter for DB calls that either converts the error
 -- to an ecode EDB or ESQL, depending if the error is in the
--- connection to the DB or in the execution of SQL.
+-- connection to the DB or in the execution of SQL. Returns all
+-- values if first is truthy, or the falsy first value followed
+-- by the Error instance.
 function M.db(first, msg, ...)
   if first then
     -- no error, passthrough
@@ -109,12 +111,14 @@ function M.db(first, msg, ...)
   return first, err
 end
 
--- Create an EIO converter for IO calls such as read/write to file
--- and sockets.
+-- Converter for IO calls such as read/write to file
+-- and sockets that set the ecode to EIO and store the
+-- errno field.
 M.io = M.converter('EIO', 'errno')
 
--- Create an EINVAL converter for field validation errors, where extra
--- values are the field name and value.
+-- Converter for field validation errors, where extra
+-- values are the field name and value, that set the ecode to
+-- EINVAL.
 M.inval = M.converter('EINVAL', 'field', 'value')
 
 -- Returns true if err is of any of the specified codes, false
@@ -174,12 +178,15 @@ end
 -- next, until the first that was added (labels are prepended to the
 -- error message like this: last-label: next-label: first-label: message).
 --
--- The attrs argument is a table where each key-value pair is added to
+-- The attrs argument, if provided, is a table where each key-value pair is added to
 -- the error object if and only if it did not exist yet. This is because if
 -- an attribute is already set, it is assumed that the call that set it
 -- (which was closer to where the error originated) knew more about that
 -- field, so it is not overwritten. It can be used to set new attributes
 -- and default values (e.g. it can set the error message if there wasn't any).
+--
+-- If err is not an Error instance, an Error is first created with err as the
+-- message.
 function M.ctx(err, label, attrs)
   if metatable_name(err) ~= Error.__name then
     err = Error.new(err)
@@ -189,16 +196,20 @@ function M.ctx(err, label, attrs)
   table.insert(labels, label)
   err.labels = labels
 
-  for k, v in pairs(attrs) do
-    if err[k] == nil then
-      err[k] = v
+  if attrs then
+    for k, v in pairs(attrs) do
+      if err[k] == nil then
+        err[k] = v
+      end
     end
   end
   return err
 end
 
 -- Raises an error with msg, which can contain formatting verbs. Extra
--- arguments are provided to string.format.
+-- arguments are provided to string.format. If msg is not a string or
+-- is not stringable and no extra argument are provided, raises the msg
+-- value as-is.
 function M.throw(msg, ...)
   local n = select('#', ...)
   if type(msg) ~= 'string' then
@@ -212,6 +223,7 @@ end
 
 -- Raises an error if v is falsy, calling xerror.throw with the second
 -- value and any subsequent values to use in string.format of the message.
+-- Otherwise returns all values.
 function M.must(v, err, ...)
   if v then
     return v, err, ...

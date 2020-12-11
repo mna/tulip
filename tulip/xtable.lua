@@ -44,7 +44,7 @@ end
 -- key and the value is the number of times the key was found in the
 -- array (which also behaves as a truthy value if the only goal is to
 -- check if it was present). If multiple arrays are provided, the set
--- is the union of all arrays.
+-- is the union of all arrays. Returns nil if no array is provided.
 function M.toset(...)
   local n = select('#', ...)
   if n == 0 then return end
@@ -63,6 +63,7 @@ end
 
 -- Turns a list of tables (most likely sets) into an array, adding
 -- each key of each table in the resulting array. The order is undefined.
+-- Returns nil if no table is provided.
 function M.toarray(...)
   local n = select('#', ...)
   if n == 0 then return end
@@ -80,7 +81,7 @@ function M.toarray(...)
 end
 
 -- Returns the union of all the sets. The value is the number of sets
--- in which the key was found.
+-- in which the key was found. Returns nil if no table is provided.
 function M.setunion(...)
   local n = select('#', ...)
   if n == 0 then return end
@@ -99,7 +100,8 @@ end
 
 -- Returns the difference of the first set with all other sets, i.e.
 -- a set with only the keys found in the first but not in either of the
--- other sets. The values are set to true.
+-- other sets. The values are set to true. Returns nil if no table is
+-- provided.
 function M.setdiff(...)
   local n = select('#', ...)
   if n == 0 then return end
@@ -124,7 +126,8 @@ function M.setdiff(...)
 end
 
 -- Returns the intersection of all sets, i.e. a set with only keys found
--- in all sets. The values are set to the number of sets.
+-- in all sets. The values are set to the number of sets. Returns nil if
+-- no table is provided.
 function M.setinter(...)
   local n = select('#', ...)
   if n == 0 then return end

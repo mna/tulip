@@ -2,7 +2,8 @@ local time = require 'posix.time'
 
 local M = {}
 
--- turn pat into a case-insensitive pattern.
+-- Turn pat into a case-insensitive pattern. It throws an error if pat contains
+-- a set, which is not supported.
 function M.ipat(pat)
   -- restriction: pat must not contain a [..] range.
   assert(not string.find(pat, '[', 1, true), 'pattern cannot contain a [set]')
@@ -20,23 +21,24 @@ function M.ipat(pat)
   end))
 end
 
--- escape s to return a valid file name.
+-- Escape s to return a valid file name, replacing potentially unsafe characters
+-- with underscores.
 function M.escapefile(s)
   return string.gsub(s, '([^%w%.]+)', '_')
 end
 
--- trim leading and trailing whitespace from s.
+-- Trim leading and trailing whitespace from s.
 function M.trim(s)
   return string.gsub(s, '^%s*(.-)%s*$', '%1')
 end
 
--- ensures all whitespace in s is normalized to a single
+-- Ensure all whitespace in s is normalized to a single
 -- space character.
 function M.normalizews(s)
   return string.gsub(s, '%s+', ' ')
 end
 
--- makes each first letter of each word in s uppercase, the rest
+-- Make each first letter of each word in s uppercase, the rest
 -- lowercase.
 function M.capitalize(s)
   s = string.lower(s)
@@ -45,7 +47,8 @@ function M.capitalize(s)
   end)
 end
 
--- parses a time in string RFC-3339 format to an epoch value.
+-- Parse a time in string RFC-3339 format to an epoch value. Return
+-- nil and an error if s is not a valid RFC-3339 format.
 function M.totime(s)
   local t, err = time.strptime(s, '%Y-%m-%d %H:%M:%S')
   if not t then

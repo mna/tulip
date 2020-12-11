@@ -27,13 +27,13 @@ function M.read_file(path)
   return s
 end
 
--- Generates a random token of the specified length. Returns nil and
--- the error message on error.
+-- Generates a random token of the specified length.
 function M.random(len)
   return rand.bytes(len)
 end
 
--- Generates a uniform random integer between [0, n-1].
+-- Generates a uniform random integer between [0, n-1]. If n is omitted,
+-- the interval is [0,2^64−1].
 function M.randomint(n)
   return rand.uniform(n)
 end
