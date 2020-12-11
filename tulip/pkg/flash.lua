@@ -92,21 +92,11 @@ local M = {
   },
 }
 
--- The flash package adds flash message support to the App. Flash messages
--- are (short) feedback messages that are generated in one request, but only
--- used in a subsequent request (e.g. following an account creation, after
--- a redirect to the login page, the "account created, please login" message
--- could be displayed). To that end, the flash messages are stored in a
--- session cookie by the middleware registered with this package.
---
--- Available flash messages for a request (that is, flash messages that were
--- added in a previous request) are stored on req.locals.flash after the
--- middleware has executed. Messages added by Request:flash will be stored
--- in a cookie before the response is written.
+-- The flash package adds flash message support to the App.
 --
 -- Requires: the middleware package.
 --
--- Config: none
+-- Config:
 --  * cookie_name: string = name of the cookie holding the messages
 --    (default: 'flash')
 --  * domain: string = domain of the flash cookie (default: not set)
@@ -121,20 +111,27 @@ local M = {
 --
 -- ok, err = Request:flash(...)
 --
---   Adds flash messages to be stored for the next request. Flash
---   messages get stored in a cookie.
+--   Adds flash messages to be stored for the next request. Flash messages
+--   are (short) feedback messages that are generated in one request, but only
+--   used in a subsequent request (e.g. following an account creation, after
+--   a redirect to the login page, the "account created, please login" message
+--   could be displayed). To that end, the flash messages are stored in a
+--   session cookie by the middleware registered with this package.
 --
 --   > ...: table|string = the message(s) to add, will be url-encoded in the cookie.
---   < ok: boolean|nil = if a message to add is passed as argument, returns
---     true, otherwise returns nil.
---   < err: string|nil = if v is falsy, the error message.
+--   < ok: boolean = true on success
+--   < err: Error|nil = if v is falsy, the error message.
 --
 -- Middleware:
 --
 -- * tulip.pkg.flash
 --
 --   Must be added before any handler that writes the response and any handler
---   that uses existing flash messages.
+--   that uses existing flash messages. Available flash messages for a request
+--   (that is, flash messages that were added in a previous request) are stored
+--   on req.locals.flash. Messages added by Request:flash will be stored in a
+--   cookie before the response is written.
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   local mwcfg = xtable.merge({}, CFGDEFAULTS, cfg)
