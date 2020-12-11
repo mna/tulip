@@ -117,6 +117,7 @@ local MWDEFAULTS = {
 -- urlenc).
 --
 -- Config:
+--
 --  * auth_key: string = authentication key for all signed tokens.
 --  * session: table = session-related configuration used by middleware:
 --    * token_type: string = type of the session token (default: 'session')
