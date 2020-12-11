@@ -28,7 +28,7 @@ function M.schedule(job, conn, t)
       payload = xerror.must(payload(job, conn, t))
     end
 
-    local json = cjson.encode(payload)
+    local json = xerror.must(xerror.invalid(cjson.encode(payload)))
     -- format the schedule job SQL statement with properly-escaped
     -- text values for the queue name and the payload.
     local qname = conn:format_array{job}

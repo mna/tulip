@@ -50,8 +50,10 @@ local M = {
 -- The cron package registers an App:schedule method that registers
 -- a job to run at a specific schedule.
 --
--- Requires: a database package, an mqueue package.
+-- Requires: database and mqueue packages.
+--
 -- Config:
+--
 --   * allowed_jobs: array of string = if set, only those jobs
 --     will be allowed.
 --   * default_max_age: integer|nil = if set, use as default max age
@@ -63,7 +65,12 @@ local M = {
 --     at startup. The key is the job name, and the value is the same
 --     as the t table that can be passed in App:schedule.
 --
--- v, err = App:schedule(job[, conn[, t]])
+-- Methods:
+--
+-- ok, err = App:schedule(job[, conn[, t]])
+--
+--   Schedule or unschedule a job.
+--
 --   > job: string = name of the job
 --   > conn: connection|nil = optional database connection to use
 --   > t: string|table|nil = if nil, unschedule the job.
@@ -77,9 +84,8 @@ local M = {
 --     * t.payload: table|function|nil = if set, will be the message's payload. If it is
 --       a function, it is called with the job name, connection and config table and
 --       its first return value is used as payload.
---   < v: bool|nil = true if the job was scheduled or unscheduled sucessfully,
---     nil on error.
---   < err: string|nil = error message if v is nil.
+--   < ok: boolean = true on success
+--   < err: Error|nil = error message if ok is falsy.
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app.schedule = make_schedule(cfg)
