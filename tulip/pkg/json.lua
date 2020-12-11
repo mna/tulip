@@ -44,6 +44,21 @@ local M = {}
 
 -- The json package registers an encoder and a decoder that
 -- handles the JSON format (application/json MIME type).
+--
+-- Config:
+--
+-- * encoder: table = a table with the following fields:
+--   * allow_invalid_numbers: boolean = encode invalid numbers (infinity, NaN). Can
+--     be set to the string "null" to encode as JSON null (default: false)
+--   * max_depth: integer = maximum depth to allow (default: 1000)
+--   * number_precision: integer = number of significant digits encoded (default: 14)
+--   * sparse_array: table = table with fields convert_excessive, ratio and safe
+--     (see https://www.kyne.com.au/~mark/software/lua-cjson-manual.html, default is
+--     false, 2 and 10 respectively)
+-- * decoder: table = a table with the following fields:
+--   * allow_invalid_numbers: boolean = encode invalid numbers (infinity, NaN, hexadecimal)
+--     (default: false)
+--   * max_depth: integer = maximum depth to decode (default: 1000)
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
 
