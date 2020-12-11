@@ -20,6 +20,7 @@ function Notification:terminate()
 end
 
 function Notification.new(n)
+  -- TODO: store payload error and raw payload, as for mqueue
   local o = {
     channel = n:relname(),
     payload = cjson.decode(n:extra()),
@@ -104,12 +105,14 @@ function M.default_err_handler(conn, count, _, getconn)
   return (getconn())
 end
 
+-- Note: runs inside conn:with
 function M.publish(chan, conn, msg)
   local payload = xerror.must(cjson.encode(msg))
   xerror.must(xerror.db(conn:query(SQL_PUBLISH, chan, payload)))
   return true
 end
 
+-- Note: does NOT run inside conn:with
 function M.subscribe(chan, f, state, cq)
   local fns = state.handlers[chan] or {}
   table.insert(fns, f)

@@ -52,8 +52,10 @@ local M = {
 -- publishes a notification on a channel, or subscribes to
 -- notifications on a channel.
 --
--- Requires: a database package
+-- Requires: database package
+--
 -- Config:
+--
 --   * allowed_channels: array of string = if set, only those channels
 --     will be allowed.
 --   * get_connection: function = if set, used to get the long-running
@@ -75,19 +77,39 @@ local M = {
 --   * listeners: table = if set, key is the channel and value is an
 --     array of functions to register as listeners for that channel.
 --
+-- Methods:
+--
 -- ok, err = App:pubsub(chan, fconn[, msg])
---   > chan: string = then pubsub channel
+--
+--   Publishes a notification on a channel if msg is provided, or subscribes to
+--   notifications on a channel.
+--
+--   > chan: string = the pubsub channel
 --   > fconn: function|connection|nil = either a function to register
 --     as handler for that channel, or an optional database
 --     connection to use to publish msg. The handler function receives
 --     a Notification object as argument with a channel and payload
---     field. It also has a :terminate() method to terminate the
+--     field. It also has a terminate method to terminate the
 --     pubsub notification coroutine, mostly for tests.
 --   > msg: table|nil = the payload of the notification to publish.
---   < ok: bool|nil = returns a boolean that indicates if the
---     notification was published or the handler registered, nil
---     on error.
---   < err: string|nil = error message if ok is nil.
+--   < ok: boolean = true on success
+--   < err: Error|nil = error message if ok is falsy
+--
+-- true = Notification:terminate()
+--
+--   Terminates the subscription to the channel that generated this
+--   Notification.
+--
+--   < true = always returns true
+--
+-- Notification.channel: string
+--
+--   The name of the channel that received this Notification.
+--
+-- Notification.payload: table
+--
+--   The JSON-decoded payload that was sent with the Notification.
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   -- TODO: make the pubsub func a table with __call that holds the state,
