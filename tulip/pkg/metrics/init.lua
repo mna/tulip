@@ -156,11 +156,17 @@ local M = {}
 --   * [w]middleware.counter.sample,
 --     [w]middleware.timer.sample: number = the sample rate of the counter/timer
 --     metric.
+--
 --   If there is no [w]middleware.counter or [w]middleware.timer config, then that
 --   metric is not recorded, and if there is no [w]middleware table, then the
 --   [w]middleware is not registered.
 --
--- v, err = App:metrics(name, type[, value[, t]])
+-- Methods:
+--
+-- ok, err = App:metrics(name, type[, value[, t]])
+--
+--   Reports a metric to the configured UDP server, in the statsd protocol.
+--
 --   > name: string = name of the metric
 --   > type: string = 'counter', 'gauge', 'timer' or 'set'.
 --   > value: number|nil = the value to register, defaults to 1.
@@ -169,9 +175,25 @@ local M = {}
 --     table has an ['@'] field, its value is the sampling rate of the
 --     metric. Tags are added in the Librato style, see
 --     https://github.com/prometheus/statsd_exporter#tagging-extensions
---   < v: bool|nil = True if the metric was registered successfully.
---     Is nil on error.
---   < err: string|nil = error message if v is nil.
+--   < ok: boolean = true on success
+--   < err: Error|nil = error message if ok is falsy
+--
+-- Middleware:
+--
+-- * tulip.pkg.metrics
+--
+--   Records web metrics based on the configuration. If a counter is configured,
+--   records the request count. If a timer is configured, records the request
+--   duration. The path, method and status code are recorded as labels.
+--
+-- Wmiddleware:
+--
+-- * tulip.pkg.metrics
+--
+--   Records worker metrics based on the configuration. If a counter is configured,
+--   records the messages count. If a timer is configured, records the message
+--   processing duration. The queue name is recorded as label.
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app.metrics = make_metrics(cfg)
