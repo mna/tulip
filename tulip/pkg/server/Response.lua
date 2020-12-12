@@ -58,7 +58,7 @@ function Response:_write_body(f, deadline)
   end
 end
 
--- high-level API to write a response, should not be mixed
+-- High-level API to write a response, should not be mixed
 -- with calls to the low-level stream object.
 -- The opts table can have those fields:
 -- * status (integer), defaults to 200.
