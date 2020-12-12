@@ -18,6 +18,8 @@ local M = {}
 -- The urlenc package registers an encoder and a decoder that
 -- handles the url encoding format (application/x-www-form-urlencoded
 -- MIME type).
+--
+-- Config: None.
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
 
