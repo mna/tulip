@@ -25,7 +25,7 @@ function M.test_mux()
   app.main = function()
     local msg = {queue = 'abc'}
     app(msg)
-    lu.assertEquals(msg.pathargs, {'bc', n=1})
+    lu.assertEquals(msg.queueargs, {'bc', n=1})
     lu.assertEquals(msg.n, 1)
     lu.assertNil(msg.mw)
 
