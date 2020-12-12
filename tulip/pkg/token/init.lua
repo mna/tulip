@@ -44,24 +44,30 @@ local M = {
 -- generates a one-time secret token, validates such a token,
 -- or deletes token(s).
 --
--- If the generated token has 'once' set, then when it is validated,
--- its type and ref_id must match, and it must not be expired.
--- If it does not have 'once' set, then when validated only its
--- type must match, and it must not be expired. The ref_id value
--- is returned as second value when the token is valid (if the first
--- returned value is true). This is because the not-once tokens
--- are typically used to associate a token with an id (e.g. session
--- tokens), while once tokens are used for extra validation so the
--- ref_id must be provided and must be associated with that token
--- (e.g. reset password, change email address tokens, where the
--- relevant user ID is known).
+-- Requires: database package
 --
--- Requires: a database package
 -- Config:
+--
 --   * allowed_types: array of string = if set, only those types
 --     will be allowed for the tokens.
 --
 -- v, err = App:token(t[, conn[, tok]])
+--
+--   Generates a one-time secret token, validates such a token,
+--   or deletes token(s).
+--
+--   If the generated token has 'once' set, then when it is validated,
+--   its type and ref_id must match, and it must not be expired.
+--   If it does not have 'once' set, then when validated only its
+--   type must match, and it must not be expired. The ref_id value
+--   is returned as second value when the token is valid (if the first
+--   returned value is true). This is because the not-once tokens
+--   are typically used to associate a token with an id (e.g. session
+--   tokens), while once tokens are used for extra validation so the
+--   ref_id must be provided and must be associated with that token
+--   (e.g. reset password, change email address tokens, where the
+--   relevant user ID is known).
+--
 --   > t: table = a table with the following fields:
 --     * t.type: string = the type of the token (e.g. resetpwd)
 --     * t.ref_id: number = the reference id of the token (e.g. user id)
