@@ -18,10 +18,10 @@ Mux.__index = Mux
 
 function Mux:handle(msg)
   local queue = msg.queue
-  local route, pathargs = match(self.routes, queue)
+  local route, queueargs = match(self.routes, queue)
 
   if route then
-    msg.pathargs = pathargs
+    msg.queueargs = queueargs
     handler.chain_wmiddleware(route.wmiddleware, msg)
     return
   end
@@ -34,7 +34,7 @@ end
 -- where each route is a table with the following fields:
 -- * pattern (string): the Lua pattern that the queue part of the message
 --   must match.
--- * middleware (array): list of middleware functions to call.
+-- * wmiddleware (array): list of wmiddleware functions to call.
 --
 -- The table should not be modified after the call.
 --
@@ -42,7 +42,7 @@ end
 -- argument as well as a next function to call the next middleware.
 -- The pattern does not have to be anchored, and if it
 -- contains any captures, those are provided on the message object in the
--- pathargs field, as an array of values.
+-- queueargs field, as an array of values.
 --
 -- The routes table can also have the following non-array field:
 -- * not_found (function): handler to call if no route matches the message.

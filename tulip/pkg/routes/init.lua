@@ -28,7 +28,7 @@ local M = {
 --
 -- Config:
 --
--- * Array of tables: the configuration is an array of routes tables
+-- * Array of tables: the configuration is an array of route tables
 --   where each table can have the following fields:
 --   * middleware: array of string|function = the middleware to apply
 --     to this route
