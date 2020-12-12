@@ -55,7 +55,7 @@ local function main(app, cq)
   app:log('i', {pkg = 'server', ip = ip, port = port, msg = 'listening'})
 
   app.server = srv
-  return srv:loop()
+  return xerror.io(srv:loop())
 end
 
 local M = {
@@ -71,7 +71,9 @@ local M = {
 -- 'server' field on the app.
 --
 -- Requires: the middleware package.
+--
 -- Config:
+--
 --   * host: string|nil = address to bind to.
 --   * port: number|nil = port number to use.
 --   * path: string|nil = path to a UNIX socket.
@@ -94,6 +96,63 @@ local M = {
 --   * tls.protocol: string = TLS protocol of the SSL context, e.g. TLSv1_2.
 --   * tls.certificate_path: string = path to the TLS certificate file.
 --   * tls.private_key_path: string = path to the TLS private key file.
+--
+-- Methods and Fields:
+--
+-- ok, err = App:main(cq)
+--
+--   Takes control of the main loop of the App. Starts the web server,
+--   calling the App instance with the Request and Response instances
+--   for each request.
+--
+--   > cq: userdata = the cqueue to use for the loop
+--   < ok: boolean = true on success
+--   < err: Error|nil = the error message if ok is falsy
+--
+-- App.server: Server
+--
+--   The http server instance is stored on the App.
+--
+-- f, Stream = Request:body()
+--
+--   See Request.lua
+--
+-- s, err = Request:read_body(mode)
+--
+--   See Request.lua
+--
+-- t, err = Request:decode_body([force_ct])
+--
+--   See Request.lua
+--
+-- Request.stream: Stream
+-- Request.remote_addr: string
+-- Request.proto: number
+-- Request.authority: string
+-- Request.headers: Headers
+-- Request.cookies: table
+-- Request.method: string
+-- Request.rawurl: string
+-- Request.url: table
+-- Request.read_timeout: number
+-- Request.locals: table
+--
+-- ok, err = Response:_write_headers(hdrs[, eos[, deadline]])
+--
+--   See Response.lua
+--
+-- n, err = Response:_write_body(f[, deadline])
+--
+--   See Response.lua
+--
+-- n, err, started = Response:write(t)
+--
+--   See Response.lua
+--
+-- Response.headers: Headers
+-- Response.stream: Stream,
+-- Response.write_timeout: number
+-- Response.bytes_written: number
 --
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
