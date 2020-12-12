@@ -47,12 +47,12 @@ local M = {
 --   > res: table = the http Response instance
 --   > nxt: function|nil = the function that calls the next middleware
 --
--- v = App:lookup_middleware(name)
+-- f = App:lookup_middleware(name)
 --
 --   Returns the middleware registered for that name, or nil if none.
 --
 --   > name: string = the name for the registered middleware
---   < v: array = the registered middleware
+--   < f: function = the registered middleware
 --
 -- App:register_middleware(name, mw)
 --
