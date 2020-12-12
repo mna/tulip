@@ -1,7 +1,7 @@
 local cjson = require('cjson.safe').new()
 local request = require 'http.request'
 local tcheck = require 'tcheck'
-local xerror = require 'web.xerror'
+local xerror = require 'tulip.xerror'
 
 local BASE_URL = 'https://api.sendgrid.com/v3'
 

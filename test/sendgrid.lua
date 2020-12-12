@@ -27,7 +27,7 @@ function M.test_sendgrid()
     subject = 'FAIL tulip test',
     body = 'FAIL!',
   }
-  lu.assertStrContains(err, '.to')
+  lu.assertStrContains(tostring(err), '.to')
   lu.assertTrue(not ok)
 end
 
