@@ -18,7 +18,7 @@ end
 local function notfound(_, res)
   res:write{
     status = 404,
-    body = 'not found',
+    body = handler.HTTPSTATUS[404],
     content_type = 'text/plain',
   }
 end
