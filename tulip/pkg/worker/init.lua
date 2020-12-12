@@ -69,7 +69,9 @@ local M = {
 -- scheduled with cron).
 --
 -- Requires: mqueue and wmiddleware packages
+--
 -- Config:
+--
 --   * idle_sleep: number = seconds to sleep when there are no
 --     messages to process. The first time no messages are available,
 --     it will sleep for idle_sleep, and double this sleep time on
@@ -97,8 +99,17 @@ local M = {
 --     Errors that happen while processing a message are not handled
 --     with this, use a handler.wrecover middleware for that.
 --
--- It registers an App:main function and takes control of the process,
--- running until explicitly stopped.
+-- Methods and Fields:
+--
+-- App:main(cq)
+--
+--   Takes control of the main loop of the App. Starts the worker process,
+--   calling the App instance with the Message instances for each message
+--   to process. See the mqueue package's documentation for the Message
+--   instance reference.
+--
+--   > cq: userdata = the cqueue to use for the loop
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app.main = make_main(cfg)
