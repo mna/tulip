@@ -63,6 +63,7 @@ local function make_db(cfg, app)
   return function(_, fn, ...)
     local conn = try_from_pool(pool, idle_to, life_to)
 
+    -- TODO: db method should return errors, not raise (or return a conn that will fail on first use).
     if (not conn) and max_open > 0 and pool.open >= max_open then
       -- try again in a second, before giving up
       cqueues.sleep(1)
@@ -123,8 +124,6 @@ local M = {
 --    0 (no timeout) and 0 (no timeout).
 --
 -- Methods:
---
--- TODO: db method should return errors, not raise (or return a conn that will fail on first use).
 --
 -- conn | ... = App:db([f, ...])
 --
