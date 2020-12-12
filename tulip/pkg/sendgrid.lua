@@ -1,6 +1,7 @@
 local cjson = require('cjson.safe').new()
 local request = require 'http.request'
 local tcheck = require 'tcheck'
+local xerror = require 'web.xerror'
 
 local BASE_URL = 'https://api.sendgrid.com/v3'
 
@@ -48,15 +49,18 @@ local function make_email(cfg)
     req.headers:append('authorization', string.format('Bearer %s', key))
     req.headers:append('content-type', 'application/json')
 
-    local body = cjson.encode(payload)
+    local body, err = xerror.inval(cjson.encode(payload))
+    if not body then
+      return nil, err
+    end
     req:set_body(body)
 
-    local hdrs, res = req:go(t.timeout)
+    local hdrs, res = xerror.io(req:go(t.timeout))
     if not hdrs then
       return nil, res
     end
     if tonumber(hdrs:get(':status')) >= 400 then
-      return nil, res:get_body_as_string(t.timeout)
+      return xerror.inval(nil, res:get_body_as_string(t.timeout))
     end
     return true
   end
@@ -68,10 +72,16 @@ local M = {}
 -- the sendgrid provider to send emails.
 --
 -- Config:
+--
 --   * from: string = default sender email.
 --   * api_key: string = sendgrid API key.
 --
--- b, err = App:email(t)
+-- Methods:
+--
+-- ok, err = App:email(t)
+--
+--   Send an email using sendgrid API.
+--
 --   > t: table = a table with the following fields:
 --     * t.from: string|nil = sender email
 --     * t.to: array[string] = recipient emails
@@ -82,8 +92,9 @@ local M = {}
 --     * t.content_type: string|nil = body MIME type, defaults to
 --       text/plain.
 --     * t.timeout: integer|nil = timeout of request in seconds
---   < b: bool|nil = true on success, nil on error.
---   < err: string|nil = error message if b is nil.
+--   < ok: boolean = true on success
+--   < err: Error|nil = error message if ok is falsy
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app.email = make_email(cfg)
