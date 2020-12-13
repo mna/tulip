@@ -14,10 +14,10 @@ local SAFE_METHODS = {
   TRACE = true,
 }
 
-local function default_fail(req, res)
+local function default_err(_, res, _, err)
   res:write{
     status = 403,
-    body = 'Forbidden - ' .. req.locals.csrf_error,
+    body = 'Forbidden - ' .. tostring(err),
     content_type = 'text/plain',
   }
 end
@@ -76,8 +76,6 @@ function Mw:save_raw_token_in_cookie(raw_tok, req, res)
 end
 
 function Mw:__call(req, res, nxt)
-  -- TODO: allow skipping the check altogether?
-
   -- get the raw token from the cookie
   local raw_tok = self:read_raw_token_from_cookie(req)
   if not raw_tok or #raw_tok ~= TOKEN_LEN then
@@ -88,8 +86,8 @@ function Mw:__call(req, res, nxt)
 
     -- store the new raw token in the cookie
     if not self:save_raw_token_in_cookie(raw_tok, req, res) then
-      req.locals.csrf_error = 'failed to generate CSRF token'
-      self.fail_handler(req, res, nxt)
+      local _, err = xerror.inval(nil, 'failed to generate CSRF token')
+      self.error_handler(req, res, nxt, err)
       return
     end
   end
@@ -107,8 +105,8 @@ function Mw:__call(req, res, nxt)
       local referer = neturl.parse(req.headers:get('referer'))
       if (not referer.scheme or referer.scheme == '') or
         (not referer.host or referer.host == '') then
-        req.locals.csrf_error = 'no referer'
-        self.fail_handler(req, res, nxt)
+        local _, err = xerror.inval(nil, 'no referer')
+        self.error_handler(req, res, nxt, err)
         return
       end
 
@@ -125,8 +123,8 @@ function Mw:__call(req, res, nxt)
       end
 
       if not valid then
-        req.locals.csrf_error = 'invalid referer'
-        self.fail_handler(req, res, nxt)
+        local _, err = xerror.inval(nil, 'invalid referer')
+        self.error_handler(req, res, nxt, err)
         return
       end
     end
@@ -134,22 +132,22 @@ function Mw:__call(req, res, nxt)
     -- must have a non-empty raw token at this point, for non-idempotent
     -- requests.
     if not raw_tok or #raw_tok == 0 then
-      req.locals.csrf_error = 'no CSRF token'
-      self.fail_handler(req, res, nxt)
+      local _, err = xerror.inval(nil, 'no CSRF token')
+      self.error_handler(req, res, nxt, err)
       return
     end
 
     -- unmask and decode the token received with the request
     local masked_tok = self:read_masked_token_from_request(req)
     if not masked_tok then
-      req.locals.csrf_error = 'no CSRF token'
-      self.fail_handler(req, res, nxt)
+      local _, err = xerror.inval(nil, 'no CSRF token')
+      self.error_handler(req, res, nxt, err)
       return
     end
     local req_raw_tok = crypto.unmask_token(masked_tok, TOKEN_LEN)
     if raw_tok ~= req_raw_tok then
-      req.locals.csrf_error = 'invalid CSRF token'
-      self.fail_handler(req, res, nxt)
+      local _, err = xerror.inval(nil, 'invalid CSRF token')
+      self.error_handler(req, res, nxt, err)
       return
     end
   end
@@ -177,7 +175,7 @@ function Mw.new(cfg)
     request_header = cfg.request_header or 'x-csrf-token',
     input_name = cfg.input_name or '_csrf_token',
     cookie_name = cfg.cookie_name or 'csrf',
-    fail_handler = cfg.fail_handler or default_fail,
+    error_handler = cfg.error_handler or default_err,
     trusted_origins = cfg.trusted_origins,
   }
   return setmetatable(o, Mw)

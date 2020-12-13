@@ -25,9 +25,9 @@ local M = {
 --   (default: 'x-csrf-token')
 -- * input_name: string = form field to look for the csrf token (default:
 --   '_csrf_token')
--- TODO: use error handler and error as 4th arg, as for account package
--- * fail_handler: function = middleware function to call on error (default:
---   reply with 403, body contains error message)
+-- * error_handler: function = middleware function to call on error,
+--   gets called with (req, res, nxt, err). (default: reply with 403,
+--   body contains error message)
 -- * trusted_origins: array of strings = trusted origins for https requests
 --
 -- Middleware:

@@ -90,6 +90,31 @@ function M.config_expiry()
   }
 end
 
+function M.config_custom()
+  return {
+    log = { level = 'd', file = 'csrf_custom.out' },
+    server = { host = 'localhost', port = 0 },
+    routes = {
+      {method = 'GET', pattern = '^/', handler = write_token},
+      {method = 'POST', pattern = '^/', handler = handler.write{status = 204}},
+    },
+    middleware = { 'csrf', 'routes' },
+    csrf = {
+      auth_key = os.getenv('TULIP_CSRFKEY'),
+      max_age = 120,
+      secure = false,
+      same_site = 'none', -- required for the cookie_store to work
+      error_handler = function(req, res, nxt, err)
+        -- allow bypass of csrf check if query string is set
+        if req.url.query and req.url.query.bypass then
+          return nxt()
+        end
+        res:write{status = 403, body = tostring(err)}
+      end,
+    },
+  }
+end
+
 local TO = 10
 
 function M.test_csrf_over_https()
@@ -314,6 +339,33 @@ function M.test_csrf_expiry()
     lu.assertStrContains(body, 'Forbidden')
     lu.assertEquals(hdrs:get(':status'), '403')
   end, 'test.csrf', 'config_expiry')
+end
+
+function M.test_csrf_custom_error()
+  xtest.withserver(function(port)
+    -- make a GET request to get a valid token
+    local req = request.new_from_uri(
+      string.format('http://localhost:%d/', port))
+
+    local hdrs, res = xtest.http_request(req, 'GET', '/', nil, TO)
+    lu.assertNotNil(hdrs and res)
+
+    local body = res:get_body_as_string(TO)
+    lu.assertTrue(body and body ~= '')
+    lu.assertEquals(hdrs:get(':status'), '200')
+
+    -- making a POST request should fail without sending the token
+    hdrs, res = xtest.http_request(req, 'POST', nil, nil, TO)
+    lu.assertNotNil(hdrs and res)
+    body = res:get_body_as_string(TO)
+    lu.assertStrContains(body, 'no CSRF token')
+    lu.assertEquals(hdrs:get(':status'), '403')
+
+    -- the same POST with the bypass query string works
+    hdrs, res = xtest.http_request(req, 'POST', '/?bypass=1', nil, TO)
+    lu.assertNotNil(hdrs and res)
+    lu.assertEquals(hdrs:get(':status'), '204')
+  end, 'test.csrf', 'config_custom')
 end
 
 return M
