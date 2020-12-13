@@ -20,10 +20,16 @@ function Notification:terminate()
 end
 
 function Notification.new(n)
-  -- TODO: store payload error and raw payload, as for mqueue
+  local raw = n:extra()
+  local pld, err
+  if raw then
+    pld, err = cjson.decode(raw)
+  end
   local o = {
+    raw_payload = raw,
     channel = n:relname(),
-    payload = cjson.decode(n:extra()),
+    payload = pld,
+    payload_err = err,
   }
   return setmetatable(o, Notification)
 end
