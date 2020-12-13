@@ -2,8 +2,6 @@
 
 ## high-priority
 
-* Document in a quick reference table the methods, signatures, config options of each package. (started in Google Sheets)
-
 ## up next
 
 * Deployment script, with support for arbitrary staging environments and update of existing deploys (semi-done)
