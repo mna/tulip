@@ -5,7 +5,7 @@ tasks:
   - build: |
       cd tulip
       git remote add mirror git@github.com:mna/tulip.git
-      git push mirror master --tag
+      git push mirror main --tag
 secrets:
   - 8a632639-cb32-49f8-b6b8-8040972f80a7
   - fbb26d7f-ea1b-41c0-97b3-882ad37c66a0
