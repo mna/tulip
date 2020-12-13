@@ -339,9 +339,10 @@ local MWDEFAULTS = {
 --   token and sends an email message to the specified new email
 --   address. Requires req.locals.account to be set.
 --
---   TODO: should also verify password
 --   > new_email: string = the new email to which the reset token
---   should be sent.
+--     should be sent.
+--   > password: string = the raw password of the acount, must be validated
+--     to proceed with changing the email.
 --
 -- * tulip.pkg.account:changeemail
 --

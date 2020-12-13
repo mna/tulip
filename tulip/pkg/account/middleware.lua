@@ -505,14 +505,15 @@ function M.init_changeemail(req, res, nxt, errh, cfg)
     return errh(req, res, nxt, err)
   end
 
-  -- get the new email
+  -- get the new email and existing password
   local body; body, err = req:decode_body()
   if not body then
     return errh(req, res, nxt, err)
   end
-
-  -- best-effort to catch this early
   local new_email = body.new_email
+  local pwd = body.password or ''
+
+  -- best-effort to catch conflicts early
   local exist; exist, err = app:account(new_email)
   if exist then
     local _; _, err = xerror.inval(nil, 'an account for that email already exists')
@@ -523,6 +524,9 @@ function M.init_changeemail(req, res, nxt, errh, cfg)
 
   local ok; ok, err = app:db(function(conn)
     return xerror.must(conn:tx(function()
+      -- validate account's password
+      xerror.must(app:account(acct.id, pwd, conn))
+
       -- generate a new base64-encoded token
       local tok = xerror.must(app:token({
         type = che.token_type,

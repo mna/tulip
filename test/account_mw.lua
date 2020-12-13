@@ -406,7 +406,7 @@ function M.test_over_http()
 
       -- init_changeemail: no account
       hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
-        neturl.buildQuery({new_email = 'nope@example.com'}), TO, {
+        neturl.buildQuery({new_email = 'nope@example.com', password = 'abcd'}), TO, {
           ['content-type'] = 'application/x-www-form-urlencoded',
         })
       lu.assertNotNil(hdrs and res)
@@ -422,16 +422,25 @@ function M.test_over_http()
 
       -- init_changeemail: conflicting email
       hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
-        neturl.buildQuery({new_email = user2..'@example.com'}), TO, {
+        neturl.buildQuery({new_email = user2..'@example.com', password = newpwd1}), TO, {
           ['content-type'] = 'application/x-www-form-urlencoded',
         })
       lu.assertNotNil(hdrs and res)
       lu.assertEquals(hdrs:get(':status'), '400')
 
       local user3 = tostring(cqueues.monotime())
+
+      -- init_changeemail: invalid password
+      hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
+        neturl.buildQuery({new_email = user3..'@example.com', password = pwd1}), TO, {
+          ['content-type'] = 'application/x-www-form-urlencoded',
+        })
+      lu.assertNotNil(hdrs and res)
+      lu.assertEquals(hdrs:get(':status'), '400')
+
       -- init_changeemail: valid
       hdrs, res = xtest.http_request(req, 'POST', '/changeemail/start',
-        neturl.buildQuery({new_email = user3..'@example.com'}), TO, {
+        neturl.buildQuery({new_email = user3..'@example.com', password = newpwd1}), TO, {
           ['content-type'] = 'application/x-www-form-urlencoded',
         })
       lu.assertNotNil(hdrs and res)
