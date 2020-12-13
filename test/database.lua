@@ -1,5 +1,7 @@
 local cqueues = require 'cqueues'
 local lu = require 'luaunit'
+local stdlib = require 'posix.stdlib'
+local xerror = require 'tulip.xerror'
 local xpgsql = require 'xpgsql'
 local xtest = require 'test.xtest'
 local App = require 'tulip.App'
@@ -75,6 +77,34 @@ function M.test_database_nopool()
   lu.assertEquals(count_conns(), 0)
 end
 
+function M.test_database_fail_connect()
+  local app = App{
+    database = {connection_string = 'application_name=test'}
+  }
+
+  app.main = function()
+    local olddb = os.getenv('PGDATABASE')
+    stdlib.setenv('PGDATABASE', 'no_such_database')
+
+    local ok, err = pcall(function()
+      local cx, err = app:db()
+      lu.assertNil(err)
+      local res; res, err = cx:query('SELECT 1')
+      lu.assertNil(res)
+      lu.assertStrContains(tostring(err), 'database "no_such_database" does not exist')
+      lu.assertTrue(xerror.is(err, 'EIO'))
+
+      cx, err = app:db(function() end)
+      lu.assertNil(cx)
+      lu.assertStrContains(tostring(err), 'database "no_such_database" does not exist')
+      lu.assertTrue(xerror.is(err, 'EIO'))
+    end)
+    stdlib.setenv('PGDATABASE', olddb)
+    assert(ok, err)
+  end
+  app:run()
+end
+
 function M.test_database_pool()
   local app = App{
     database = {
@@ -98,9 +128,19 @@ function M.test_database_pool()
     lu.assertEquals(count_conns(), 2)
     local c3 = app:db()
     lu.assertEquals(count_conns(), 3)
-    lu.assertErrorMsgContains('too many', function()
-      app:db()
-    end)
+    local cx, err = app:db(function() end)
+    lu.assertNil(cx)
+    lu.assertStrContains(tostring(err), 'too many')
+    lu.assertTrue(xerror.is(err, 'EDB'))
+    lu.assertEquals(count_conns(), 3)
+
+    -- call db without function, should fail too, on first use
+    cx, err = app:db()
+    lu.assertNil(err)
+    local res; res, err = cx:query('SELECT 1')
+    lu.assertNil(res)
+    lu.assertStrContains(tostring(err), 'too many')
+    lu.assertTrue(xerror.is(err, 'EDB'))
     lu.assertEquals(count_conns(), 3)
 
     -- closing c1, c2 and c3

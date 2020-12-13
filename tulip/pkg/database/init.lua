@@ -44,6 +44,22 @@ local function make_pooled_close(conn, pool, max_idle)
   end
 end
 
+local ErrConn = {
+  __name = 'xpgsql.Connection',
+  __index = function(self)
+    return function()
+      return nil, self._err
+    end
+  end,
+}
+
+local function new_errconn(err)
+  -- returns a fake connection that will return the error err on first
+  -- use, on any called method.
+  local o = {_err = err}
+  return setmetatable(o, ErrConn)
+end
+
 local function make_db(cfg, app)
   local connstr = cfg.connection_string
   local idle_to = (cfg.pool and cfg.pool.idle_timeout) or 0
@@ -63,16 +79,30 @@ local function make_db(cfg, app)
   return function(_, fn, ...)
     local conn = try_from_pool(pool, idle_to, life_to)
 
-    -- TODO: db method should return errors, not raise (or return a conn that will fail on first use).
     if (not conn) and max_open > 0 and pool.open >= max_open then
       -- try again in a second, before giving up
       cqueues.sleep(1)
       conn = try_from_pool(pool)
-      xerror.must(conn, 'too many open connections')
+      if not conn then
+        -- if a function was provided, we can just return the error, the caller
+        -- expects to handle errors.
+        local _, err = xerror.db(nil, 'too many open connections')
+        if fn then return nil, err end
+        -- otherwise, return a fake conn that will fail on first use
+        return new_errconn(err)
+      end
     end
 
     if not conn then
-      conn = xerror.must(xpgsql.connect(connstr))
+      local err; conn, err = xerror.io(xpgsql.connect(connstr))
+      if not conn then
+        -- if a function was provided, we can just return the error, the caller
+        -- expects to handle errors.
+        if fn then return nil, err end
+        -- otherwise, return a fake conn that will fail on first use
+        return new_errconn(err)
+      end
+
       if pool then
         conn.close = make_pooled_close(conn, pool, max_idle)
         conn._birth = os.time()
