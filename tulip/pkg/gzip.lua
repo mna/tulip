@@ -1,5 +1,6 @@
+local fn = require 'fn'
 local tcheck = require 'tcheck'
-local zlib = require 'http.zlib'
+local zlib = require 'zlib'
 
 local function make_write_headers(res)
   local oldfn = res._write_headers
@@ -11,11 +12,18 @@ local function make_write_headers(res)
   end
 end
 
-local function make_write_body(res)
+-- see https://stackoverflow.com/a/45221434/1094941
+local GZIP_WINDOW_SIZE = 15 + 16
+
+local function make_write_body(res, cfg)
   local oldfn = res._write_body
 
   return function(self, f, deadline)
-    local compress = zlib.deflate()
+    local gzip = zlib.deflate(cfg.level or 6, GZIP_WINDOW_SIZE)
+    local compress = function(chunk, eos)
+      return gzip(chunk, eos and 'finish' or 'sync')
+    end
+
     -- wrap f so that it returns compressed chunks
     local newf = function()
       local s, eos = f()
@@ -29,7 +37,7 @@ local function make_write_body(res)
   end
 end
 
-local function gzip_middleware(req, res, nxt)
+local function gzip_middleware(req, res, nxt, cfg)
   -- indicate that this response's content varies by Accept-Encoding
   res.headers:append('vary', 'Accept-Encoding')
 
@@ -41,7 +49,7 @@ local function gzip_middleware(req, res, nxt)
 
   -- it accepts gzip, install the modified res methods
   res._write_headers = make_write_headers(res)
-  res._write_body = make_write_body(res)
+  res._write_body = make_write_body(res, cfg)
   nxt()
 end
 
@@ -56,7 +64,9 @@ local M = {
 --
 -- Requires: middleware package.
 --
--- Config: none
+-- Config:
+--
+-- * level: number = compression level, 1(worst) to 9(best).
 --
 -- Middleware:
 --
@@ -68,7 +78,7 @@ local M = {
 --   to gzip and Transfer-Encoding to chunked.
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
-  app:register_middleware('tulip.pkg.gzip', gzip_middleware)
+  app:register_middleware('tulip.pkg.gzip', fn.partialtrail(gzip_middleware, 3, cfg))
 end
 
 return M

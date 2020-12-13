@@ -217,12 +217,14 @@ function M.config()
       {method = 'GET', pattern = '^/messages/([^/]+)', handler = list_messages},
     },
 
+    gzip = {},
     middleware = {
       'log',
       'metrics',
       handler.recover(function(_, res, err) res:write{status = 500, body = tostring(err)} end),
       'reqid',
       'csrf',
+      'gzip',
       'routes',
     },
 
