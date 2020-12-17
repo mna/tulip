@@ -77,7 +77,7 @@ end
 local M = {}
 
 if string.match(arg[0], '/serve%.lua') then
-  os.execute('./scripts/run_server.lua scripts.serve config')
+  os.execute('./scripts/run_server.lua scripts.examples.serve config')
   return
 end
 
@@ -156,38 +156,6 @@ function M.config()
         queue_max_age = 30,
         max_attempts = 3,
         payload = {template = 'z'}, -- gets merged with the email and encoded_token payload
-      },
-
-      error_handlers = {
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        signup = nil,
-        -- by default, 401 Unauthorized if EINVAL, or throws the error
-        login = nil,
-        -- by default, throws the error (EINVAL means not authenticated
-        -- and does not call the error handler)
-        check_session = nil,
-        -- by default, throws the error (EINVAL means token was expired,
-        -- does not call the error handler)
-        logout = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        delete = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        init_vemail = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        vemail = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        setpwd = nil,
-        -- by default, 200 OK if EINVAL (to prevent leaking existing email
-        -- addresses) or throws the error
-        init_resetpwd = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        resetpwd = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        init_changeemail = nil,
-        -- by default, 400 Bad Request if EINVAL or throws the error
-        changeemail = nil,
-        -- by default, 403 Forbidden (cannot receive other types of errors)
-        authz = nil,
       },
     },
 

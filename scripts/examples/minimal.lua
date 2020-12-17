@@ -4,7 +4,7 @@ local handler = require 'tulip.handler'
 local M = {}
 
 if string.match(arg[0], '/minimal%.lua') then
-  os.execute('./scripts/run_server.lua scripts.minimal config')
+  os.execute('./scripts/run_server.lua scripts.examples.minimal config')
   return
 end
 
