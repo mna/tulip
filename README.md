@@ -8,9 +8,10 @@ Lua web framework based on [lua-http][http] and [PostgreSQL][pg].
 
 ## Description
 
-Tulip is a minimal and simple web framework that provides a lot with very little.
-Using only Lua (currently 5.4) and the PostgreSQL database (currently 13), the
-framework packs the following features:
+Tulip is a minimal and simple web framework (a framework for *web systems*,
+really) that provides a lot with very little.  Using only Lua (currently 5.4)
+and the PostgreSQL database (currently 13), the framework packs the following
+features:
 
 * HTTP and HTTPS ✔
 * HTTP/1.1 and HTTP/2 ✔
@@ -30,6 +31,9 @@ framework packs the following features:
 * Transactional database migrations runner ✔
 * Efficient database access with connection pooling ✔
 * Pluggable, extendable architecture ✔
+
+The [Small is Beautiful (The Developer's Edition)][blog] blog post provides
+some background and context about the vision and goals of this project.
 
 ## Development
 
@@ -96,3 +100,4 @@ The [BSD 3-clause][bsd] license.
 [bsd]: http://opensource.org/licenses/BSD-3-Clause
 [http]: https://github.com/daurnimator/lua-http
 [pg]: https://www.postgresql.org/
+[blog]: https://mna.dev/posts/small-is-beautiful.html
