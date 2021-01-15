@@ -40,6 +40,7 @@ dependencies = {
 build = {
    type = "builtin",
    modules = {
+      ["tulip"] = "tulip/init.lua",
       ["tulip.App"] = "tulip/App.lua",
       ["tulip.Semaphore"] = "tulip/Semaphore.lua",
       ["tulip.crypto"] = "tulip/crypto.lua",
