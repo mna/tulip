@@ -47,7 +47,6 @@ build = {
       ["tulip.handler"] = "tulip/handler/init.lua",
       ["tulip.handler.extmime"] = "tulip/handler/extmime.lua",
       ["tulip.handler.httpstatus"] = "tulip/handler/httpstatus.lua",
-      ["tulip.main"] = "tulip/main.lua",
       ["tulip.pkg.account"] = "tulip/pkg/account/init.lua",
       ["tulip.pkg.account.Account"] = "tulip/pkg/account/Account.lua",
       ["tulip.pkg.account.middleware"] = "tulip/pkg/account/middleware.lua",
