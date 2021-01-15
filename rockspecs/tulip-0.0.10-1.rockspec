@@ -1,4 +1,5 @@
 package = "tulip"
+rockspec_format = "3.0"
 version = "0.0.10-1"
 source = {
    url = "git+ssh://git@git.sr.ht/~mna/tulip"
