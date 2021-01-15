@@ -6,7 +6,7 @@ dependencies = {
   "lua >= 5.3, < 5.5",
 
   "mna/lua-cjson 62fe2246ccb15139476e5a03648633ed69404250-2",
-  "mna/luaossl	20200709-0",
+  "mna/luaossl	20200709-1",
   "mna/luapgsql	1.6.1-1",
   "mna/luaunit	3.3-1",
 

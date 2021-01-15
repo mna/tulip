@@ -12,7 +12,7 @@ dependencies = {
    "lua >= 5.3, < 5.5",
 
    "mna/lua-cjson 62fe2246ccb15139476e5a03648633ed69404250-2",
-   "mna/luaossl 20200709-0",
+   "mna/luaossl 20200709-1",
    "mna/luapgsql 1.6.1-1",
 
    "argon2 3.0.1-1",
@@ -47,6 +47,7 @@ build = {
       ["tulip.handler"] = "tulip/handler/init.lua",
       ["tulip.handler.extmime"] = "tulip/handler/extmime.lua",
       ["tulip.handler.httpstatus"] = "tulip/handler/httpstatus.lua",
+      ["tulip.main"] = "tulip/main.lua",
       ["tulip.pkg.account"] = "tulip/pkg/account/init.lua",
       ["tulip.pkg.account.Account"] = "tulip/pkg/account/Account.lua",
       ["tulip.pkg.account.middleware"] = "tulip/pkg/account/middleware.lua",
