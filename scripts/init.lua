@@ -119,18 +119,18 @@ else
     "inspect	3.1.1-0",
     "lpeg	1.0.2-1",
     "lpeg_patterns	0.5-0",
-    "lua-cjson 2.1.0.6-1",
+    "mna/lua-cjson 62fe2246ccb15139476e5a03648633ed69404250-2",
     "lua-resty-template 2.0-1",
     "lua-resty-tsort 1.0-1",
     "lua-zlib 1.2-1",
     "luabenchmark	0.10.0-1",
     "luacov	0.14.0-2",
     "luafn	0.2-1",
-    "luaossl	20200709-0",
-    "luapgsql	1.6.1-1",
+    "mna/luaossl	20200709-0",
+    "mna/luapgsql	1.6.1-1",
     "luaposix	35.0-1",
     "luashell	0.4-1",
-    "luaunit	3.3-1",
+    "mna/luaunit	3.3-1",
     "net-url	0.9-1",
     "optparse	1.4-1",
     "process 1.9.0-1",
@@ -143,9 +143,7 @@ else
   version = 'git-1'
   ]], 'tulip', luaver)):redirect(rocksfile, true)
 
-  -- install luaossl first as it requires special parameters
-  sh('llrocks', 'install', 'luaossl', 'CFLAGS=-DHAVE_EVP_KDF_CTX=1 -fPIC')
-  -- install all other dependencies
+  -- install all dependencies
   sh('llrocks', 'install', '--only-deps', rocksfile)
 end
 
