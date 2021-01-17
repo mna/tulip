@@ -4,6 +4,12 @@ set -euo pipefail
 
 if [[ $# -eq 0 ]]; then
   echo "missing the new version argument"
+  echo "usage: ./scripts/release.bash NEW.NEW.NEW [OLD.OLD.OLD]"
+  exit 1
+fi
+
+if [[ ! -s ./tulip/init.lua ]]; then
+  echo "make sure you are running from the root of the repository"
   exit 1
 fi
 
@@ -42,7 +48,10 @@ fi
 # move it to its proper destination
 mv ./"tulip-${NEW_VERSION}-1.rockspec" ./rockspecs/
 
-git add ./rockspecs/"tulip-${NEW_VERSION}-1.rockspec"
+# update the version in the Lua code
+sed -iE "s/^(\s+)(VERSION = '[^']+')/\1VERSION = '${NEW_VERSION}'/" ./tulip/init.lua
+
+git add -A
 git commit -m "Create version ${NEW_VERSION}"
 git tag "v${NEW_VERSION}"
 
