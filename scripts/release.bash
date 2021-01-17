@@ -9,7 +9,7 @@ fi
 
 NEW_VERSION="$1"
 
-if echo "${NEW_VERSION}" | grep -qP "^\d\.\d\.\d$"; then
+if ! echo "${NEW_VERSION}" | grep -qP "^\d\.\d\.\d$"; then
   echo "invalid new version, N.N.N format is expected"
   exit 1
 fi
