@@ -9,7 +9,7 @@ fi
 
 NEW_VERSION="$1"
 
-if [[ ! "$(echo "${NEW_VERSION}" | grep -P "^\d\.\d\.\d$")" ]]; then
+if echo "${NEW_VERSION}" | grep -qP "^\d\.\d\.\d$"; then
   echo "invalid new version, N.N.N format is expected"
   exit 1
 fi
@@ -26,5 +26,25 @@ if [[ $# -gt 1 ]]; then
 else
   PREV_VERSION="$(git describe --tags --abbrev=0 | grep -P --only-matching "(\d\.\d\.\d)$")"-1
 fi
-echo $PREV_VERSION
-#luarocks new_version ./rockspecs/tulip-0.0.10-2.rockspec
+
+# create the new rockspec
+luarocks new_version ./rockspecs/"tulip-${PREV_VERSION}.rockspec" "${NEW_VERSION}"
+
+"${EDITOR:-vim}" ./"tulip-${NEW_VERSION}-1.rockspec"
+
+# if file is empty, stop the release and remove it
+if [[ ! -s ./"tulip-${NEW_VERSION}-1.rockspec" ]]; then
+  rm ./"tulip-${NEW_VERSION}-1.rockspec"
+  echo "operation canceled by user"
+  exit 2
+fi
+
+# move it to its proper destination
+mv ./"tulip-${NEW_VERSION}-1.rockspec" ./rockspecs/
+
+git add ./rockspecs/"tulip-${NEW_VERSION}-1.rockspec"
+git commit -m "Create version ${NEW_VERSION}"
+git tag "v${NEW_VERSION}"
+
+# publish the new rock
+luarocks upload ./rockspecs/"tulip-${NEW_VERSION}-1.rockspec"
