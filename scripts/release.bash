@@ -49,7 +49,7 @@ fi
 mv ./"tulip-${NEW_VERSION}-1.rockspec" ./rockspecs/
 
 # update the version in the Lua code
-sed -iE "s/^(\s+)(VERSION = '[^']+')/\\1VERSION = '${NEW_VERSION}'/" ./tulip/init.lua
+sed -i'' -Ee "s/^(\s+)(VERSION = '[^']+')/\1VERSION = '${NEW_VERSION}'/" ./tulip/init.lua
 
 git add -A
 git commit -m "Create version ${NEW_VERSION}"
