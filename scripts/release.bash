@@ -26,6 +26,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
+GIT_BRANCH="$(git branch --show-current)"
+if [[ "${GIT_BRANCH}" != "main" ]]; then
+  echo "not on the main branch"
+  exit 1
+fi
+
 # get the latest tag
 if [[ $# -gt 1 ]]; then
   PREV_VERSION="$2"
@@ -54,6 +60,7 @@ sed -i'' -Ee "s/^(\s+)(VERSION = '[^']+')/\1VERSION = '${NEW_VERSION}'/" ./tulip
 git add -A
 git commit -m "Create version ${NEW_VERSION}"
 git tag "v${NEW_VERSION}"
+git push origin "${GIT_BRANCH}" --tags
 
 # publish the new rock
 luarocks upload ./rockspecs/"tulip-${NEW_VERSION}-1.rockspec"
