@@ -197,6 +197,68 @@ function M.test_database_pool()
   lu.assertEquals(count_conns(), 0)
 end
 
+function M.test_database_pool_release()
+  local app = App{
+    database = {
+      connection_string = 'application_name=test',
+      pool = {
+        release_connection = function(c)
+          assert(c:query('SELECT pg_advisory_unlock_all()'))
+        end,
+      },
+    }
+  }
+
+  app.main = function()
+    local c1 = app:db()
+    local c2 = app:db()
+    lu.assertEquals(count_conns(), 2)
+
+    -- acquire the lock using c1
+    assert(c1:query('SELECT pg_advisory_lock(1)'))
+    -- try to acquire it using c2, timeout after a bit
+    assert(c2:exec("SET lock_timeout = 100"))
+    local ok, err = c2:query('SELECT pg_advisory_lock(1)')
+    lu.assertStrContains(err, 'lock timeout')
+    lu.assertNil(ok)
+
+    -- closing c1 releases it to the pool and releases the lock
+    c1:close()
+
+    -- c2 can now acquire the lock
+    assert(c2:query('SELECT pg_advisory_lock(1)'))
+    c2:close()
+  end
+
+  app:run()
+  lu.assertEquals(count_conns(), 0)
+end
+
+function M.test_database_pool_release_throws()
+  local throw_now = false
+  local app = App{
+    database = {
+      connection_string = 'application_name=test',
+      pool = {
+        release_connection = function()
+          if throw_now then
+            error('release failed')
+          end
+        end,
+      },
+    }
+  }
+
+  app.main = function()
+    local c1 = app:db()
+    throw_now = true
+    lu.assertErrorMsgContains('release failed', function() c1:close() end)
+  end
+
+  app:run()
+  lu.assertEquals(count_conns(), 0)
+end
+
 function M.test_migrations_order()
   local app = App{
     log = {level = 'd', file = '/dev/null'},

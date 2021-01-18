@@ -26,7 +26,7 @@ local function try_from_pool(pool, idle_to, life_to)
   end
 end
 
-local function make_pooled_close(conn, pool, max_idle)
+local function make_pooled_close(conn, app, pool, max_idle, releasefn)
   local closefn = conn.close
   conn._close = function(self)
     if not self._conn then return end
@@ -39,6 +39,15 @@ local function make_pooled_close(conn, pool, max_idle)
     if #pool >= max_idle then
       return self:_close()
     end
+
+    if releasefn then
+      local ok, err = pcall(releasefn, self, app)
+      if not ok then
+        self:_close()
+      end
+      assert(ok, err)
+    end
+
     self._idle = os.time()
     table.insert(pool, self)
   end
@@ -66,6 +75,7 @@ local function make_db(cfg, app)
   local life_to = (cfg.pool and cfg.pool.life_timeout) or 0
   local max_idle = (cfg.pool and cfg.pool.max_idle) or 2
   local max_open = (cfg.pool and cfg.pool.max_open) or 0
+  local releasefn = cfg.pool and cfg.pool.release_connection
   local pool = cfg.pool and {open = 0}
 
   if pool then
@@ -76,7 +86,7 @@ local function make_db(cfg, app)
     end)
   end
 
-  return function(_, fn, ...)
+  return function(self, fn, ...)
     local conn = try_from_pool(pool, idle_to, life_to)
 
     if (not conn) and max_open > 0 and pool.open >= max_open then
@@ -104,7 +114,7 @@ local function make_db(cfg, app)
       end
 
       if pool then
-        conn.close = make_pooled_close(conn, pool, max_idle)
+        conn.close = make_pooled_close(conn, self, pool, max_idle, releasefn)
         conn._birth = os.time()
         pool.open = pool.open + 1
       end
@@ -151,7 +161,12 @@ local M = {
 --    and calling conn:close returns it to the pool if possible.
 --    The fields are max_idle, max_open, idle_timeout and
 --    life_timeout. Defaults are respectively 2, 0 (unlimited),
---    0 (no timeout) and 0 (no timeout).
+--    0 (no timeout) and 0 (no timeout). A release_connection field
+--    can also be set to a function, and it will be called prior to
+--    return a connection to the pool. It can be used to e.g. reset
+--    session settings, rollback any pending transaction, or release
+--    any locks. It receives the connection instance and the app
+--    instance as arguments.
 --
 -- Methods:
 --
