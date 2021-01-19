@@ -3,6 +3,8 @@ local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
 
+cjson.encode_escape_forward_slash(false)
+
 local function stdout_logger(t)
   io.write(cjson.encode(t) .. '\n')
 end

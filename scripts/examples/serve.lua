@@ -10,8 +10,25 @@ local function send_pubsub(req, res, nxt)
   if ok then
     res:write{status = 204}
   else
-    res:write{status = 500, body = err}
+    res:write{status = 500, body = tostring(err)}
   end
+  nxt()
+end
+
+local function enqueue_message(req, res, nxt)
+  local app = req.app
+  local ok, err = app:mqueue({queue = req.pathargs[1]}, nil, {msg = req.pathargs[2]})
+  if not ok then
+    res:write{
+      status = 500,
+      body = tostring(err),
+    }
+    return
+  end
+  res:write{
+    status = 201,
+    body = 'message enqueued',
+  }
   nxt()
 end
 
@@ -182,6 +199,7 @@ function M.config()
       }},
       {method = 'GET', pattern = '^/pubsub', handler = send_pubsub},
       {method = 'GET', pattern = '^/jobs', handler = list_jobs},
+      {method = 'GET', pattern = '^/messages/([^/]+)/([^/]+)', handler = enqueue_message},
       {method = 'GET', pattern = '^/messages/([^/]+)', handler = list_messages},
     },
 
@@ -233,7 +251,10 @@ function M.config()
 
     token = {},
 
-    mqueue = {},
+    mqueue = {
+      default_max_age = 10,
+      default_max_attempts = 2,
+    },
 
     pubsub = {
       listeners = {

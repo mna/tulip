@@ -4,8 +4,8 @@ local xerror = require 'tulip.xerror'
 local xtable = require 'tulip.xtable'
 
 local function make_mqueue(cfg)
-  local def_max_age = cfg.default_max_age
-  local def_max_att = cfg.default_max_attempts
+  local def_max_age = cfg.default_max_age or 30
+  local def_max_att = cfg.default_max_attempts or 1
   local lookup_queues
   if cfg.allowed_queues then
     lookup_queues = xtable.toset(cfg.allowed_queues)
@@ -58,9 +58,9 @@ local M = {
 --   * allowed_queues: array of string = if set, only those queues
 --     will be allowed.
 --   * default_max_age: integer|nil = if set, use as default max age
---     for the messages.
+--     for the messages (default = 30).
 --   * default_max_attempts: integer|nil = if set, use as default
---     maximum number of attempts to process a message.
+--     maximum number of attempts to process a message (default = 1).
 --
 -- Methods:
 --

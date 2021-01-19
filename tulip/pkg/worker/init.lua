@@ -3,57 +3,59 @@ local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
 local Semaphore = require 'tulip.Semaphore'
 
-local MAX_ERRORS = 5
+local function default_error(t, err, app)
+  app:log('e', {pkg = 'worker', queue = t.queue, error = tostring(err)})
+end
 
 local function make_main(cfg)
   local min_sleep, max_sleep = (cfg.idle_sleep or 1), (cfg.max_idle_sleep or 60)
   local sema = Semaphore.new(cfg.max_concurrency or 1)
   local batch = cfg.dequeue_batch or 1
   local queues = cfg.queues or {}
-  local errh = cfg.error_handler
+  local errh = cfg.error_handler or default_error
   xerror.must(#queues > 0, 'no queue specified')
 
   return function(app, cq)
-    local sleep
-    local t = {max_receive = batch, errcount = 0}
+    cq:wrap(function()
+      local sleep
+      local t = {max_receive = batch}
 
-    while true do
-      for _, q in ipairs(queues) do
-        t.queue = q
-        local msgs, err = app:mqueue(t)
-        if not msgs then
-          t.errcount = t.errcount + 1
-          if errh then
-            if not errh(t, err) then return nil, err end
-          else
-            app:log('e', {pkg = 'worker', queue = q, error = err})
-            if t.errcount >= MAX_ERRORS then
-              xerror.throw(err)
+      while true do
+        local iter_count = 0
+
+        for _, q in ipairs(queues) do
+          t.queue = q
+          local msgs, err = app:mqueue(t)
+          if not msgs then
+            errh(t, err, app)
+          end
+          app:log('i', {pkg = 'worker', queue = q, count = msgs and #msgs})
+
+          if msgs and #msgs > 0 then
+            iter_count = iter_count + #msgs
+            for _, msg in ipairs(msgs) do
+              sema:acquire()
+              cq:wrap(function()
+                msg.app = app
+                app(msg)
+                sema:release()
+              end)
             end
           end
-        else
-          t.errcount = 0
         end
 
-        if (not msgs) or (#msgs == 0) then
+        -- if no queue yielded any message, sleep
+        if iter_count == 0 then
           sleep = sleep or min_sleep
           cqueues.sleep(sleep)
           sleep = sleep * 2
           if sleep > max_sleep then sleep = max_sleep end
         else
           sleep = nil
-          for _, msg in ipairs(msgs) do
-            -- TODO: configure a semaphore timeout
-            sema:acquire()
-            cq:wrap(function()
-              msg.app = app
-              app(msg)
-              sema:release()
-            end)
-          end
         end
       end
-    end
+    end)
+    return xerror.io(cq:loop())
   end
 end
 
@@ -90,12 +92,10 @@ local M = {
 --   * error_handler: function = if set, called when an error occurs in
 --     the worker look (e.g. when trying to dequeue a batch of messages).
 --     The first argument is the t table used to call the dequeue App:mqueue
---     function, with an added field errcount that counts the number
---     of successive errors, and the second argument is the error itself.
---     If the handler returns true-ish, processing continues, otherwise
---     the main function returns. By default an error is raised after
---     5 consecutive errors, sleeping as when no message is received
---     in-between.
+--     function, the second argument is the error itself and the third is
+--     the app instance.
+--     By default, errors are logged and the main loop sleeps
+--     as if there were no results to process.
 --     Errors that happen while processing a message are not handled
 --     with this, use a handler.wrecover middleware for that.
 --
