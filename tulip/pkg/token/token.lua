@@ -9,10 +9,10 @@ local MIGRATIONS = {
     xerror.must(xerror.db(conn:exec[[
       CREATE TABLE "tulip_pkg_token_tokens" (
         "token"   CHAR(44) NOT NULL,
-        "type"    VARCHAR(20) NOT NULL,
+        "type"    VARCHAR(100) NOT NULL,
         "once"    BOOLEAN NOT NULL,
         "ref_id"  INTEGER NOT NULL,
-        "expiry"  INTEGER NOT NULL CHECK ("expiry" > 0),
+        "expiry"  BIGINT NOT NULL CHECK ("expiry" > 0),
         "created" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
         PRIMARY KEY ("token")
