@@ -47,12 +47,13 @@ local function log_wmiddleware(msg, nxt)
   nxt()
   local dur = cqueues.monotime() - start
 
-  -- TODO: processing result?
-  msg.app:log('i', {
+  -- if a msg.error field is set on the message, it is logged as an
+  -- error.
+  msg.app:log(msg.error and 'e' or 'i', {
     pkg = 'log', date = date,
     queue = msg.queue, attempt = msg.attempts,
     msgid = msg.id, duration = string.format('%.3f', dur),
-    type = 'worker message',
+    type = 'worker message', error = msg.error,
   })
 end
 
