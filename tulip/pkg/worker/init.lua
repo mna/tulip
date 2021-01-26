@@ -29,7 +29,11 @@ local function make_main(cfg)
           if not msgs then
             errh(t, err, app)
           end
-          app:log('i', {pkg = 'worker', queue = q, count = msgs and #msgs})
+
+          -- log only if it got some messages
+          if msgs and #msgs > 0 then
+            app:log('i', {pkg = 'worker', queue = q, count = #msgs})
+          end
 
           if msgs and #msgs > 0 then
             iter_count = iter_count + #msgs

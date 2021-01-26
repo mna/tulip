@@ -53,6 +53,7 @@ local function log_wmiddleware(msg, nxt)
     pkg = 'log', date = date,
     queue = msg.queue, attempt = msg.attempts,
     msgid = msg.id, duration = string.format('%.3f', dur),
+    payload = msg.raw_payload,
     type = 'worker message', error = msg.error,
   })
 end

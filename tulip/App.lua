@@ -79,6 +79,12 @@ local LOGLEVELS = {
   e = 1000, error = 1000,
   i = 10,   info = 10,
   w = 100,  warning = 100,
+
+  -- support reverse-lookup too
+  [1] = 'd',
+  [10] = 'i',
+  [100] = 'w',
+  [1000] = 'e',
 }
 
 local App = {__name = 'tulip.App'}
@@ -195,7 +201,9 @@ function App:log(lvl, t)
 
   -- log to all registered backends
   if self.loggers then
-    t.level = lvl
+    -- if it maps to a well-known level char, use it, otherwise keep the
+    -- numeric level.
+    t.level = LOGLEVELS[lvl] or lvl
     for _, l in pairs(self.loggers) do
       l(t)
     end
