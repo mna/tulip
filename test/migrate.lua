@@ -81,6 +81,11 @@ function M:test_migrate()
   lu.assertNil(err)
   lu.assertTrue(ok)
 
+  -- checking succeeds (up-to-date)
+  ok, err = mig:check(nil, 1)
+  lu.assertNil(err)
+  lu.assertTrue(ok)
+
   rows = xpgsql.models(self.conn:query(listMigrations), tomodel)
   lu.assertEquals(#rows, 2)
   lu.assertEquals(rows[1].version, 1)
@@ -92,6 +97,12 @@ function M:test_migrate()
   ok, err = mig:run()
   lu.assertNotNil(err)
   lu.assertNil(ok)
+
+  -- checking indicates that it is not up-to-date
+  ok, err = mig:check(nil, 1)
+  lu.assertNotNil(err)
+  lu.assertNil(ok)
+  lu.assertStrContains(err, 'timeout')
 
   rows = xpgsql.models(self.conn:query(listMigrations), tomodel)
   lu.assertEquals(#rows, 2)
@@ -105,6 +116,10 @@ function M:test_migrate()
   end
 
   ok, err = mig:run()
+  lu.assertNil(err)
+  lu.assertTrue(ok)
+
+  ok, err = mig:check(nil, 1)
   lu.assertNil(err)
   lu.assertTrue(ok)
 

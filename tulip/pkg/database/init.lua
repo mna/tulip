@@ -150,12 +150,23 @@ local M = {
 -- Config:
 --
 --  * connection_string: string = the connection string
+--
 --  * migrations: array of tables = the migrations to run, each
 --    table being an array of migration steps (string or function,
 --    as described in the Migrator) with a 'package' field that
 --    identifies for which package the migrations apply, and an
 --    optional 'after' field that identifies package names (array
 --    of strings) that must have their migrations run before this package.
+--
+--    The field migrations.check_only can be set to true to prevent
+--    this App instance from running the migrations. It will only check
+--    that all migrations have been run (by looking at the latest version
+--    applied for each registered package) and fail if it is not in sync
+--    with its configuration.
+--
+--    The field migrations.check_timeout can be set to limit the time
+--    to wait for migrations in seconds, it defaults to 10.
+--
 --  * pool: table = if set, configures a connection pool so that
 --    calling App:db returns a pooled connection if available,
 --    and calling conn:close returns it to the pool if possible.
@@ -207,11 +218,10 @@ end
 
 function M.activate(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
+  local migscfg = cfg.migrations or {}
 
-  if cfg.migrations then
-    for _, v in ipairs(cfg.migrations) do
-      app:register_migrations(v.package, v)
-    end
+  for _, v in ipairs(migscfg) do
+    app:register_migrations(v.package, v)
   end
 
   local order
@@ -236,13 +246,21 @@ function M.activate(cfg, app)
     end
   end
 
-  app:log('i', {pkg = 'database', msg = 'migrations started'})
-  xerror.must(app:db(function(conn)
-    return xerror.must(migrator:run(conn, function(pkg, i)
-      app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
-    end, order))
-  end))
-  app:log('i', {pkg = 'database', msg = 'migrations done'})
+  if migscfg.check_only then
+    app:log('i', {pkg = 'database', msg = 'checking migrations'})
+    xerror.must(app:db(function(conn)
+      return xerror.must(migrator:check(conn, migscfg.check_timeout or 10))
+    end))
+    app:log('i', {pkg = 'database', msg = 'checking migrations done'})
+  else
+    app:log('i', {pkg = 'database', msg = 'migrations started'})
+    xerror.must(app:db(function(conn)
+      return xerror.must(migrator:run(conn, function(pkg, i)
+        app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
+      end, order))
+    end))
+    app:log('i', {pkg = 'database', msg = 'migrations done'})
+  end
 end
 
 return M

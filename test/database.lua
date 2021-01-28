@@ -298,6 +298,32 @@ function M.test_migrations_order()
   })
 end
 
+function M.test_migrations_check_fail()
+  local app = App{
+    log = {level = 'd', file = '/dev/null'},
+    database = {
+      connection_string = 'application_name=test',
+      migrations = {
+        check_only = true,
+        check_timeout = 1;
+        {package = 'a'; function() end},
+        {package = 'b', after = {'a'}; function() end},
+      },
+    }
+  }
+
+  -- drop the migration table to ensure no migrations exist
+  assert(app:db(function(conn)
+    assert(conn:exec[[
+      DROP TABLE IF EXISTS tulip_pkg_database_migrations
+    ]])
+    return true
+  end))
+
+  app.main = function() return true end
+  lu.assertErrorMsgContains('timeout', function() assert(app:run()) end)
+end
+
 function M.test_migrations_minimal()
   local app = App{
     log = {level = 'd', file = '/dev/null'},
@@ -327,12 +353,28 @@ function M.test_migrations_minimal()
     end
   end)
 
-  app.main = function() end
-  app:run()
+  app.main = function() return true end
+  assert(app:run())
 
   lu.assertEquals(order, {
     'tulip.pkg.database', 'a', 'b',
   })
+
+  -- configure the App to check migrations only
+  app = App{
+    log = {level = 'd', file = '/dev/null'},
+    database = {
+      connection_string = 'application_name=test',
+      migrations = {
+        check_only = true,
+        check_timeout = 1;
+        {package = 'a'; function() end},
+        {package = 'b', after = {'a'}; function() end},
+      },
+    }
+  }
+  app.main = function() return true end
+  assert(app:run())
 end
 
 function M.test_migrations_order_circular()

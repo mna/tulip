@@ -1,3 +1,4 @@
+local cqueues = require 'cqueues'
 local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
 local xpgsql = require 'xpgsql'
@@ -78,6 +79,49 @@ function Migrator:register(pkg, t)
   self.order = order
 
   return true
+end
+
+-- Check verifies that all registered migrations have been applied, it
+-- doesn't attempt to apply them. If they are still not applied after
+-- the timeout of to seconds, it fails, otherwise it returns true.
+function Migrator:check(conn, to)
+  local close = not conn
+  if not conn then
+    local err
+    conn, err = xerror.db(xpgsql.connect(self.connection_string))
+    if not conn then
+      return nil, err
+    end
+  end
+
+  return conn:with(close, function()
+    local deadline = cqueues.monotime() + to
+    local order = self.order
+    local packages = self.packages
+
+    while cqueues.monotime() < deadline do
+      local done = true
+      for _, pkg in ipairs(order) do
+        -- get the current version of this package
+        local latest = get_version(conn, pkg)
+        if not latest then
+          done = false
+          break
+        end
+        local migrations = packages[pkg]
+        if #migrations ~= latest then
+          done = false
+          break
+        end
+      end
+
+      if done then
+        return true
+      end
+      cqueues.sleep(1)
+    end
+    return nil, 'migrations check timeout'
+  end)
 end
 
 -- Run executes the registered migrations in the order the packages
