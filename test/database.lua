@@ -108,6 +108,7 @@ end
 function M.test_database_pool()
   local app = App{
     database = {
+      migrations_connection_string = 'application_name=test',
       connection_string = 'application_name=test',
       pool = {
         max_idle = 2,
@@ -119,8 +120,9 @@ function M.test_database_pool()
   }
 
   app.main = function()
-    -- initial conn is created to run the migrations
-    lu.assertEquals(count_conns(), 1)
+    -- no initial conn created for the migrations because a distinct connection
+    -- string is used.
+    lu.assertEquals(count_conns(), 0)
 
     local c1 = app:db()
     lu.assertEquals(count_conns(), 1)

@@ -151,6 +151,12 @@ local M = {
 --
 --  * connection_string: string = the connection string
 --
+--  * migrations_connection_string: string = if set, the connection
+--    string to use only for the migrations, in which case the
+--    connection is not returned to the pool even if one is configured.
+--    This is typically useful to run the migrations with a different role
+--    than the rest of the application.
+--
 --  * migrations: array of tables = the migrations to run, each
 --    table being an array of migration steps (string or function,
 --    as described in the Migrator) with a 'package' field that
@@ -172,7 +178,9 @@ local M = {
 --    and calling conn:close returns it to the pool if possible.
 --    The fields are max_idle, max_open, idle_timeout and
 --    life_timeout. Defaults are respectively 2, 0 (unlimited),
---    0 (no timeout) and 0 (no timeout). A release_connection field
+--    0 (no timeout) and 0 (no timeout).
+--
+--    A release_connection field
 --    can also be set to a function, and it will be called prior to
 --    return a connection to the pool. It can be used to e.g. reset
 --    session settings, rollback any pending transaction, or release
@@ -226,7 +234,7 @@ function M.activate(cfg, app)
 
   local order
   local migrations = app.migrations
-  local migrator = Migrator.new(cfg.connection_string)
+  local migrator = Migrator.new(cfg.migrations_connection_string or cfg.connection_string)
   if migrations then
     local graph = tsort.new()
     for nm, migs in pairs(migrations) do
@@ -254,11 +262,18 @@ function M.activate(cfg, app)
     app:log('i', {pkg = 'database', msg = 'checking migrations done'})
   else
     app:log('i', {pkg = 'database', msg = 'migrations started'})
-    xerror.must(app:db(function(conn)
-      return xerror.must(migrator:run(conn, function(pkg, i)
+
+    if cfg.migrations_connection_string then
+      xerror.must(migrator:run(nil, function(pkg, i)
         app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
       end, order))
-    end))
+    else
+      xerror.must(app:db(function(conn)
+        return xerror.must(migrator:run(conn, function(pkg, i)
+          app:log('i', {pkg = 'database', migration = string.format('%s:%d', pkg, i), msg = 'applying migration'})
+        end, order))
+      end))
+    end
     app:log('i', {pkg = 'database', msg = 'migrations done'})
   end
 end
