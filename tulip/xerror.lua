@@ -1,5 +1,3 @@
-local fn = require 'fn'
-
 -- Returns the __name of the metatable of o, or nil if none.
 local function metatable_name(o)
   if type(o) == 'table' then
@@ -11,6 +9,15 @@ end
 local Error = {__name = 'tulip.xerror.Error'}
 Error.__index = Error
 
+-- Renders a string from the Error, following this logic:
+-- * first, the code is added in brackets, e.g.: [EIO]
+-- * then all labels added via calls to xerror.ctx, in reverse order so
+--   the last label added is printed first, e.g.: last: second: first:
+-- * then the message itself, as provided when the Error was created
+-- * then all other fields added by a converter (e.g. xerror.db) or
+--   in calls to xerror.ctx, in field = value format, separated by semicolons
+-- * finally, the stack trace (traceback) collected when the error was
+--   created is added.
 function Error:__tostring()
   local parts = {}
   if self.code then
@@ -27,31 +34,38 @@ function Error:__tostring()
   end
 
   -- add any other fields as part of the attributes
-  local filter = fn.filter(function(k, v)
+  local keys = {}
+  for k, v in pairs(self) do
     local typ = type(v)
-    return (typ == 'string' or typ == 'number' or typ == 'boolean') and
-      type(k) == 'string' and
-      k ~= 'code' and k ~= 'message' and (not string.find(k, '^_'))
-  end)
-  local map = fn.map(function(k, v)
-    return string.format('%s = %s', k, tostring(v))
-  end)
-  local pipe = fn.pipe(filter, map)
-  local attrs = fn.reduce(function(cumul, s)
-    table.insert(cumul, s)
-    return cumul
-  end, {}, pipe(pairs(self)))
+    -- consider only string keys with simple value types, that are not the
+    -- code and message (printed separately) or any field starting with
+    -- '_' (considered hidden, or in the case of _traceback, printed separately).
+    if (typ == 'string' or typ == 'number' or typ == 'boolean') and
+      type(k) == 'string' and k ~= 'code' and k ~= 'message' and
+      (not string.find(k, '^_')) then
+      table.insert(keys, k)
+    end
+  end
+  table.sort(keys)
+
+  local attrs = {}
+  for _, k in ipairs(keys) do
+    table.insert(attrs, string.format('%s = %s', k, tostring(self[k])))
+  end
 
   local s = table.concat(parts, ': ') .. (self.message or '<error>')
   if #attrs > 0 then
     s = s .. '; ' .. table.concat(attrs, '; ')
+  end
+  if self._traceback then
+    s = s .. '\n' .. self._traceback
   end
 
   return s
 end
 
 function Error.new(msg, code)
-  local o = {message = msg, code = code}
+  local o = {message = msg, code = code, _traceback = debug.traceback(nil, 3)}
   return setmetatable(o, Error)
 end
 
@@ -214,7 +228,7 @@ function M.throw(msg, ...)
   local n = select('#', ...)
   if type(msg) ~= 'string' then
     local mt = getmetatable(msg)
-    if n == 0 or not mt or not mt.__tostring then
+    if (n == 0) or (not mt) or (not mt.__tostring) then
       error(msg)
     end
   end

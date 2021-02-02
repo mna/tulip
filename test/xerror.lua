@@ -9,7 +9,7 @@ function M.test_io()
   lu.assertNil(ok)
   lu.assertTrue(xerror.is(err, 'EIO'))
   lu.assertFalse(xerror.is_sql_state(err, '.'))
-  lu.assertEquals(tostring(err), '[EIO]: does-not-exist: No such file or directory; errno = 2')
+  lu.assertStrContains(tostring(err), '[EIO]: does-not-exist: No such file or directory; errno = 2')
 
   err = xerror.ctx(err, 'test', {op = 'open', message = 'yy'})
   lu.assertStrContains(tostring(err), '[EIO]: test: does-not-exist: No such file or directory')
@@ -35,10 +35,10 @@ function M.test_no_msg()
   local ok, err = xerror.db(nil)
   lu.assertNil(ok)
   lu.assertTrue(xerror.is(err, 'EDB'))
-  lu.assertEquals(tostring(err), '[EDB]: <error>')
+  lu.assertStrContains(tostring(err), '[EDB]: <error>')
 
   err = xerror.ctx(err, 'test', {message = 'oops'})
-  lu.assertEquals(tostring(err), '[EDB]: test: oops')
+  lu.assertStrContains(tostring(err), '[EDB]: test: oops')
 end
 
 function M.test_throw()
@@ -60,6 +60,16 @@ function M.test_must()
   lu.assertErrorMsgContains('nope', function() xerror.must(f_err()) end)
   lu.assertErrorMsgContains('xyz', function() xerror.must(f_err2()) end)
   lu.assertErrorMsgContains('does-not-exist', function() xerror.must(f_err3()) end)
+end
+
+function M.test_traceback()
+  local f1 = function() xerror.throw(xerror.ctx('oops', 'traceback')) end
+  local f2 = function() f1() end
+  local f3 = function() f2() end
+  lu.assertErrorMsgContains('oops', function() f3() end)
+  lu.assertErrorMsgContains('f1', function() f3() end)
+  lu.assertErrorMsgContains('f2', function() f3() end)
+  lu.assertErrorMsgContains('f3', function() f3() end)
 end
 
 return M
