@@ -36,7 +36,7 @@ fi
 if [[ $# -gt 1 ]]; then
   PREV_VERSION="$2"
 else
-  PREV_VERSION="$(git describe --tags --abbrev=0 | grep -P --only-matching "(\d\.\d\.\d)$")"-1
+  PREV_VERSION="$(git describe --tags --abbrev=0 | grep -P --only-matching "(\d+\.\d+\.\d+)$")"-1
 fi
 
 # create the new rockspec
