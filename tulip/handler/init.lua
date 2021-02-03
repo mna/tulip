@@ -25,6 +25,7 @@ end
 -- Returns a handler that serves a directory based on the first
 -- Request.pathargs argument, then calls the next middleware. Sets the
 -- content-type based on some well-known file extensions.
+-- Raises an error if Response:write fails.
 function M.dir(path)
   if #path == 0 or path[-1] ~= '/' then
     path = path .. '/'
@@ -38,10 +39,10 @@ function M.dir(path)
     if #subpath > 0 and subpath[1] == '/' then
       subpath = string.sub(subpath, 2)
     end
-    res:write{
+    xerror.must(res:write{
       content_type = ct,
       path = path .. subpath,
-    }
+    })
     nxt()
   end
 end
