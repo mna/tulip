@@ -14,10 +14,10 @@ local M = {
 }
 
 -- Returns a handler that just calls Response:write with t and calls the
--- next middleware.
+-- next middleware. Raises an error if Response:write fails.
 function M.write(t)
   return function(_, res, nxt)
-    res:write(t)
+    xerror.must(res:write(t))
     nxt()
   end
 end
@@ -63,7 +63,7 @@ function M.errhandler(t)
     for k, h in pairs(t) do
       if xerror.is(err, k) then
         if type(h) == 'number' then
-          res:write{status = h, body = M.HTTPSTATUS[h] or ''}
+          xerror.must(res:write{status = h, body = M.HTTPSTATUS[h] or ''})
           return
         else
           return h(req, res, nxt, err)
@@ -75,7 +75,7 @@ function M.errhandler(t)
     local f = t[1]
     if f then
       if type(f) == 'number' then
-        res:write{status = f, body = M.HTTPSTATUS[f] or ''}
+        xerror.must(res:write{status = f, body = M.HTTPSTATUS[f] or ''})
       else
         f(req, res, nxt, err)
       end
