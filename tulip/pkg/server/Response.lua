@@ -126,7 +126,9 @@ function Response:write(opts)
       -- the path indicates a template to execute, which returns
       -- a string so once executed, the body is as if a string
       -- was passed and content-length is known.
-      local ctx = xtable.merge({}, {locals = self.app.locals}, {locals = stm.request.locals}, opts.context)
+      local locals = xtable.merge({}, self.app.locals, stm.request.locals, opts.context.locals)
+      local ctx = xtable.merge({}, opts.context)
+      ctx.locals = locals
       local s, err = self.app:render(opts.path, ctx)
       if not s then
         return nil, err
