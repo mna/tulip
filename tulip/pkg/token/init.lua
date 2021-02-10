@@ -21,7 +21,12 @@ local function make_token(cfg)
     end
 
     local close = not conn
-    conn = conn or app:db()
+    if not conn then
+      local err; conn, err = app:db()
+      if not conn then
+        return nil, err
+      end
+    end
     return conn:with(close, function()
       if tok or t.delete then
         -- validate or delete the token

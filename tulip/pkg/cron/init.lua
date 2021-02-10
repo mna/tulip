@@ -23,7 +23,12 @@ local function make_schedule(cfg)
     end
 
     local close = not conn
-    conn = conn or app:db()
+    if not conn then
+      local err; conn, err = app:db()
+      if not conn then
+        return nil, err
+      end
+    end
     return conn:with(close, function()
       if t then
         if type(t) == 'string' then

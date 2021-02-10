@@ -32,8 +32,13 @@ local function make_pubsub(cfg)
 
     if msg then
       local close = not fconn
-      local conn = fconn or app:db()
-      return conn:with(close, function(c)
+      if not fconn then
+        local err; fconn, err = app:db()
+        if not fconn then
+          return nil, err
+        end
+      end
+      return fconn:with(close, function(c)
         return pubsub.publish(chan, c, msg)
       end)
     else

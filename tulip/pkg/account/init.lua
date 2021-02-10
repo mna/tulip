@@ -11,7 +11,12 @@ local function create_account(app, email, raw_pwd, groups, conn)
   tcheck({'*', 'string', 'string|nil', 'table|nil', 'table|nil'}, app, email, raw_pwd, groups, conn)
 
   local close = not conn
-  conn = conn or app:db()
+  if not conn then
+    local err; conn, err = app:db()
+    if not conn then
+      return nil, err
+    end
+  end
   return conn:with(close, function()
     return Account.new(email, raw_pwd, groups, conn)
   end)
@@ -21,7 +26,12 @@ local function get_account(app, v, raw_pwd, conn)
   local types = tcheck({'*', 'string|number', 'string|nil', 'table|nil'}, app, v, raw_pwd, conn)
 
   local close = not conn
-  conn = conn or app:db()
+  if not conn then
+    local err; conn, err = app:db()
+    if not conn then
+      return nil, err
+    end
+  end
   return conn:with(close, function()
     if types[2] == 'string' then
       return Account.by_email(v, raw_pwd, conn)
