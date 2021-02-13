@@ -3,6 +3,7 @@ local cookie = require 'http.cookie'
 local neturl = require 'net.url'
 local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
+local xstring = require 'tulip.xstring'
 
 local Request = {__name = 'tulip.pkg.server.Request'}
 Request.__index = Request
@@ -79,7 +80,9 @@ function Request:decode_body(force_ct)
     return nil, err
   end
 
-  local decoded; decoded, err = self.app:decode(body, force_ct or self.headers:get('content-type'))
+  local cth = xstring.decode_header(force_ct or self.headers:get('content-type'))
+  local ct = #cth > 0 and cth[1].value or 'unknown'
+  local decoded; decoded, err = self.app:decode(body, ct)
   if not decoded then
     return nil, err
   end

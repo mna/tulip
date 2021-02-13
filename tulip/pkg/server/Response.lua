@@ -3,6 +3,7 @@ local handler = require 'tulip.handler'
 local headers = require 'http.headers'
 local posix = require 'posix'
 local xerror = require 'tulip.xerror'
+local xstring = require 'tulip.xstring'
 local xtable = require 'tulip.xtable'
 
 local CHUNK_SIZE = 2^20 -- chunks of 1MB when writing from a file
@@ -107,7 +108,9 @@ function Response:write(opts)
       bodystr = opts.body
       len = #bodystr
     elseif typ == 'table' then
-      local s, err = self.app:encode(opts.body, hdrs:get('content-type'))
+      local cth = xstring.decode_header(hdrs:get('content-type') or '')
+      local ct = #cth > 0 and cth[1].value or 'unknown'
+      local s, err = self.app:encode(opts.body, ct)
       if not s then
         return nil, err
       end

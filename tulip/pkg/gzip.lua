@@ -1,5 +1,6 @@
 local fn = require 'fn'
 local tcheck = require 'tcheck'
+local xstring = require 'tulip.xstring'
 local zlib = require 'zlib'
 
 local function make_write_headers(res)
@@ -42,8 +43,8 @@ local function gzip_middleware(req, res, nxt, cfg)
   res.headers:append('vary', 'Accept-Encoding')
 
   -- if this request does not accept gzip, bypass
-  local ae = req.headers:get('accept-encoding') or ''
-  if not string.find(ae, 'gzip') then -- TODO: more robust check
+  if not xstring.header_value_matches(
+      req.headers:get_comma_separated('accept-encoding') or '', '^gzip$') then
     return nxt()
   end
 
