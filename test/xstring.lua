@@ -82,4 +82,24 @@ function M.test_totime()
   end
 end
 
+function M.test_decode_header()
+  local cases = {
+    {from = '', out = {}},
+    {from = 'a', out = {{value = 'a'}}},
+    {from = '  b  ', out = {{value = 'b'}}},
+    {from = 'b, c  , d  ', out = {{value = 'b'}, {value = 'c'}, {value = 'd'}}},
+    {from = 'x;a=1', out = {{value = 'x', a = '1'}}},
+    {from = ' x ; a = 2 ', out = {{value = 'x', a = '2'}}},
+    {from = ' x ; a = 1;b=2 ', out = {{value = 'x', a = '1', b = '2'}}},
+    {from = ' x ; a = 1;b=2 ;c ', out = {{value = 'x', a = '1', b = '2', c = true}}},
+    {from = 'x;a=1;b=2,y;c=3,z', out = {{value = 'x', a = '1', b = '2'}, {value = 'y', c = '3'}, {value = 'z'}}},
+    {from = 'form-data; name="myFile"; filename="foo.txt"',
+      out = {{value = 'form-data', name = '"myFile"', filename = '"foo.txt"'}}},
+  }
+  for _, c in pairs(cases) do
+    local got = xstring.decode_header(c.from)
+    lu.assertEquals(got, c.out)
+  end
+end
+
 return M
