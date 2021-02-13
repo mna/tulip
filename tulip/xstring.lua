@@ -154,27 +154,71 @@ function M.decode_header(h, name)
   return out
 end
 
--- Tests if header value h matches value v. If h is a string, it is first
--- decoded by calling decode_header. If v is a table, it is considered an array
--- of string values to test. If plain is falsy, v is considered a Lua pattern.
+-- Tests if header value h (which may have multiple values) matches value v. If
+-- h is a string, it is first decoded by calling decode_header. If v is a
+-- table, it is considered an array of string values to test. If plain is
+-- falsy, v is considered a Lua pattern.
 --
 -- If at least one match is found, it returns a table that is an array of indices
--- where a match was found, in the decoded header's array. The second return
+-- where a match was found in the decoded header's array. The second return
 -- value is the decoded header's array. Returns nil if no match is found.
 function M.header_value_matches(h, v, plain)
+  local types = tcheck({'table|string', 'table|string'}, h, v)
+  if types[1] == 'string' then
+    h = M.decode_header(h)
+  end
+  if types[2] == 'string' then
+    v = {v}
+  end
 
+  local indices = {}
+  for i, hv in ipairs(h) do
+    for _, s in ipairs(v) do
+      if string.find(hv.value, s, 1, plain) then
+        table.insert(indices, i)
+        break
+      end
+    end
+  end
+  if #indices == 0 then
+    return nil
+  end
+  return indices, h
 end
 
--- Tests if header value h has a directive d that matches value v. If h is a
--- string, it is first decoded by calling decode_header. If v is a table, it is
--- considered an array of string values to test. If plain is falsy, v is
--- considered a Lua pattern.
+-- Tests if header value h (which may have multiple values) has a directive d
+-- that matches value v. If h is a string, it is first decoded by calling
+-- decode_header. If v is a table, it is considered an array of string values
+-- to test. If plain is falsy, v is considered a Lua pattern.
 --
 -- If at least one match is found, it returns a table that is an array of indices
 -- where a match was found, in the decoded header's array. The second return
 -- value is the decoded header's array. Returns nil if no match is found.
 function M.header_directive_matches(h, d, v, plain)
+  local types = tcheck({'table|string', 'string', 'table|string'}, h, d, v)
+  if types[1] == 'string' then
+    h = M.decode_header(h)
+  end
+  if types[3] == 'string' then
+    v = {v}
+  end
 
+  local indices = {}
+  for i, hv in ipairs(h) do
+    local dir = hv[d]
+    if dir and type(dir) == 'string' then
+      for _, s in ipairs(v) do
+        if string.find(dir, s, 1, plain) then
+          table.insert(indices, i)
+          break
+        end
+      end
+    end
+  end
+  if #indices == 0 then
+    return nil
+  end
+  return indices, h
 end
 
 return M

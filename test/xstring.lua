@@ -102,4 +102,43 @@ function M.test_decode_header()
   end
 end
 
+function M.test_header_value_matches()
+  local cases = {
+    {h = '', v = '', out = nil},
+    {h = 'x', v = '', out = {1}},
+    {h = 'x', v = 'y', out = nil},
+    {h = 'x', v = 'x', out = {1}},
+    {h = 'abc, def, ghi', v = 'e', out = {2}},
+    {h = 'abcd, defg, ghij', v = 'g', out = {2,3}},
+    {h = 'abcd, defg, ghij', v = 'z', out = nil},
+    {h = 'abcd, de1g, ghij', v = '%d', out = {2}},
+    {h = 'abcd, de1g, ghij', v = '%p', out = nil},
+    {h = 'abcd, de1g, ghij', v = 'g', plain = true, out = {2, 3}},
+    {h = 'abc, def, ghi', v = {'a', 'b', 'e'}, out = {1, 2}},
+  }
+  for _, c in pairs(cases) do
+    local got = xstring.header_value_matches(c.h, c.v, c.plain)
+    lu.assertEquals(got, c.out)
+  end
+end
+
+function M.test_header_directive_matches()
+  local dir = 'x'
+  local cases = {
+    {h = '', v = '', out = nil},
+    {h = 'a; x', v = '', out = nil},
+    {h = 'a; x=z', v = '', out = {1}},
+    {h = 'a; x=z', v = 'y', out = nil},
+    {h = 'a; x=z', v = 'z', out = {1}},
+    {h = 'a; x=abc, b; x=def, c; y=def', v = 'e', out = {2}},
+    {h = 'a; x=abc, b; x=def, c; y=def', v = {'a', 'b', 'e'}, out = {1, 2}},
+    {h = 'a; x=abc, b; x=def, c; y=def', v = 'DEF', out = nil},
+    {h = 'a; x=abc, b; x=def, c; y=def', v = xstring.ipat('DEF'), out = {2}},
+  }
+  for _, c in pairs(cases) do
+    local got = xstring.header_directive_matches(c.h, dir, c.v, c.plain)
+    lu.assertEquals(got, c.out)
+  end
+end
+
 return M
