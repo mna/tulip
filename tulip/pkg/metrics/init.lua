@@ -69,6 +69,12 @@ local function make_metrics(cfg)
   local sock = xerror.must(xerror.io(auxlib.fileresult(socket.connect(
     cfg.host, cfg.port, socket.AF_INET, socket.SOCK_DGRAM))))
   local to = cfg.write_timeout
+  local fmt = cfg.format or 'librato'
+
+  if fmt ~= 'librato' and fmt ~= 'datadog' then
+    xerror.throw('metric format %q is invalid', fmt)
+  end
+  local kvsep = fmt == 'librato' and '=' or ':'
 
   local lookup_names
   if cfg.allowed_metrics then
@@ -111,20 +117,32 @@ local function make_metrics(cfg)
       for k, v in pairs(t) do
         if k ~= '@' then
           if not tags then tags = {} end
-          table.insert(tags, k..'='..v)
+          table.insert(tags, k..kvsep..v)
         end
+      end
+      if tags then
+        table.sort(tags)
       end
     end
 
     -- build the packet
     local pkt = name
-    if tags then
-      table.sort(tags)
-      pkt = pkt .. '#' .. table.concat(tags, ',')
-    end
-    pkt = pkt .. ':' .. tostring(val) .. '|' .. type_code
-    if sample then
-      pkt = pkt .. '|@' .. tostring(sample)
+    if fmt == 'librato' then
+      if tags then
+        pkt = pkt .. '#' .. table.concat(tags, ',')
+      end
+      pkt = pkt .. ':' .. tostring(val) .. '|' .. type_code
+      if sample then
+        pkt = pkt .. '|@' .. tostring(sample)
+      end
+    elseif fmt == 'datadog' then
+      pkt = pkt .. ':' .. tostring(val) .. '|' .. type_code
+      if sample then
+        pkt = pkt .. '|@' .. tostring(sample)
+      end
+      if tags then
+        pkt = pkt .. '|#' .. table.concat(tags, ',')
+      end
     end
 
     local ok, ecode = sock:xwrite(pkt, 'n', to)
@@ -150,6 +168,8 @@ local M = {}
 --   * port: number = the port of the statsd-compatible UDP server to send
 --     metrics to.
 --   * write_timeout: number = write timeout of metrics in seconds.
+--   * format: string = the metric encoding format (mostly impacts tags),
+--     defaults to 'librato', can also be 'datadog'.
 --   * [w]middleware.counter.name,
 --     [w]middleware.timer.name: string = the name of the counter/timer metrics
 --     to record in the [w]middleware.
