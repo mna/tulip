@@ -28,7 +28,7 @@ local function log_middleware(req, res, nxt)
   local path = req.url.path
   local rid = req.locals.request_id
 
-  req.app:log('i', {
+  req.app:log(status >= 500 and 'e' or 'i', {
     pkg = 'log', date = date,
     path = path, status = status,
     request_id = rid, full_url = tostring(req.url),

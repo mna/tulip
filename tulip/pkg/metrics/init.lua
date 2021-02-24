@@ -51,6 +51,7 @@ local function make_wmiddleware(cfg)
 
     local labels = {
       queue = msg.queue,
+      success = tostring(msg.error == nil),
     }
     if counter then
       labels['@'] = counter.sample
