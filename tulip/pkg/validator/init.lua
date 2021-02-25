@@ -2,16 +2,7 @@ local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
 local xstring = require 'tulip.xstring'
 
-local MWPREFIX = 'tulip.pkg.validator'
 local MAXBYTES_PER_UTF8 = 6
-
-local function default_errh(_, res, _, err)
-  res:write{
-    status = 400,
-    body = 'Bad Request - ' .. tostring(err),
-    content_type = 'text/plain',
-  }
-end
 
 local function validate_string(raw, key, vals)
   if raw == nil then
@@ -33,6 +24,15 @@ local function validate_string(raw, key, vals)
       string.format('value is too long: %d > %d', len, vals.max), key, s)
   end
 
+  if vals.trim_ws then
+    s = xstring.trim(s)
+    len = #s
+  end
+  if vals.normalize_ws then
+    s = xstring.normalizews(s)
+    len = #s
+  end
+
   if vals.maxcp and len > (MAXBYTES_PER_UTF8 * vals.maxcp) then
     -- optimization to not have to scan the whole utf8 string
     return xerror.inval(nil,
@@ -52,10 +52,6 @@ local function validate_string(raw, key, vals)
   if vals.maxcp and cplen > vals.maxcp then
     return xerror.inval(nil,
       string.format('value has too many utf8 codepoints: %d > %d', cplen, vals.maxcp), key, s)
-  end
-
-  if vals.normalize_ws then
-    s = xstring.normalizews(s)
   end
 
   if not vals.allow_cc then
@@ -83,7 +79,7 @@ local function validate_string(raw, key, vals)
   end
 
   ::done::
-  return true
+  return true, s
 end
 
 local function validate_integer(raw, key, vals)
@@ -119,7 +115,32 @@ local function validate_integer(raw, key, vals)
   end
 
   ::done::
-  return true
+  return true, i
+end
+
+local function validate_boolean(raw, key, vals)
+  if (vals.true_value == nil) and (vals.false_value == nil) then
+    return true, raw ~= nil and raw ~= false
+  end
+
+  if vals.true_value then
+    if vals.true_value == raw then
+      return true, true
+    elseif vals.false_value == nil then
+      -- no false value, so everything else is false
+      return true, false
+    end
+  end
+  if vals.false_value then
+    if vals.false_value == raw then
+      return true, false
+    elseif vals.true_value == nil then
+      -- no true value, so everything else is true
+      return true, true
+    end
+  end
+  -- both true and false values are set and raw is neither
+  return xerror.inval(nil, 'value is not one of the true/false values', key, raw)
 end
 
 local function value_at_path(t, path)
@@ -137,9 +158,11 @@ end
 local TYPE_VALIDATORS = {
   string = validate_string,
   integer = validate_integer,
+  boolean = validate_boolean,
 }
 
 local function validate(_, t, schema)
+  local vt = {}
   for k, v in pairs(schema) do
     local raw = value_at_path(t, k)
 
@@ -147,48 +170,40 @@ local function validate(_, t, schema)
     if not fn then
       xerror.throw('invalid validation type: %s', v.type)
     end
-    local ok, err = fn(raw, k, v)
+    local ok, err_or_val = fn(raw, k, v)
     if not ok then
-      return nil, err
+      return nil, err_or_val
     end
+    vt[k] = err_or_val
   end
-  return true
+  return true, vt
 end
 
-local function make_middleware(schema, errh)
-  errh = errh or default_errh
-
-  return function(req, res, nxt)
-    local app = req.app
-    local body = req:decode_body()
-    local ok, err = app:validate(body, schema)
-    if not ok then
-      errh(req, res, nxt, err)
-      return
-    end
-    nxt()
+local function req_validate(req, schema, force_ct)
+  local app = req.app
+  local body, err = req:decode_body(force_ct)
+  if not body then
+    return nil, err
   end
+  return app:validate(body, schema)
+end
+
+local function middleware(req, _, nxt)
+  req.validate = req_validate
+  nxt()
 end
 
 local M = {}
 
--- The validator package registers an App:validate method and middleware
--- that validates the request's body.
+-- The validator package registers an App:validate method and a middleware
+-- that registers a Request:validate method. Those methods provide basic
+-- but often sufficiently powerful validation of simple values.
 --
 -- Config:
 --
--- * error_handler: function = middleware function to call on validation
---   error, gets called with (req, res, nxt, err). Default: reply with 400,
---   body contains error message.
---
--- * middleware: Table where each key is converted to a middleware with the
---   name tulip.pkg.validator:<key>. The value of the key is a table that
---   corresponds to the validation configuration to be passed to App:validate
---   with the request's decoded body.
---
 -- Methods:
 --
--- ok, err = App:validate(t, schema)
+-- ok, err|vt = App:validate(t, schema)
 --
 --   Validates the table t based on the schema definition.
 --
@@ -197,6 +212,13 @@ local M = {}
 --   < ok: boolean = true on success
 --   < err: Error|nil = if ok is falsy, the EINVAL error, with the field
 --     and value set to the field that failed validation.
+--   < vt: table = if ok is true, vt contains the flattened validated
+--     values under the same keys as the keys or paths in schema. E.g.
+--     if schema as "name" and "user.birth.country" as keys, then vt
+--     would have their validated values under vt["name"] and
+--     vt["user.birth.country"] (flattened under that exact key).
+--     Validated values can be slightly different from the raw ones
+--     (e.g. converted to another type, normalized).
 --
 --   The schema is a dictionary where the key is a key name or path in t
 --   (e.g. "email" or "user.age"), and the value is a table that defines
@@ -204,11 +226,17 @@ local M = {}
 --   validations table are:
 --
 --   * type: string = the type of that value, fails if it is not of that
---     type if present ('integer', 'string')
+--     type if present ('integer', 'string', 'boolean')
 --   * min, max: number = the minimum and maximum value for integers, or
 --     the minimum and maximum length in bytes for strings.
 --   * mincp, maxcp: number = the minimum and maximum number of codepoints
 --     for utf-8 strings. Fails if the string is not valid utf8.
+--   * trim_ws: boolean = for strings, if true, trims leading and trailing
+--     whitespace. This happens after the validation for min/max bytes,
+--     but before validation of min/max codepoints, so that a trim is not
+--     attempted on an exaggerately long string (via the bytes validation), but
+--     one can still require a minimum number of code points to be present
+--     after trim.
 --   * normalize_ws: boolean = for strings, if true, all spaces are normalized
 --     prior to validation for control characters, so that tabs and newlines
 --     are turned into standard spaces.
@@ -218,15 +246,41 @@ local M = {}
 --   * pattern: string = if set, strings must match this pattern.
 --   * enum: array = if set, value must match one of those values (can be
 --     of any type, must match the type of the field to possibly succeed).
+--
+--   Booleans are a bit different, none of the previous schema validations
+--   apply to them. By default, they follow Lua's definition of true/false,
+--   so unless the value is nil or false, it is true. But the following
+--   schema fields can alter the result of the validation:
+--   * true_value: any = if set, only this value is considered true,
+--     everything else is false unless false_value is set.
+--   * false_value: any = if set, only this value is considered false,
+--     everything else is true unless true_value is set.
+--   If both are set, then any value that isn't one of those two is
+--   considered invalid (basically, this is like an enum for booleans,
+--   with the added semantics that one means true, the other false).
+--
+-- ok, err|vt = Request:validate(schema[, force_ct])
+--
+--   Validates the decoded body of the Request based on schema. The
+--   behaviour is the same as App:validate. This is registered by the
+--   middleware, which must be enabled for that extension to be installed.
+--   If force_ct is provided, it is passed to the call to Request:decode_body.
+--
+-- Middleware:
+--
+-- * tulip.pkg.validator
+--
+--   Must be added before any handler that needs to call Request:validate,
+--   as it registers that extension. Not registered if the middleware
+--   package is not registered (does not raise an error, as some apps may
+--   use App:validator without the need for the middleware).
+--
 function M.register(cfg, app)
   tcheck({'table', 'tulip.App'}, cfg, app)
   app.validate = validate
 
-  if cfg.middleware then
-    xerror.must(app:has_package('tulip.pkg.middleware'))
-    for k, v in pairs(cfg.middleware) do
-      app:register_middleware(MWPREFIX .. ':' .. k, make_middleware(v, cfg.error_handler))
-    end
+  if app:has_package('tulip.pkg.middleware') then
+    app:register_middleware('tulip.pkg.validator', middleware)
   end
 end
 
