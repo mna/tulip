@@ -179,7 +179,7 @@ local function validate(_, t, schema)
   return true, vt
 end
 
-local function req_validate(req, schema, force_ct)
+local function req_validate_body(req, schema, force_ct)
   local app = req.app
   local body, err = req:decode_body(force_ct)
   if not body then
@@ -189,7 +189,7 @@ local function req_validate(req, schema, force_ct)
 end
 
 local function middleware(req, _, nxt)
-  req.validate = req_validate
+  req.validate_body = req_validate_body
   nxt()
 end
 
@@ -259,7 +259,7 @@ local M = {}
 --   considered invalid (basically, this is like an enum for booleans,
 --   with the added semantics that one means true, the other false).
 --
--- ok, err|vt = Request:validate(schema[, force_ct])
+-- ok, err|vt = Request:validate_body(schema[, force_ct])
 --
 --   Validates the decoded body of the Request based on schema. The
 --   behaviour is the same as App:validate. This is registered by the
@@ -270,7 +270,7 @@ local M = {}
 --
 -- * tulip.pkg.validator
 --
---   Must be added before any handler that needs to call Request:validate,
+--   Must be added before any handler that needs to call Request:validate_body,
 --   as it registers that extension. Not registered if the middleware
 --   package is not registered (does not raise an error, as some apps may
 --   use App:validator without the need for the middleware).

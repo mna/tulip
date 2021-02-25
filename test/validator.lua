@@ -55,6 +55,14 @@ function M.test_validate_integer()
     lu.assertEquals(ev, {x=3})
     lu.assertTrue(ok)
 
+    ok, ev = app:validate({x='3'}, {x = {type = 'integer'}})
+    lu.assertEquals(ev, {x=3})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'integer'}})
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(ev, 'EINVAL'))
+
     return true
   end
   assert(app:run())
