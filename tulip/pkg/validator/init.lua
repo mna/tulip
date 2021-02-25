@@ -1,7 +1,9 @@
 local tcheck = require 'tcheck'
 local xerror = require 'tulip.xerror'
+local xstring = require 'tulip.xstring'
 
 local MWPREFIX = 'tulip.pkg.validator'
+local MAXBYTES_PER_UTF8 = 6
 
 local function default_errh(_, res, _, err)
   res:write{
@@ -30,6 +32,58 @@ local function validate_string(raw, key, vals)
     return xerror.inval(nil,
       string.format('value is too long: %d > %d', len, vals.max), key, s)
   end
+
+  if vals.maxcp and len > (MAXBYTES_PER_UTF8 * vals.maxcp) then
+    -- optimization to not have to scan the whole utf8 string
+    return xerror.inval(nil,
+      string.format('value has too many utf8 codepoints: +%d > %d', len, vals.maxcp), key, s)
+  end
+
+  -- count the utf8 codepoints, failing if the string is invalid utf8
+  local cplen, failat = utf8.len(s)
+  if not cplen then
+    return xerror.inval(nil,
+      string.format('invalid utf8 encoding at byte %d', failat), key, s)
+  end
+  if vals.mincp and cplen < vals.mincp then
+    return xerror.inval(nil,
+      string.format('value has too little utf8 codepoints: %d < %d', cplen, vals.mincp), key, s)
+  end
+  if vals.maxcp and cplen > vals.maxcp then
+    return xerror.inval(nil,
+      string.format('value has too many utf8 codepoints: %d > %d', cplen, vals.maxcp), key, s)
+  end
+
+  if vals.normalize_ws then
+    s = xstring.normalizews(s)
+  end
+
+  if not vals.allow_cc then
+    -- loop through all codepoints and fail if there are any control chars
+    for p, c in utf8.codes(s) do
+      if c <= 0x1f or (c >= 0x7f and c <= 0x9f) then
+        return xerror.inval(nil,
+          string.format('value contains a control character at byte %d', p), key, s)
+      end
+    end
+  end
+
+  if vals.pattern and not string.match(s, vals.pattern) then
+    return xerror.inval(nil,
+      string.format('value does not match pattern %s', vals.pattern), key, s)
+  end
+
+  if vals.enum then
+    for _, en in ipairs(vals.enum) do
+      if s == en then
+        goto done
+      end
+    end
+    return xerror.inval(nil, 'value is not one of the accepted enums', key, s)
+  end
+
+  ::done::
+  return true
 end
 
 local function validate_integer(raw, key, vals)
@@ -42,11 +96,30 @@ local function validate_integer(raw, key, vals)
   end
 
   local i = math.tointeger(raw)
+  if not i then
+    return xerror.inval(nil, 'value is not an integer', key, raw)
+  end
 
-end
+  if vals.min and i < vals.min then
+    return xerror.inval(nil,
+      string.format('value is too small: %d < %d', i, vals.min), key, i)
+  end
+  if vals.max and i > vals.max then
+    return xerror.inval(nil,
+      string.format('value is too big: %d > %d', i, vals.max), key, i)
+  end
 
-local function validate_boolean(raw, key, vals)
+  if vals.enum then
+    for _, en in ipairs(vals.enum) do
+      if i == en then
+        goto done
+      end
+    end
+    return xerror.inval(nil, 'value is not one of the accepted enums', key, i)
+  end
 
+  ::done::
+  return true
 end
 
 local function value_at_path(t, path)
@@ -64,7 +137,6 @@ end
 local TYPE_VALIDATORS = {
   string = validate_string,
   integer = validate_integer,
-  boolean = validate_boolean,
 }
 
 local function validate(_, t, schema)
@@ -132,15 +204,17 @@ local M = {}
 --   validations table are:
 --
 --   * type: string = the type of that value, fails if it is not of that
---     type if present ('integer', 'string', 'boolean')
+--     type if present ('integer', 'string')
 --   * min, max: number = the minimum and maximum value for integers, or
 --     the minimum and maximum length in bytes for strings.
 --   * mincp, maxcp: number = the minimum and maximum number of codepoints
 --     for utf-8 strings. Fails if the string is not valid utf8.
+--   * normalize_ws: boolean = for strings, if true, all spaces are normalized
+--     prior to validation for control characters, so that tabs and newlines
+--     are turned into standard spaces.
 --   * allow_cc: boolean = for strings, if true, allows control characters.
 --     By default, control characters raise an error.
 --   * required: boolean = fails if the value is not present (nil).
---   * true_value: string = the value to consider as "true" for booleans.
 --   * pattern: string = if set, strings must match this pattern.
 --   * enum: array = if set, value must match one of those values (can be
 --     of any type, must match the type of the field to possibly succeed).
