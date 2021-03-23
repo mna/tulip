@@ -89,6 +89,8 @@ end
 -- how it can be tested, nor if that should in fact be handled
 -- somehow. To investigate more closely later, not a high-priority
 -- feature.
+--
+-- Maybe see https://github.com/wahern/cqueues/issues/9
 function M.SKIP_test_pubsub_err()
   local next_count = 1
   local current_pid
