@@ -63,6 +63,14 @@ function M.test_validate_integer()
     lu.assertNil(ok)
     lu.assertTrue(xerror.is(ev, 'EINVAL'))
 
+    ok, ev = app:validate({x=''}, {x = {type = 'integer', empty_string_is_nil = true, required = true}})
+    lu.assertNil(ok)
+    lu.assertTrue(xerror.is(ev, 'EINVAL'))
+
+    ok, ev = app:validate({x=''}, {x = {type = 'integer', empty_string_is_nil = true}})
+    lu.assertEquals(ev, {})
+    lu.assertTrue(ok)
+
     return true
   end
   assert(app:run())
@@ -151,6 +159,18 @@ function M.test_validate_string()
     lu.assertTrue(xerror.is(ev, 'EINVAL'))
     lu.assertNil(ok)
 
+    ok, ev = app:validate({x=''}, {x = {type = 'string', required=true}})
+    lu.assertEquals(ev, {x=''})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'string', required=true, empty_string_is_nil=true}})
+    lu.assertTrue(xerror.is(ev, 'EINVAL'))
+    lu.assertNil(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'string', empty_string_is_nil=true}})
+    lu.assertEquals(ev, {})
+    lu.assertTrue(ok)
+
     return true
   end
   assert(app:run())
@@ -203,6 +223,30 @@ function M.test_validate_boolean()
     lu.assertNil(ok)
     lu.assertEquals(ev.field, 'x')
     lu.assertEquals(ev.value, 1)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean', true_value='ok'}})
+    lu.assertEquals(ev, {x=false})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean', true_value='ok', empty_string_is_nil=true}})
+    lu.assertEquals(ev, {x=false})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean', false_value='ko'}})
+    lu.assertEquals(ev, {x=true})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean', false_value='ko', empty_string_is_nil=true}})
+    lu.assertEquals(ev, {x=true})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean'}})
+    lu.assertEquals(ev, {x=true})
+    lu.assertTrue(ok)
+
+    ok, ev = app:validate({x=''}, {x = {type = 'boolean', empty_string_is_nil=true}})
+    lu.assertEquals(ev, {x=false})
+    lu.assertTrue(ok)
 
     return true
   end

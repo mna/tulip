@@ -170,6 +170,11 @@ local function validate(_, t, schema)
     if not fn then
       xerror.throw('invalid validation type: %s', v.type)
     end
+
+    if v.empty_string_is_nil and type(raw) == 'string' and raw == '' then
+      raw = nil
+    end
+
     local ok, err_or_val = fn(raw, k, v)
     if not ok then
       return nil, err_or_val
@@ -246,6 +251,8 @@ local M = {}
 --   * pattern: string = if set, strings must match this pattern.
 --   * enum: array = if set, value must match one of those values (can be
 --     of any type, must match the type of the field to possibly succeed).
+--   * empty_string_is_nil: boolean = treat an empty string as nil (useful
+--     for HTML form-provided values).
 --
 --   Booleans are a bit different, none of the previous schema validations
 --   apply to them. By default, they follow Lua's definition of true/false,
